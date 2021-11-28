@@ -13,3 +13,7 @@ To run your own network simply run this command :
 Here is an example for a network with 1 genesis acocunt, 3 main reps and 2 small reps.
 
 <code>python3 run_local.py --pr_quorum=3 --pr_non_quorum=2</code>
+
+Te remove all docker containers and files created by the script, run
+
+<code>./remove_nano_local.sh</code>
