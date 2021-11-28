@@ -14,6 +14,23 @@ url = "http://localhost:45000"
 headers = {"Content-type": "application/json", "Accept": "text/plain"}
 api = Api(url)
 rep = "nano_3e3j5tkog48pnny9dmfzj1r16pg8t1e76dz5tmac6iq689wyjfpiij4txtdo" #genesis account (not voting)
+setup_stats = None #{"destination_seed" : {"bucket" : 1, "counter" : 0}}
+
+def set_setup_stats(bucket_i, seed, current_index):
+    # {
+    #     "buckets": {
+    #         "bucket1": {
+    #             "seed": "103114481181051161210000...1",
+    #             "opened_accounts": 9999
+    #         },
+    #         "bucket2": {
+    #             "seed": "103114481181051161210000...2",
+    #             "opened_accounts": 9999
+    #         }
+    #     }
+    # }
+    setup_stats["buckets"]["bucket{}".format(bucket_i)] = {"seed" : seed, "opened_accounts" : current_index }
+
 
 
 def get_bucket_seed(bucket):
@@ -94,37 +111,48 @@ if __name__ == "__main__":
     args = parser.parse_args()
   
 
-# -------------- 0) START -------------------------
-# This script will create 10000 accounts in the buckets 0-28 and 93-103. 
-# 400k send blocks and 400k receive blocks in total
-small_buckets = range(0, 28+1)
-large_buckets = range(93, 103+1)
-accounts_per_bucket = 9900
+    # -------------- 0) START -------------------------
+    # This script will create 10000 accounts in the buckets 0-28 and 93-103. 
+    # 400k send blocks and 400k receive blocks in total
+    small_buckets = range(0, 28+1)
+    large_buckets = range(93, 103+1)
+    accounts_per_bucket = 9900
 
-dest_seed = "0" * 64 #api.generate_seed()
+    dest_seed = "0" * 64 #api.generate_seed()
 
-for i in small_buckets: 
-    dest_amount_raw = int(int(2 ** i) * accounts_per_bucket)
-    dest_index = i  
-    create_send_and_receive_blocks(args.genesis_pkey, dest_amount_raw, dest_seed, dest_index)
+    try :
+        #Send from multiple accounts. Init with 1 per bucket
+        for i in small_buckets: 
+            dest_amount_raw = int(int(2 ** i) * accounts_per_bucket)
+            dest_index = i  
+            create_send_and_receive_blocks(args.genesis_pkey, dest_amount_raw, dest_seed, dest_index)            
 
-for i in large_buckets: 
-    dest_amount_raw = int(int(2 ** i +1) * accounts_per_bucket)
-    dest_index = i  
-    create_send_and_receive_blocks(args.genesis_pkey, dest_amount_raw, dest_seed, dest_index)
-
-
-for i in small_buckets:
-    for dest_index in range(0,accounts_per_bucket) :       
-        dest_amount_raw = int(2 ** i)
-        l_dest_seed = get_bucket_seed(i)
-        create_send_and_receive_blocks(api.get_account_data(dest_seed,i)["private"], dest_amount_raw, l_dest_seed, dest_index)
+        for i in large_buckets: 
+            dest_amount_raw = int(int(2 ** i +1) * accounts_per_bucket)
+            dest_index = i  
+            create_send_and_receive_blocks(args.genesis_pkey, dest_amount_raw, dest_seed, dest_index)
 
 
-for i in large_buckets:
-    for dest_index in range(0,accounts_per_bucket) :        
-        dest_amount_raw = int(2 ** i +1) 
-        l_dest_seed = get_bucket_seed(i)
-        create_send_and_receive_blocks(api.get_account_data(dest_seed,i)["private"], dest_amount_raw, l_dest_seed, dest_index)
-    
+        for i in small_buckets:
+            for dest_index in range(0,accounts_per_bucket) :       
+                dest_amount_raw = int(2 ** i)
+                l_dest_seed = get_bucket_seed(i)
+                create_send_and_receive_blocks(api.get_account_data(dest_seed,i)["private"], dest_amount_raw, l_dest_seed, dest_index)
+                set_setup_stats(i, l_dest_seed, dest_index)
 
+
+        for i in large_buckets:
+            for dest_index in range(0,accounts_per_bucket) :        
+                dest_amount_raw = int(2 ** i +1) 
+                l_dest_seed = get_bucket_seed(i)
+                create_send_and_receive_blocks(api.get_account_data(dest_seed,i)["private"], dest_amount_raw, l_dest_seed, dest_index)
+                set_setup_stats(i, l_dest_seed, dest_index)
+        
+        file1 = open("output/setup_stats.json", "w", newline=",")
+        file1.write(str(setup_stats).replace("'", "\""))
+        file1.close()
+
+    except Exception:
+        file1 = open("output/setup_stats.json", "w", newline=",")
+        file1.write(str(setup_stats).replace("'", "\""))
+        file1.close()
