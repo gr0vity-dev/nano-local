@@ -14,7 +14,8 @@ url = "http://localhost:45000"
 headers = {"Content-type": "application/json", "Accept": "text/plain"}
 api = Api(url)
 rep = "nano_3e3j5tkog48pnny9dmfzj1r16pg8t1e76dz5tmac6iq689wyjfpiij4txtdo" #genesis account (not voting)
-setup_stats = None #{"destination_seed" : {"bucket" : 1, "counter" : 0}}
+setup_stats = {"buckets" : {}} #{"destination_seed" : {"bucket" : 1, "counter" : 0}}
+count = 1
 
 def set_setup_stats(bucket_i, seed, current_index):
     # {
@@ -31,7 +32,9 @@ def set_setup_stats(bucket_i, seed, current_index):
     # }
     setup_stats["buckets"]["bucket{}".format(bucket_i)] = {"seed" : seed, "opened_accounts" : current_index }
 
-
+def print_block_count(count_l):
+    print("count: {} blocks created".format(count_l), end="\r")
+    return count_l + 1
 
 def get_bucket_seed(bucket):
     prefix = "10311448118105116121"    
@@ -39,6 +42,7 @@ def get_bucket_seed(bucket):
     return "{}{}{}".format(prefix, filler * (64 - len(str(bucket))- len(prefix)), bucket)     
 
 def create_send_and_receive_blocks(source_private_key, dest_amount_raw, dest_seed, dest_index):
+    global count
     source_account_data = api.key_expand(source_private_key)
     # print("private key {} for account {}".format(source_account_data["private"],
     #                                              source_account_data["account"]))
@@ -81,6 +85,7 @@ def create_send_and_receive_blocks(source_private_key, dest_amount_raw, dest_see
             dest_account_data["account"],
             dest_amount_raw
         )
+        count = print_block_count(count)
 
         receive_block = api.create_open_block(
             dest_account_data["account"],
@@ -89,6 +94,7 @@ def create_send_and_receive_blocks(source_private_key, dest_amount_raw, dest_see
             rep,
             send_block["hash"]
         )
+        count = print_block_count(count)
     else:
         print(
             "insuffient funds{} bucket:{} account:{}".format(
@@ -118,19 +124,22 @@ if __name__ == "__main__":
     large_buckets = range(93, 103+1)
     accounts_per_bucket = 9900
 
-    dest_seed = "0" * 64 #api.generate_seed()
+    dest_seed = "0" * 64 #api.generate_seed()    
 
     try :
         #Send from multiple accounts. Init with 1 per bucket
         for i in small_buckets: 
             dest_amount_raw = int(int(2 ** i) * accounts_per_bucket)
             dest_index = i  
-            create_send_and_receive_blocks(args.genesis_pkey, dest_amount_raw, dest_seed, dest_index)            
+            create_send_and_receive_blocks(args.genesis_pkey, dest_amount_raw, dest_seed, dest_index)
+            
+
 
         for i in large_buckets: 
             dest_amount_raw = int(int(2 ** i +1) * accounts_per_bucket)
             dest_index = i  
             create_send_and_receive_blocks(args.genesis_pkey, dest_amount_raw, dest_seed, dest_index)
+            
 
 
         for i in small_buckets:
@@ -139,6 +148,7 @@ if __name__ == "__main__":
                 l_dest_seed = get_bucket_seed(i)
                 create_send_and_receive_blocks(api.get_account_data(dest_seed,i)["private"], dest_amount_raw, l_dest_seed, dest_index)
                 set_setup_stats(i, l_dest_seed, dest_index)
+                
 
 
         for i in large_buckets:
@@ -147,12 +157,13 @@ if __name__ == "__main__":
                 l_dest_seed = get_bucket_seed(i)
                 create_send_and_receive_blocks(api.get_account_data(dest_seed,i)["private"], dest_amount_raw, l_dest_seed, dest_index)
                 set_setup_stats(i, l_dest_seed, dest_index)
+                
         
-        file1 = open("output/setup_stats.json", "w", newline=",")
+        file1 = open("output/setup_stats.json", "w", newline="\n")
         file1.write(str(setup_stats).replace("'", "\""))
         file1.close()
 
     except Exception:
-        file1 = open("output/setup_stats.json", "w", newline=",")
+        file1 = open("output/setup_stats.json", "w", newline="\n")
         file1.write(str(setup_stats).replace("'", "\""))
         file1.close()

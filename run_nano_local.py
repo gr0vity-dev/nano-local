@@ -160,7 +160,7 @@ if __name__ == "__main__":
     Your network will have {} minor reps that hold 0.015 percent of the voting weight each.
     The remaining weight sits idle at the genesis account. This account will not vote.
     When all your PRs are running, the network has {} percent online voting weight. 
-    '''.format(args.pr_quorum, pr_non_quorum, (70 + pr_non_quorum * 0.015)))
+    '''.format(args.pr_quorum, args.pr_non_quorum, (70 + args.pr_non_quorum * 0.015)))
     time.sleep(5)
 
     #TODO : Min quroumPR = 1, max quroumPR = 900 , max totalPR = 990
