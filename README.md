@@ -8,7 +8,7 @@ prerequisites :
 
 Quickstart :
 
-<code>python3 run_local.py --node_log=True</code>
+<code>python3 run_nano_local.py --node_log=True</code>
 
 Spins up a network with 1 genesis acocunt, 2 main reps and 1 small rep.
 It uses nanocurrency/nano-test:latest docker image
