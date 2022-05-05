@@ -91,6 +91,7 @@ work_threads = 1
 enable_voting = {voting}
 peering_port = 17075
 preconfigured_peers = {preconfigured_peers}
+allow_local_peers = true
 
 {node_log}
 '''.format(preconfigured_peers= preconfigured_peers, voting = voting, node_log=node_log)
@@ -121,13 +122,16 @@ log_rpc = false'''
 def get_docker_compose_node_settings(i, pr_name):
     if args.build :
         image = """
-    build: ./custom_node/.\r
-    #build: ./nano_local/nano-workspace/docker/.\r
+    #build: ./custom_node/.\r
+    build: ./nano_local/nano-workspace/docker/.\r
     user: "0"\r
-    #command: ./nano-workspace/build/nano_node --daemon --network test\r"""
+    command: ./nano-workspace/build/nano_node --daemon --network test\r"""
+        volume = "./root\r"
         
     else:
-        image = "image: nanocurrency/nano-test:latest"
+        image = """image: nanocurrency/nano-test:latest\r
+    user: \"1000:1000\"\r"""
+        volume = "./home/nanocurrency\r"
 
     content ='''  {pr_name}:\r
     {image}
@@ -135,16 +139,16 @@ def get_docker_compose_node_settings(i, pr_name):
     container_name : {pr_name}\r
     restart: unless-stopped\r
     ports:\r
-    - 4400{i}:17075/udp\r
-    - 4400{i}:17075\r
-    - 4500{i}:17076\r
-    - 4700{i}:17078\r
+    - {port1}:17075/udp\r
+    - {port1}:17075\r
+    - {port2}:17076\r
+    - {port3}:17078\r
     volumes:\r
-    - ./reps/{pr_name}:/root\r
+    - ./reps/{pr_name}:/{volume}
     env_file:
     - .env
     networks:\r
-    - nano-local\r\r'''.format(i=i, pr_name=pr_name, image=image)
+    - nano-local\r\r'''.format(port1= 44000+i, port2=45000+i, port3 = 47000+i, pr_name=pr_name, image=image, volume=volume)
     return content
     
 
