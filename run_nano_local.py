@@ -13,11 +13,19 @@ import argparse
 import math
 import time
 
+# Limitations : 
+# 1) Network is set to Test.
+# 2) Genesis account is set in the .env but the PrivKey is currently hardcoded in run_nano_local.py. 
+# Genesis PrivKey : 12C91837C846F875F56F67CD83040A832CFC0F131AF3DFF9E502C0D43F5D2D15
+# 3) Vote weight is fixed at 70% shared between principle reps.
+# 4) Either build from scratch or use nano-test:latest docker Tag  (--build flag)
+
+
 
 # GLOBAL variables
 url_1 = "http://localhost:45001"
 headers = {"Content-type": "application/json", "Accept": "text/plain"}
-path = "/root/testing/nanoBeta"
+path = "./"
 
 
 def add_preconfigured_peers(preconfigured_peers, new_peer):
@@ -29,6 +37,40 @@ def add_preconfigured_peers(preconfigured_peers, new_peer):
     
 
 def get_config_node_toml(preconfigured_peers, voting):
+    node_log = ""
+    if args.node_log:
+        node_log = """
+[node.logging]
+active_update = true
+bulk_pull = true
+election_expiration = true
+election_fork = true
+ledger = true
+ledger_rollback = true
+ledger_duplicate = true
+log_ipc = false
+log_to_cerr = false
+max_size = 4294967296
+min_time_between_output = 0
+network = true
+network_keepalive = true
+network_message = true
+network_node_id_handshake = true
+network_packet = true
+network_publish = true
+network_rejected = true
+network_telemetry = true
+network_timeout = true
+node_lifetime_tracing = false
+rotation_size = 268435456
+single_line_record = true
+stable_log_filename = true
+timing = true
+upnp_details = false
+vote = true
+flush = true
+"""
+
     content= '''[node.websocket]
 # WebSocket server bind address.
 # type:string,ip
@@ -36,7 +78,7 @@ address = "::ffff:0.0.0.0"
 # Enable or disable WebSocket server.
 # type:bool
 enable = true
-port = 47000
+port = 17078
 
 [rpc]
 # Enable or disable RPC.
@@ -47,8 +89,14 @@ enable_sign_hash = true
 [node]
 work_threads = 1
 enable_voting = {voting}
-peering_port = 44000
-preconfigured_peers = {preconfigured_peers}'''.format(preconfigured_peers= preconfigured_peers, voting = voting)
+peering_port = 17075
+preconfigured_peers = {preconfigured_peers}
+
+{node_log}
+'''.format(preconfigured_peers= preconfigured_peers, voting = voting, node_log=node_log)
+
+
+
     return content
      
 
@@ -63,7 +111,7 @@ address = "::ffff:0.0.0.0"
 # type:bool
 enable_control = true
 enable_sign_hash = true
-port = 45000
+port = 17076
 
 [logging]
 log_rpc = false'''
@@ -71,34 +119,56 @@ log_rpc = false'''
 
 
 def get_docker_compose_node_settings(i, pr_name):
-    content ='''  {pr_name}:\r
-    build: ./nano_local/nano-workspace/docker/.\r
+    if args.build :
+        image = """
+    build: ./custom_node/.\r
+    #build: ./nano_local/nano-workspace/docker/.\r
     user: "0"\r
-    command: ./nano-workspace/build/nano_node --daemon --config rpc.enable=true --network dev\r
+    #command: ./nano-workspace/build/nano_node --daemon --network test\r"""
+        
+    else:
+        image = "image: nanocurrency/nano-test:latest"
+
+    content ='''  {pr_name}:\r
+    {image}
+
     container_name : {pr_name}\r
     restart: unless-stopped\r
     ports:\r
-    - 4400{i}:44000/udp\r
-    - 4400{i}:44000\r
-    - 4500{i}:45000\r
-    - 4700{i}:47000\r
+    - 4400{i}:17075/udp\r
+    - 4400{i}:17075\r
+    - 4500{i}:17076\r
+    - 4700{i}:17078\r
     volumes:\r
     - ./reps/{pr_name}:/root\r
+    env_file:
+    - .env
     networks:\r
-    - nano-local\r\r'''.format(i=i, pr_name=pr_name)
+    - nano-local\r\r'''.format(i=i, pr_name=pr_name, image=image)
     return content
     
 
 
 def make_pr(docker_conatiner, genesis_key = None):
-    # docker_conatiner="nano_local_pr1"
-    os.system("docker exec -it {} nano-workspace/build/nano_node --network dev --wallet_create".format(docker_conatiner))
-    wallet_pr=os.popen("docker exec -it {} nano-workspace/build/nano_node --network dev --wallet_list | awk 'FNR == 1 {{print $3}}' | tr -d '\r'".format(docker_conatiner)).read()
-    if genesis_key == None :
-       os.system("docker exec -it {} nano-workspace/build/nano_node --network dev --account_create --wallet={}".format(docker_conatiner,wallet_pr)) 
+    if args.build :
+        # docker_conatiner="nano_local_pr1"
+        os.system("docker exec -it {} nano-workspace/build/nano_node --network test --wallet_create".format(docker_conatiner))
+        wallet_pr=os.popen("docker exec -it {} nano-workspace/build/nano_node --network test --wallet_list | awk 'FNR == 1 {{print $3}}' | tr -d '\r'".format(docker_conatiner)).read()
+        if genesis_key == None :
+            os.system("docker exec -it {} nano-workspace/build/nano_node --network test --account_create --wallet={}".format(docker_conatiner,wallet_pr)) 
+        else:
+            os.system("docker exec -it {} nano-workspace/build/nano_node --network test --wallet_add_adhoc --wallet={} --key=12C91837C846F875F56F67CD83040A832CFC0F131AF3DFF9E502C0D43F5D2D15".format(docker_conatiner, wallet_pr)).read()
+        pr_address=os.popen("docker exec -it {} nano-workspace/build/nano_node --network test --wallet_list | awk 'FNR == 2 {print $1}' | tr -d '\r')".format(docker_conatiner)).read()
+
     else:
-        os.system("docker exec -it {} nano-workspace/build/nano_node --network dev --wallet_add_adhoc --wallet={} --key=34F0A37AAD20F4A260F0A5B3CB3D7FB50673212263E58A380BC10474BB039CE4".format(docker_conatiner, wallet_pr)).read()
-    pr_address=os.popen("docker exec -it {} nano-workspace/build/nano_node --network dev --wallet_list | awk 'FNR == 2 {print $1}' | tr -d '\r')".format(docker_conatiner)).read()
+        # docker_conatiner="nano_local_pr1"
+        os.system("docker exec -it {} /usr/bin/nano_node --wallet_create".format(docker_conatiner))
+        wallet_pr=os.popen("docker exec -it {} /usr/bin/nano_node --wallet_list | awk 'FNR == 1 {{print $3}}' | tr -d '\r'".format(docker_conatiner)).read()
+        if genesis_key == None :
+            os.system("docker exec -it {} /usr/bin/nano_node --account_create --wallet={}".format(docker_conatiner,wallet_pr)) 
+        else:
+            os.system("docker exec -it {} /usr/bin/nano_node --wallet_add_adhoc --wallet={} --key=12C91837C846F875F56F67CD83040A832CFC0F131AF3DFF9E502C0D43F5D2D15".format(docker_conatiner, wallet_pr)).read()
+        pr_address=os.popen("docker exec -it {} /usr/bin/nano_node --wallet_list | awk 'FNR == 2 {print $1}' | tr -d '\r')".format(docker_conatiner)).read()
     return {"wallet" : wallet_pr, "nano_address" : pr_address}
 
 def make_pr_api(rpc_url, docker_conatiner, pr_type, genesis_key = None):
@@ -136,21 +206,19 @@ if __name__ == "__main__":
 
     # Add a position-based command with its help message.    
     parser.add_argument(
-        "--pr_quorum",
-        type=int,
-        help="#of prs to reach quorum",
+        "--pr_quorum",type=int,default=2,help="#unmber of prs to reach quorum (70% vote weight)")
+    parser.add_argument(
+        "--pr_non_quorum", type=int,default=1, help="#of prs who are not needed for quorum"
+    )
+   
+    parser.add_argument(
+        "--compose_up", type=bool, default=True, help="#run the created docker-compose file"
     )
     parser.add_argument(
-        "--pr_non_quorum", type=int, help="#of prs who are not needed for quorum"
-    )
-
+        "--build", type=bool, default=False, help="if true, clone nano_workspace and built node from scratch. if flase , use dockertag nano-test:latest")
+    
     parser.add_argument(
-        "--build", type=bool, default=True, help="#of prs who are not needed for quorum"
-    )
-
-    parser.add_argument(
-        "--compose", type=bool, default=True, help="#of prs who are not needed for quorum"
-    )
+        "--node_log", type=bool, default=False, help="#enable a set of logs for each node in the network")
 
     # Use the parser to parse the arguments.
     args = parser.parse_args()
@@ -161,16 +229,16 @@ if __name__ == "__main__":
     The remaining weight sits idle at the genesis account. This account will not vote.
     When all your PRs are running, the network has {} percent online voting weight. 
     '''.format(args.pr_quorum, args.pr_non_quorum, (70 + args.pr_non_quorum * 0.015)))
-    time.sleep(5)
+    time.sleep(1)
 
     #TODO : Min quroumPR = 1, max quroumPR = 900 , max totalPR = 990
     os.system("mkdir -p nano_local")  
     os.system("mkdir -p reps")  
-    os.system("mkdir -p output")  
+    os.system("mkdir -p output")   
     if(os.path.isdir("nano_local/nano-workspace")) == False :
         os.system("cd nano_local && git clone https://github.com/dsiganos/nano-workspace.git")  
     if args.build :
-        os.system("cd nano_local/nano-workspace/docker && docker build -t gr0vity/local_beta:1.0 .")    
+        os.system("cd nano_local/nano-workspace/docker && docker build -t gr0vity/local_beta:1.0 .")  
     #TODO set flag when built succeeded. Dont run again!
 
     total_pr = args.pr_quorum + args.pr_non_quorum + 1 #special case for genesis. make it as non voting
@@ -199,7 +267,7 @@ if __name__ == "__main__":
         if i <= args.pr_quorum : 
             if i == 0 : #genesis
                 pr_names[pr_name] = {"pr_type" : "genesis", 
-                                     "genesis_key" : "34F0A37AAD20F4A260F0A5B3CB3D7FB50673212263E58A380BC10474BB039CE4", 
+                                     "genesis_key" : "12C91837C846F875F56F67CD83040A832CFC0F131AF3DFF9E502C0D43F5D2D15", 
                                      "peering_port": "4400{}".format(i), 
                                      "rpc_port" : "4500{}".format(i)}
             else:
@@ -222,28 +290,29 @@ if __name__ == "__main__":
 
       
     for key, value in pr_names.items(): 
-        os.system("cd reps/{} && mkdir -p NanoDev".format(key))  
+        os.system("cd reps/{} && mkdir -p NanoTest".format(key))  
         voting = "false" if key == "genesis" else "true" 
         f_config_node = open(
-            "reps/{}/NanoDev/config-node.toml".format(key), "w", newline="\n"
+            "reps/{}/NanoTest/config-node.toml".format(key), "w", newline="\n"
         )
         f_config_node.write(get_config_node_toml(preconfigured_peers,voting))
         f_config_node.close()
 
         f_config_rpc = open(
-            "reps/{}/NanoDev/config-rpc.toml".format(key), "w", newline="\n"
+            "reps/{}/NanoTest/config-rpc.toml".format(key), "w", newline="\n"
         )
         f_config_rpc.write(get_config_rpc_toml())
         f_config_rpc.close()
 
     exit
 
-    if args.compose :
-    #docker compose bugs. works eventually when trying once for each PR
-        # for i in range(1, total_pr + 1):
-        #     time.sleep(2)  
-        #     os.system("docker-compose up -d") 
-        os.system("docker-compose up -d")    
+    if args.compose_up :
+        #rund docker-compose with -d flag (background process)
+        if args.build :
+            os.system("docker-compose up -d --build")    
+        else:
+            os.system("docker-compose up -d")    
+        time.sleep(1)
 
     #API calls to create wallets. account and seed data for PRs
     pr_data = {}
@@ -266,7 +335,7 @@ if __name__ == "__main__":
         pr_data[key] = result
 
    
-
+    #Create send from Genesi to PRs and the corresponding Open blocks
     for key, genesis in pr_data.items():        
         if genesis["pr_type"] == "genesis" : 
             api = Api(genesis["rpc_url"])  
