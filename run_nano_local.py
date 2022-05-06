@@ -26,7 +26,7 @@ import time
 url_1 = "http://localhost:45001"
 headers = {"Content-type": "application/json", "Accept": "text/plain"}
 path = "./"
-
+uid = os.getuid()
 
 def add_preconfigured_peers(preconfigured_peers, new_peer):
     if preconfigured_peers == None :
@@ -120,22 +120,23 @@ log_rpc = false'''
 
 
 def get_docker_compose_node_settings(i, pr_name):
+    if uid == 0 :
+        volume = "./root\r"
+    else:
+        volume = "./home/nanocurrency\r"
+
     if args.build :
         image = """
     #build: ./custom_node/.\r
-    build: ./nano_local/nano-workspace/docker/.\r
-    user: "0"\r
-    command: ./nano-workspace/build/nano_node --daemon --network test\r"""
-        volume = "./root\r"
-        
+    build: ./nano_local/nano-workspace/docker/.\r   
+    command: ./nano-workspace/build/nano_node --daemon --network test\r"""        
     else:
-        image = """image: nanocurrency/nano-test:latest\r
-    user: \"1000:1000\"\r"""
-        volume = "./home/nanocurrency\r"
+        image = """image: nanocurrency/nano-test:latest\r"""
+ 
 
-    content ='''  {pr_name}:\r
+    docker_compose_yml ='''  {pr_name}:\r
     {image}
-
+    user: "{uid}"\r
     container_name : {pr_name}\r
     restart: unless-stopped\r
     ports:\r
@@ -148,8 +149,8 @@ def get_docker_compose_node_settings(i, pr_name):
     env_file:
     - .env
     networks:\r
-    - nano-local\r\r'''.format(port1= 44000+i, port2=45000+i, port3 = 47000+i, pr_name=pr_name, image=image, volume=volume)
-    return content
+    - nano-local\r\r'''.format(port1= 44000+i, port2=45000+i, port3 = 47000+i, pr_name=pr_name, image=image, volume=volume, uid=uid)
+    return docker_compose_yml
     
 
 
