@@ -1,4 +1,4 @@
- 
+
 #!/usr/bin/env python
 """
 Command-line tool using argparse
@@ -201,7 +201,12 @@ def make_pr_api(rpc_url, docker_conatiner, pr_type, genesis_key = None):
                 "is_genesis" : is_genesis ,
                 "pr_type": pr_type }   
     return response
-    
+
+def epoch_link(epoch: int):
+    message = f"epoch v{epoch} block"
+    as_hex = bytearray(message, "ascii").hex()
+    link = as_hex.upper().ljust(64, '0')
+    return link
 
 if __name__ == "__main__":
 
@@ -341,8 +346,22 @@ if __name__ == "__main__":
    
     #Create send from Genesi to PRs and the corresponding Open blocks
     for key, genesis in pr_data.items():        
-        if genesis["pr_type"] == "genesis" : 
-            api = Api(genesis["rpc_url"])  
+        if genesis["pr_type"] == "genesis" :
+
+            api = Api(genesis["rpc_url"])
+
+            # send epoch blocks v1 and v2
+            e = 1
+            while e <= 2:
+                link = epoch_link(e)
+                epoch_block = api.create_epoch_block(
+                    link,
+                    genesis["private_key"],
+                    genesis["nano_address"]
+                    )
+                print("EPOCH {} sent by genesis".format(e))
+                e += 1
+
             genesis_balance = int(api.check_balance(genesis["nano_address"])["balance_raw"])
             
             for key, pr in pr_data.items():
