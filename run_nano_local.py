@@ -29,7 +29,7 @@ path = "./"
 fv_canary_address = "nano_3m7dkkeniakffestsr91h5uu7nzntygzkjh6f6cwce1fous5h6tgpwjyhxji"
 fv_canary_priv = "FB4E458CB13508353C5B2574B82F1D1D61367F61E88707F773F068FF90050BEE"
 fv_canary_pub = "CCAB949948224D6B33ACE0E078F7B2D3F4D79DF945E46915C5300DAEF237934E"
-
+uid = os.getuid()
 
 def add_preconfigured_peers(preconfigured_peers, new_peer):
     if preconfigured_peers == None :
@@ -123,22 +123,23 @@ log_rpc = false'''
 
 
 def get_docker_compose_node_settings(i, pr_name):
+    if uid == 0 :
+        volume = "./root\r"
+    else:
+        volume = "./home/nanocurrency\r"
+
     if args.build :
         image = """
     #build: ./custom_node/.\r
-    build: ./nano_local/nano-workspace/docker/.\r
-    user: "0"\r
-    command: ./nano-workspace/build/nano_node --daemon --network test\r"""
-        volume = "./root\r"
-        
+    build: ./nano_local/nano-workspace/docker/.\r   
+    command: ./nano-workspace/build/nano_node --daemon --network test\r"""        
     else:
-        image = """image: nanocurrency/nano-test:latest\r
-    user: \"1000:1000\"\r"""
-        volume = "./home/nanocurrency\r"
+        image = """image: nanocurrency/nano-test:latest\r"""
+ 
 
-    content ='''  {pr_name}:\r
+    docker_compose_yml ='''  {pr_name}:\r
     {image}
-
+    user: "{uid}"\r
     container_name : {pr_name}\r
     restart: unless-stopped\r
     ports:\r
@@ -151,8 +152,8 @@ def get_docker_compose_node_settings(i, pr_name):
     env_file:
     - .env
     networks:\r
-    - nano-local\r\r'''.format(port1= 44000+i, port2=45000+i, port3 = 47000+i, pr_name=pr_name, image=image, volume=volume)
-    return content
+    - nano-local\r\r'''.format(port1= 44000+i, port2=45000+i, port3 = 47000+i, pr_name=pr_name, image=image, volume=volume, uid=uid)
+    return docker_compose_yml
     
 
 
