@@ -254,6 +254,7 @@ class Api:
             "json_block": "true",
             "type": "state",
             "balance": balance,
+            "account": destination_account,
             "key": open_private_key,
             "representative": rep_account,
             "link": send_block_hash,
@@ -263,6 +264,7 @@ class Api:
 
         r = self.post_with_auth(req_block_create)
         block = json.loads(r.text)
+
         next_hash = block["hash"]
 
         req_process = {
@@ -508,3 +510,8 @@ class Api:
         }
         r = self.post_with_auth(req_process)
         if self.debug : logging.info("req_process : {}".format(time.time() - t1))
+        return {"success" : True,
+                "account" : genesis_account,
+                "hash": epoch_block["hash"]
+                }
+
