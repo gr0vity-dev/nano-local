@@ -254,6 +254,7 @@ class Api:
             "json_block": "true",
             "type": "state",
             "balance": balance,
+            "account": destination_account,
             "key": open_private_key,
             "representative": rep_account,
             "link": send_block_hash,
@@ -263,6 +264,7 @@ class Api:
 
         r = self.post_with_auth(req_block_create)
         block = json.loads(r.text)
+
         next_hash = block["hash"]
 
         req_process = {
@@ -462,4 +464,54 @@ class Api:
                 "amount": self.truncate(int(amount_per_chunk_raw) / (10 ** 30))
                 }
 
+    def create_epoch_block(
+        self,
+        epoch_link,
+        genesis_private_key,
+        genesis_account
+    ):
+
+        if self.debug : t1 = time.time()
+        req_account_info = {
+            "action": "account_info",
+            "account": genesis_account,
+            "representative": "true",
+            "pending": "true",
+            "include_confirmed": "true"
+        }
+
+        r = self.post_with_auth(req_account_info)
+        account_info = json.loads(r.text)
+        if self.debug : logging.info("post_with_auth : {}".format(time.time() - t1))
+        if self.debug : t1 = time.time()
+
+        req_block_create = {
+            "action": "block_create",
+            "json_block": "true",
+            "type": "state",
+            "balance": account_info["balance"],
+            "key": genesis_private_key,
+            "representative": account_info["representative"],
+            "link": epoch_link,
+            "previous": account_info["frontier"]
+        }
+
+        r = self.post_with_auth(req_block_create)
+        if self.debug : logging.info("req_block_create : {}".format(time.time() - t1))
+        if self.debug : t1 = time.time()
+        epoch_block = json.loads(r.text)
+        logging.info(epoch_block["hash"])
+
+        req_process = {
+            "action": "process",
+            "json_block": "true",
+            "subtype": "epoch",
+            "block": epoch_block["block"],
+        }
+        r = self.post_with_auth(req_process)
+        if self.debug : logging.info("req_process : {}".format(time.time() - t1))
+        return {"success" : True,
+                "account" : genesis_account,
+                "hash": epoch_block["hash"]
+                }
 

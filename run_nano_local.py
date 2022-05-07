@@ -1,4 +1,4 @@
- 
+
 #!/usr/bin/env python
 """
 Command-line tool using argparse
@@ -26,6 +26,9 @@ import time
 url_1 = "http://localhost:45001"
 headers = {"Content-type": "application/json", "Accept": "text/plain"}
 path = "./"
+fv_canary_address = "nano_3m7dkkeniakffestsr91h5uu7nzntygzkjh6f6cwce1fous5h6tgpwjyhxji"
+fv_canary_priv = "FB4E458CB13508353C5B2574B82F1D1D61367F61E88707F773F068FF90050BEE"
+fv_canary_pub = "CCAB949948224D6B33ACE0E078F7B2D3F4D79DF945E46915C5300DAEF237934E"
 uid = os.getuid()
 
 def add_preconfigured_peers(preconfigured_peers, new_peer):
@@ -154,30 +157,30 @@ def get_docker_compose_node_settings(i, pr_name):
     
 
 
-def make_pr(docker_conatiner, genesis_key = None):
+def make_pr(docker_container, genesis_key = None):
     if args.build :
-        # docker_conatiner="nano_local_pr1"
-        os.system("docker exec -it {} nano-workspace/build/nano_node --network test --wallet_create".format(docker_conatiner))
-        wallet_pr=os.popen("docker exec -it {} nano-workspace/build/nano_node --network test --wallet_list | awk 'FNR == 1 {{print $3}}' | tr -d '\r'".format(docker_conatiner)).read()
+        # docker_container="nano_local_pr1"
+        os.system("docker exec -it {} nano-workspace/build/nano_node --network test --wallet_create".format(docker_container))
+        wallet_pr=os.popen("docker exec -it {} nano-workspace/build/nano_node --network test --wallet_list | awk 'FNR == 1 {{print $3}}' | tr -d '\r'".format(docker_container)).read()
         if genesis_key == None :
-            os.system("docker exec -it {} nano-workspace/build/nano_node --network test --account_create --wallet={}".format(docker_conatiner,wallet_pr)) 
+            os.system("docker exec -it {} nano-workspace/build/nano_node --network test --account_create --wallet={}".format(docker_container,wallet_pr)) 
         else:
-            os.system("docker exec -it {} nano-workspace/build/nano_node --network test --wallet_add_adhoc --wallet={} --key=12C91837C846F875F56F67CD83040A832CFC0F131AF3DFF9E502C0D43F5D2D15".format(docker_conatiner, wallet_pr)).read()
-        pr_address=os.popen("docker exec -it {} nano-workspace/build/nano_node --network test --wallet_list | awk 'FNR == 2 {print $1}' | tr -d '\r')".format(docker_conatiner)).read()
+            os.system("docker exec -it {} nano-workspace/build/nano_node --network test --wallet_add_adhoc --wallet={} --key=12C91837C846F875F56F67CD83040A832CFC0F131AF3DFF9E502C0D43F5D2D15".format(docker_container, wallet_pr)).read()
+        pr_address=os.popen("docker exec -it {} nano-workspace/build/nano_node --network test --wallet_list | awk 'FNR == 2 {print $1}' | tr -d '\r')".format(docker_container)).read()
 
     else:
-        # docker_conatiner="nano_local_pr1"
-        os.system("docker exec -it {} /usr/bin/nano_node --wallet_create".format(docker_conatiner))
-        wallet_pr=os.popen("docker exec -it {} /usr/bin/nano_node --wallet_list | awk 'FNR == 1 {{print $3}}' | tr -d '\r'".format(docker_conatiner)).read()
+        # docker_container="nano_local_pr1"
+        os.system("docker exec -it {} /usr/bin/nano_node --wallet_create".format(docker_container))
+        wallet_pr=os.popen("docker exec -it {} /usr/bin/nano_node --wallet_list | awk 'FNR == 1 {{print $3}}' | tr -d '\r'".format(docker_container)).read()
         if genesis_key == None :
-            os.system("docker exec -it {} /usr/bin/nano_node --account_create --wallet={}".format(docker_conatiner,wallet_pr)) 
+            os.system("docker exec -it {} /usr/bin/nano_node --account_create --wallet={}".format(docker_container,wallet_pr)) 
         else:
-            os.system("docker exec -it {} /usr/bin/nano_node --wallet_add_adhoc --wallet={} --key=12C91837C846F875F56F67CD83040A832CFC0F131AF3DFF9E502C0D43F5D2D15".format(docker_conatiner, wallet_pr)).read()
-        pr_address=os.popen("docker exec -it {} /usr/bin/nano_node --wallet_list | awk 'FNR == 2 {print $1}' | tr -d '\r')".format(docker_conatiner)).read()
+            os.system("docker exec -it {} /usr/bin/nano_node --wallet_add_adhoc --wallet={} --key=12C91837C846F875F56F67CD83040A832CFC0F131AF3DFF9E502C0D43F5D2D15".format(docker_container, wallet_pr)).read()
+        pr_address=os.popen("docker exec -it {} /usr/bin/nano_node --wallet_list | awk 'FNR == 2 {print $1}' | tr -d '\r')".format(docker_container)).read()
     return {"wallet" : wallet_pr, "nano_address" : pr_address}
 
-def make_pr_api(rpc_url, docker_conatiner, pr_type, genesis_key = None):
-    print(rpc_url , docker_conatiner, pr_type, genesis_key )
+def make_pr_api(rpc_url, docker_container, pr_type, genesis_key = None):
+    print(rpc_url , docker_container, pr_type, genesis_key )
     api = Api(rpc_url)
     seed = api.generate_seed()
     
@@ -194,7 +197,7 @@ def make_pr_api(rpc_url, docker_conatiner, pr_type, genesis_key = None):
         is_genesis = True
     
     response = {"rpc_url" : rpc_url,
-                "docker_conatiner" : docker_conatiner,
+                "docker_container" : docker_container,
                 "wallet" : wallet_data["wallet"] ,
                 "seed" : seed,               
                 "private_key" : account_data["private"],
@@ -202,7 +205,12 @@ def make_pr_api(rpc_url, docker_conatiner, pr_type, genesis_key = None):
                 "is_genesis" : is_genesis ,
                 "pr_type": pr_type }   
     return response
-    
+
+def epoch_link(epoch: int):
+    message = f"epoch v{epoch} block"
+    as_hex = bytearray(message, "ascii").hex()
+    link = as_hex.upper().ljust(64, '0')
+    return link
 
 if __name__ == "__main__":
 
@@ -342,8 +350,38 @@ if __name__ == "__main__":
    
     #Create send from Genesi to PRs and the corresponding Open blocks
     for key, genesis in pr_data.items():        
-        if genesis["pr_type"] == "genesis" : 
-            api = Api(genesis["rpc_url"])  
+        if genesis["pr_type"] == "genesis" :
+
+            api = Api(genesis["rpc_url"])
+
+            # send epoch blocks v1 and v2
+            e = 1
+            while e <= 2:
+                link = epoch_link(e)
+                epoch_block = api.create_epoch_block(
+                    link,
+                    genesis["private_key"],
+                    genesis["nano_address"]
+                    )
+                print("EPOCH {} sent by genesis : HASH {}".format(e, epoch_block["hash"]))
+                e += 1
+
+            # send canary block which activates final votes once received
+            fv_canary_send_block = api.create_send_block_pkey(genesis["private_key"],
+                                        genesis["nano_address"],
+                                        fv_canary_address,
+                                        1)
+            print("SEND FINAL VOTES CANARY BLOCK FROM {} To {} : HASH {}".format(genesis["nano_address"],fv_canary_address,fv_canary_send_block["hash"] ))
+
+            # receive canary block
+            fv_canary_open_block = api.create_open_block(fv_canary_address,
+                                    fv_canary_priv,
+                                    1,
+                                    genesis["nano_address"],
+                                    fv_canary_send_block["hash"]
+                                    )
+            print("OPENED CANARY ACCOUNT {} : HASH {}".format(fv_canary_address,fv_canary_open_block["hash"] ))
+
             genesis_balance = int(api.check_balance(genesis["nano_address"])["balance_raw"])
             
             for key, pr in pr_data.items():
