@@ -6,36 +6,33 @@ services:
     container_name : default_docker
     restart: unless-stopped
     ports:
-    - 44000:17075/udp
-    - 44000:17075
     - 45000:17076
     - 47000:17078
     volumes:
-    - ./nano_nodes/default_docker:/./home/nanocurrency
+    - ./default_docker:/./home/nanocurrency
     env_file:
-    - ./config/nano_local_env
+    - ./dc_nano_local_env
     networks:
     - nano-local
 
   default_build:
     build: ./nano-workspace/docker/.
-    command: ./nano-workspace/build/nano_node --daemon --network test
+    command: /usr/bin/nano_node --daemon --network test
     user: "1000"
     container_name : default_build
     restart: unless-stopped
     ports:
-    - 44000:17075/udp
-    - 44000:17075
     - 45000:17076
     - 47000:17078
     volumes:
-    - ./nano_nodes/default_build:/./root
+    - ./default_build:/./home/nanocurrency
     env_file:
-    - ./config/nano_local_env
+    - ./dc_nano_local_env
     networks:
     - nano-local
 
 
 networks:
   nano-local:
+    name : nano-local
     driver: bridge
