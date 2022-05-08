@@ -381,6 +381,7 @@ if __name__ == "__main__":
                                     fv_canary_send_block["hash"]
                                     )
             print("OPENED CANARY ACCOUNT {} : HASH {}".format(fv_canary_address,fv_canary_open_block["hash"] ))
+            
 
             genesis_balance = int(api.check_balance(genesis["nano_address"])["balance_raw"])
             

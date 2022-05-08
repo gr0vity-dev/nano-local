@@ -1,5 +1,7 @@
 __pycache__
 output
-reps
 nano_local
 docker-compose.yml
+venv_nano_local/
+nano_nodes/
+reps/
