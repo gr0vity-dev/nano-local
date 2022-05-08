@@ -8,11 +8,27 @@ prerequisites :
 
 Quickstart :
 
-<code>python3 run_nano_local.py --node_log=True</code>
+Create a virtual python environment with all dependencies
+<code>$ ./venv_nano_local.sh create</code>
+Enter into the virtual environment
+<code>$ source venv_nano_local/bin/activate</code>
 
-Spins up a network with 1 genesis acocunt, 2 main reps and 1 small rep.
-It uses nanocurrency/nano-test:latest docker image
+Configuration is done with 
+<code>$config/nano_local_config.toml</code>
+
+To spin up a network do :
+<code>$ python3 nano_local_net.py create</code>
+<code>$ python3 nano_local_net.py start</code>
+
+TODO: Generate blocks with vote weights specified in the nano_local_config.toml
+<code>$ python3 nano_local_net.py init</code>  
 
 
-To remove all docker containers and files created by the script, run :
-<code>./remove_nano_local.sh</code>
+To stop all nodes
+<code>$ python3 nano_local_net.py stop</code>
+To remove all nodes
+<code>$ python3 nano_local_net.py delete</code>
+
+To remove your virtual python environment 
+<code>$ ./venv_nano_local.sh delete</code>
+<code>$ deactivate</code>

@@ -38,11 +38,7 @@ NANO_TEST_MAGIC_NUMBER="LC" #optional overrides dc_nano_local_env
     name = "PR_2"
     seed = ["00001837C846F875F56F67CD83040A832CFC0F131AF3DFF9E502C0D43F5D0001" ]  
     vote_weight_percent = 35
-    nano_node_path = "/home/bl/Dev/Git/nano-workspace/build/nano_node"    
-    # [representatives.docker] 
-    #     dockerfile_path = "./Dockerfile" #path to Dockerfile
-    #     args = ["TAG=V23.0"]
-    #     command = "./nano-workspace/build/nano_node --daemon --network test"
+    nano_node_path = "/path/to/nano_node"   #path to executable
 
 
 [[representatives.nodes]] 
