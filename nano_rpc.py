@@ -32,10 +32,10 @@ class Api:
             r = requests.post(url, json=content, headers=headers)
             # print("request: {} \rrepsonse: {}".format(content["action"], r.text ))
             if "error" in r.text:
-                if self.debug : logging.warn("error in post_with_auth |\n request: \n{}\nresponse:\n{}".format(content, r.text)) 
+                if self.debug : logging.debug("error in post_with_auth |\n request: \n{}\nresponse:\n{}".format(content, r.text)) 
             return json.loads(r.text)
         except : 
-            if self.debug : logging.warn("{} Retrys left for post_with_auth : {}".format(max_retry, content["action"]))
+            if self.debug : logging.debug("{} Retrys left for post_with_auth : {}".format(max_retry, content["action"]))
             max_retry = max_retry - 1   
             if max_retry >= 0 : 
                 time.sleep(0.1)  #100ms
