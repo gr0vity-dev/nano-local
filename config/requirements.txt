@@ -1,6 +1,5 @@
 tomli==2.0.1
 tomli-w
 requests
-#pyyaml
 oyaml
-#ruamel.yaml==0.17.21
+ed25519-blake2b

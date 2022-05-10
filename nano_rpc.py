@@ -17,14 +17,29 @@ class Api:
         self.debug = True
         self.RPC_URL = url
     
-    def post_with_auth(self, content):
+    # def post_with_auth(self, content):
         
-        url = self.RPC_URL 
-        headers = {"Content-type": "application/json", "Accept": "text/plain"}    
-        response = requests.post(url, json=content, headers=headers)
-        # print("request: {} \rrepsonse: {}".format(content["action"], response.text ))
-        return response
+    #     url = self.RPC_URL 
+    #     headers = {"Content-type": "application/json", "Accept": "text/plain"}    
+    #     response = requests.post(url, json=content, headers=headers)
+    #     # print("request: {} \rrepsonse: {}".format(content["action"], response.text ))
+    #     return response
  
+    def post_with_auth(self, content, max_retry=2):
+        try :
+            url = self.RPC_URL 
+            headers = {"Content-type": "application/json", "Accept": "text/plain"}    
+            r = requests.post(url, json=content, headers=headers)
+            # print("request: {} \rrepsonse: {}".format(content["action"], r.text ))
+            if "error" in r.text:
+                if self.debug : logging.warn("error in post_with_auth |\n request: \n{}\nresponse:\n{}".format(content, r.text)) 
+            return json.loads(r.text)
+        except : 
+            if self.debug : logging.warn("{} Retrys left for post_with_auth : {}".format(max_retry, content["action"]))
+            max_retry = max_retry - 1   
+            if max_retry >= 0 : 
+                time.sleep(0.1)  #100ms
+                self.post_with_auth(content,max_retry)
 
     def generate_seed(self):
         return secrets.token_hex(32)
@@ -72,8 +87,8 @@ class Api:
             "seed": seed,
             "index": index,
         }
-        r = self.post_with_auth(req_deterministic_key)
-        account_data = json.loads(r.text)
+        
+        account_data = self.post_with_auth(req_deterministic_key)
         
         account_data = {
             "seed": seed,
@@ -92,9 +107,8 @@ class Api:
         req_validate_account_number = {
             "action": "validate_account_number",
             "account": account,
-        }
-        r = self.post_with_auth(req_validate_account_number)
-        data = json.loads(r.text)        
+        }        
+        data = self.post_with_auth(req_validate_account_number)  
         if data["valid"] == "1" :
             response["success"] = True            
         return response
@@ -105,9 +119,8 @@ class Api:
         "action": "password_enter",
         "wallet": wallet,
         "password": password
-        }
-        r = self.post_with_auth(req_password_enter)
-        data = json.loads(r.text)        
+        }        
+        data = self.post_with_auth(req_password_enter)       
         if data["valid"] == "1" :
             response["success"] = True            
         return response
@@ -123,8 +136,7 @@ class Api:
                 "action": "wallet_create",
                 "seed": seed,
             }
-        r = self.post_with_auth(req_wallet_create)
-        data = json.loads(r.text)        
+        data = self.post_with_auth(req_wallet_create)        
         # {
         #     "wallet": "646FD8B5940AB5B1AD2C0B079576A4CF5A25E8ADB10C91D514547EF5C10C05B7",
         #     "last_restored_account": "nano_3mcsrncubmquwcwgiouih17fjo8183t497c3q9w6qtnwz8bp3fig5x8m4rkw",
@@ -139,20 +151,18 @@ class Api:
         "wallet": wallet,
         "key": private_key
         }
-        r = self.post_with_auth(req_wallet_add)
-        data = json.loads(r.text)        
+        data = self.post_with_auth(req_wallet_add)
         # {
         #   "account": "nano_3e3j5tkog48pnny9dmfzj1r16pg8t1e76dz5tmac6iq689wyjfpi00000000"
         # }        
         return data
         
-    def key_expand(self, private_key):        
+    def key_expand(self, private_key):               
         req_key_expand = {
             "action": "key_expand",
             "key": private_key
         }
-        r = self.post_with_auth(req_key_expand)
-        data = json.loads(r.text) 
+        data = self.post_with_auth(req_key_expand)     
         return data           
 
 
@@ -163,8 +173,7 @@ class Api:
             "action": "account_balance",
             "account": account,
         }
-        r = self.post_with_auth(req_account_balance)
-        data = json.loads(r.text)
+        data = self.post_with_auth(req_account_balance)
        
         return {"account": account, 
                 "balance_raw" : int(data["balance"]), 
@@ -205,8 +214,7 @@ class Api:
             "sorting" : "true",
             "count": str(number_of_blocks)
         }       
-        r = self.post_with_auth(req_accounts_pending)
-        accounts_pending = json.loads(r.text)     
+        accounts_pending = self.post_with_auth(req_accounts_pending)  
 
         if "error" in accounts_pending:
             response["success"] = False
@@ -235,8 +243,7 @@ class Api:
             "pending": "true",
             "include_confirmed": "true"
         }
-        r = self.post_with_auth(req_account_info)
-        account_info = json.loads(r.text)
+        account_info = self.post_with_auth(req_account_info)
 
         if "error" in account_info:
             subtype = "open"
@@ -261,9 +268,7 @@ class Api:
             "previous": previous
             # ,"difficulty": difficulty,
         }
-
-        r = self.post_with_auth(req_block_create)
-        block = json.loads(r.text)
+        block = self.post_with_auth(req_block_create)
 
         next_hash = block["hash"]
 
@@ -274,7 +279,7 @@ class Api:
             "block": block["block"],
         }
 
-        r = self.post_with_auth(req_process)
+        publish = self.post_with_auth(req_process)
         return {"success" : True,
                 "account" : destination_account, 
                 "balance_raw": balance,
@@ -297,11 +302,10 @@ class Api:
             "seed": source_seed,
             "index": source_index,
         }
-        r = self.post_with_auth(req_source_account)
-        if self.debug : logging.info("req_source_account : {}".format(time.time() - t1))
+        if self.debug : logging.debug("req_source_account : {}".format(time.time() - t1))
         if self.debug : t1 = time.time() 
 
-        source_account_data = json.loads(r.text)
+        source_account_data = self.post_with_auth(req_source_account)
         source_account_data = {
             "seed": source_seed,
             "index": source_index,
@@ -317,9 +321,8 @@ class Api:
             "pending": "true",
             "include_confirmed": "true"
         }
-        r = self.post_with_auth(req_account_info)
-        account_info = json.loads(r.text)
-        if self.debug : logging.info("post_with_auth : {}".format(time.time() - t1))
+        account_info = self.post_with_auth(req_account_info)
+        if self.debug : logging.debug("post_with_auth : {}".format(time.time() - t1))
         if self.debug : t1 = time.time() 
 
         source_previous = account_info["frontier"]
@@ -328,9 +331,8 @@ class Api:
 
         req_destination_key = {"action": "account_key",
                                "account": destination_account}
-        r = self.post_with_auth(req_destination_key)
-        destination_link = json.loads(r.text)["key"]
-        if self.debug : logging.info("req_destination_key : {}".format(time.time() - t1))
+        destination_link = self.post_with_auth(req_destination_key)["key"]
+        if self.debug : logging.debug("req_destination_key : {}".format(time.time() - t1))
         if self.debug : t1 = time.time() 
 
         # prepare send block
@@ -347,12 +349,10 @@ class Api:
             "previous": source_previous
             # ,"difficulty": difficulty,
         }
-
-        r = self.post_with_auth(req_block_create)
-        if self.debug : logging.info("req_block_create : {}".format(time.time() - t1))
+        if self.debug : logging.debug("req_block_create : {}".format(time.time() - t1))
         if self.debug : t1 = time.time() 
-        send_block = json.loads(r.text)
-        logging.info(send_block["hash"])
+        send_block = self.post_with_auth(req_block_create)
+        logging.debug(send_block["hash"])
 
 
         req_process = {
@@ -361,8 +361,8 @@ class Api:
             "subtype": "send",
             "block": send_block["block"],
         }
-        r = self.post_with_auth(req_process)
-        if self.debug : logging.info("req_process : {}".format(time.time() - t1))
+        publish = self.post_with_auth(req_process)
+        if self.debug : logging.debug("req_process : {}".format(time.time() - t1))
         
 
         # prepare for next iteration
@@ -402,9 +402,8 @@ class Api:
             "pending": "true",
             "include_confirmed": "true"
         }
-        r = self.post_with_auth(req_account_info)
-        account_info = json.loads(r.text)
-        if self.debug : logging.info("post_with_auth : {}".format(time.time() - t1))
+        account_info = self.post_with_auth(req_account_info)
+        if self.debug : logging.debug("post_with_auth : {}".format(time.time() - t1))
         if self.debug : t1 = time.time() 
 
         source_previous = account_info["frontier"]
@@ -413,9 +412,8 @@ class Api:
 
         req_destination_key = {"action": "account_key",
                                "account": destination_account}
-        r = self.post_with_auth(req_destination_key)
-        destination_link = json.loads(r.text)["key"]
-        if self.debug : logging.info("req_destination_key : {}".format(time.time() - t1))
+        destination_link = self.post_with_auth(req_destination_key)["key"]
+        if self.debug : logging.debug("req_destination_key : {}".format(time.time() - t1))
         if self.debug : t1 = time.time() 
 
         # prepare send block
@@ -432,12 +430,10 @@ class Api:
             "previous": source_previous
             # ,"difficulty": difficulty,
         }
-
-        r = self.post_with_auth(req_block_create)
-        if self.debug : logging.info("req_block_create : {}".format(time.time() - t1))
+        if self.debug : logging.debug("req_block_create : {}".format(time.time() - t1))
         if self.debug : t1 = time.time() 
-        send_block = json.loads(r.text)
-        logging.info(send_block["hash"])
+        send_block = self.post_with_auth(req_block_create)
+        logging.debug(send_block["hash"])
 
 
         req_process = {
@@ -446,8 +442,8 @@ class Api:
             "subtype": "send",
             "block": send_block["block"],
         }
-        r = self.post_with_auth(req_process)
-        if self.debug : logging.info("req_process : {}".format(time.time() - t1))
+        publish = self.post_with_auth(req_process)
+        if self.debug : logging.debug("req_process : {}".format(time.time() - t1))
         
 
         # prepare for next iteration
@@ -480,9 +476,8 @@ class Api:
             "include_confirmed": "true"
         }
 
-        r = self.post_with_auth(req_account_info)
-        account_info = json.loads(r.text)
-        if self.debug : logging.info("post_with_auth : {}".format(time.time() - t1))
+        account_info = self.post_with_auth(req_account_info)
+        if self.debug : logging.debug("post_with_auth : {}".format(time.time() - t1))
         if self.debug : t1 = time.time()
 
         req_block_create = {
@@ -496,11 +491,10 @@ class Api:
             "previous": account_info["frontier"]
         }
 
-        r = self.post_with_auth(req_block_create)
-        if self.debug : logging.info("req_block_create : {}".format(time.time() - t1))
+        if self.debug : logging.debug("req_block_create : {}".format(time.time() - t1))
         if self.debug : t1 = time.time()
-        epoch_block = json.loads(r.text)
-        logging.info(epoch_block["hash"])
+        epoch_block = self.post_with_auth(req_block_create)
+        logging.debug(epoch_block["hash"])
 
         req_process = {
             "action": "process",
@@ -508,8 +502,8 @@ class Api:
             "subtype": "epoch",
             "block": epoch_block["block"],
         }
-        r = self.post_with_auth(req_process)
-        if self.debug : logging.info("req_process : {}".format(time.time() - t1))
+        publish = self.post_with_auth(req_process)
+        if self.debug : logging.debug("req_process : {}".format(time.time() - t1))
         return {"success" : True,
                 "account" : genesis_account,
                 "hash": epoch_block["hash"]

@@ -16,11 +16,15 @@ _config_dict = {} #conf_rw.read_toml(_config_path)
 _compose_dict = {} #conf_rw.read_yaml(_default_compose_path)
 _dockerfile_path = _script_dir.replace("config", "nano_nodes/{node_name}")
 _nano_nodes_path = _script_dir.replace("config", "nano_nodes")
-
+_preconfigured_peers = []
 
 #compose output file : nano-local/nano_nodes/docker-compose.yml
 
-class Config_rw:    
+class Config_rw: 
+
+    def write_list(self,path,list):                
+        with open(path, "w") as f:    
+            print(*list, sep = "\n", file = f)    
 
     def write_toml(self, path, content):
         with open(path, "wb") as f:    
@@ -38,8 +42,7 @@ class Config_rw:
         with open(path, 'r') as f:
             return yaml.safe_load(f)
 
-    def write_yaml(self, path, content):
-        print(content)
+    def write_yaml(self, path, content):        
         with open(path, 'w') as f:
             yaml.dump(json.loads(str(content).replace("'", '"')), f, default_flow_style = False)
 
@@ -64,7 +67,7 @@ _config_dict = conf_rw.read_toml(_config_path)
 _compose_dict = conf_rw.read_yaml(_default_compose_path)
 
 
-def write_docker_compose(genesis_node_name = "nl_genesis"):
+def write_docker_compose(genesis_node_name):
     set_docker_tag(genesis_node_name)
     set_docker_ports(genesis_node_name, 0)
     
@@ -82,7 +85,7 @@ def write_docker_compose(genesis_node_name = "nl_genesis"):
     _compose_dict["services"].pop("default_build", None)    
 
     conf_rw.write_yaml( f"{_nano_nodes_path}/docker-compose.yml", _compose_dict)
-    os.system(f"cp -p dc_default_env {_nano_nodes_path}/dc_nano_local_env")
+
 
 def get_set_node_names():
     response = []
@@ -133,14 +136,18 @@ def set_docker_ports(node_name, port_i):
     _compose_dict["services"][node_name]["ports"] = [f'{host_port_rpc}:17076', f'{host_port_ws}:17078']  
    
 def cp_dockerfile_and_nano_node(nano_node_path, node_name):
-    #copy nano_node into working directory for Dockerfile  
+    #copy nano_node into working directory for Dockerfile      
     dockerfile_path = _dockerfile_path.format(node_name=node_name)  
     copy_node =        f"cp -p {nano_node_path} {dockerfile_path}/nano_node"
-    copy_dockerfile =  f"cp -p {_script_dir}/Dockerfile {dockerfile_path}/Dockerfile"    
-    print(copy_node)
+    copy_dockerfile =  f"cp -p {_script_dir}/default_Dockerfile {dockerfile_path}/Dockerfile"        
 
-    os.system(copy_node)
-    os.system(copy_dockerfile)
+    if os.path.exists(nano_node_path) :         
+        os.system(copy_node)  
+        os.system(copy_dockerfile)
+    else :
+        logging.error(f'No nano_node could be found at [{nano_node_path}]. This container will fail on start' )
+    
+
     return dockerfile_path
  
 def add_docker_compose_container(node_name, default_container) :
@@ -161,11 +168,14 @@ def get_config_from_path(node_name, config_path_key):
         pass #return None  
     return config_dict_l
 
-def get_preconfigured_peers():
-    perconfigures_peers = []
-    for node in _config_dict["representatives"]["nodes"]:
-        perconfigures_peers.append(node["name"])    
-    return perconfigures_peers   
+def add_preconfigured_peer(peer):
+    _preconfigured_peers.append(peer)
+
+def get_preconfigured_peers():   
+    return _preconfigured_peers 
+    # for node in _config_dict["representatives"]["nodes"]:
+    #     _preconfigured_peers.append(node["name"])    
+    # return _preconfigured_peers   
 
 def get_representative_config(node_key, node_name):
     #scan node config and match by name. Return the value of the key found in the config
@@ -185,39 +195,20 @@ def get_representative_config(node_key, node_name):
                 return {"found" : True, "value" : representatives_config["value"][node_key]}
     return {"found" : False }
 
-def get_env_variables() :
-    #default
-    env_variables = {"genesis_pkey": "12C91837C846F875F56F67CD83040A832CFC0F131AF3DFF9E502C0D43F5D2D15",                                           
-                     "canary_pkey": "FB4E458CB13508353C5B2574B82F1D1D61367F61E88707F773F068FF90050BEE",
-                     "epoch_count": 2,
-                     "burn_amount": "200000000000000000000000000000000000000",
-                     "NANO_TEST_GENESIS_PUB" : "37FCEA4DA94F1635484EFCBA57483C4C654F573B435C09D8AACE1CB45E63FFB1",
-                     "NANO_TEST_EPOCH_1": "0xfff00000000000000",
-                     "NANO_TEST_EPOCH_2": "0xfff0000000000000",
-                     "NANO_TEST_EPOCH_2_RECV": "0xfff0000000000000",
-                     "NANO_TEST_MAGIC_NUMBER": "LC"}
 
-    #from config
-    if "genesis_pkey" in _config_dict : env_variables["genesis_pkey"] = _config_dict["genesis_pkey"]
-    if "canary_pkey" in _config_dict : env_variables["canary_pkey"] = _config_dict["canary_pkey"]
-    if "epoch_count" in _config_dict : env_variables["epoch_count"] = _config_dict["epoch_count"]
-    if "burn_amount" in _config_dict : env_variables["burn_amount"] = _config_dict["burn_amount"]
-    if "NANO_TEST_EPOCH_1" in _config_dict : env_variables["NANO_TEST_EPOCH_1"] = _config_dict["NANO_TEST_EPOCH_1"]
-    if "NANO_TEST_EPOCH_2" in _config_dict : env_variables["NANO_TEST_EPOCH_2"] = _config_dict["NANO_TEST_EPOCH_2"]
-    if "NANO_TEST_EPOCH_2_RECV" in _config_dict : env_variables["NANO_TEST_EPOCH_2_RECV"] = _config_dict["NANO_TEST_EPOCH_2_RECV"]
-    if "NANO_TEST_MAGIC_NUMBER" in _config_dict : env_variables["NANO_TEST_MAGIC_NUMBER"] = _config_dict["NANO_TEST_MAGIC_NUMBER"]
-    if "NANO_TEST_PEER_NETWORK" in _config_dict : env_variables["NANO_TEST_PEER_NETWORK"] = _config_dict["NANO_TEST_PEER_NETWORK"]
-    if "NANO_TEST_GENESIS_PUB" in _config_dict : env_variables["NANO_TEST_GENESIS_PUB"] = _config_dict["NANO_TEST_GENESIS_PUB"]
-    if "NANO_TEST_CANARY_PUB" in _config_dict : env_variables["NANO_TEST_CANARY_PUB"] = _config_dict["NANO_TEST_CANARY_PUB"]
+def get_config_variables() :
+     #_config_dict = conf_rw.read_toml(_config_path)
+
+    #set some default valued if these are missing in the nano_local_config.toml
+    if "genesis_key" not in _config_dict : _config_dict["genesis_pkey"] = "12C91837C846F875F56F67CD83040A832CFC0F131AF3DFF9E502C0D43F5D2D15"   
+    if "canary_key" not in _config_dict : _config_dict["canary_pkey"] = "FB4E458CB13508353C5B2574B82F1D1D61367F61E88707F773F068FF90050BEE"
+    if "epoch_count" not in _config_dict : _config_dict["epoch_count"] = 2
+    # if "NANO_TEST_EPOCH_1" not in _config_dict : _config_dict["NANO_TEST_EPOCH_1"] = "0xfff0000000000000"
+    # if "NANO_TEST_EPOCH_2" not in _config_dict : _config_dict["NANO_TEST_EPOCH_2"] = "0xfff0000000000000"
+    # if "NANO_TEST_EPOCH_2_RECV" not in _config_dict : _config_dict["NANO_TEST_EPOCH_2_RECV"] = "0xfff0000000000000"
+    if "NANO_TEST_MAGIC_NUMBER" not in _config_dict : _config_dict["NANO_TEST_MAGIC_NUMBER"] = "LC"
+    if "NANO_TEST_CANARY_PUB" not in _config_dict : _config_dict["NANO_TEST_CANARY_PUB"] = "CCAB949948224D6B33ACE0E078F7B2D3F4D79DF945E46915C5300DAEF237934E"
     
-    env_variables["genesis_block"] = """'NANO_TEST_GENESIS_BLOCK={
-        "type": "open",
-        "source": "37FCEA4DA94F1635484EFCBA57483C4C654F573B435C09D8AACE1CB45E63FFB1",
-        "representative": "xrb_1fzwxb8tkmrp8o66xz7tcx65rm57bxdmpitw39ecomiwpjh89zxj33juzt6p",
-        "account": "xrb_1fzwxb8tkmrp8o66xz7tcx65rm57bxdmpitw39ecomiwpjh89zxj33juzt6p",
-        "work": "4206a0ce90472a90",
-        "signature": "492FBB6A8852FD6086739D151454A5A6A2920D9A6085FDA1F00690D46D9AEC7668A75ECCAA4F52220859E1F45558500A32735060E8B1D0611079B62751457A05"
-    }'"""
 
-    return env_variables  
+    return _config_dict 
 

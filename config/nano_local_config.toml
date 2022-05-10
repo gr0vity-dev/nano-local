@@ -1,48 +1,48 @@
-genesis_pkey = "12C91837C846F875F56F67CD83040A832CFC0F131AF3DFF9E502C0D43F5D2D15" #initial_balance = 340282366920938463463374607431768211455
-canary_pkey = "FB4E458CB13508353C5B2574B82F1D1D61367F61E88707F773F068FF90050BEE"
+genesis_key = "12C91837C846F875F56F67CD83040A832CFC0F131AF3DFF9E502C0D43F5D2D15" #initial_balance = 340282366920938463463374607431768211455
+canary_key = "FB4E458CB13508353C5B2574B82F1D1D61367F61E88707F773F068FF90050BEE"
 epoch_count = 2 
 
-burn_amount = "200000000000000000000000000000000000000" #sent to xrb_1111111111111111111111111111111111111111111111111111hifc8npp
+#burn_amount = "200000000000000000000000000000000000000" #sent to xrb_1111111111111111111111111111111111111111111111111111hifc8npp
 
 #NODE ENV VARIABLES
-NANO_TEST_EPOCH_1="0xfff00000000000000" #optional overrides dc_nano_local_env
-NANO_TEST_EPOCH_2="0xfff0000000000000" #optional overrides dc_nano_local_env
-NANO_TEST_EPOCH_2_RECV="0xfff0000000000000" #optional overrides dc_nano_local_env
+NANO_TEST_EPOCH_1="0xfffc000000000000" #optional overrides dc_nano_local_env
+NANO_TEST_EPOCH_2="0xfffc000000000000" #optional overrides dc_nano_local_env
+NANO_TEST_EPOCH_2_RECV="0xfffc000000000000" #optional overrides dc_nano_local_env
 NANO_TEST_MAGIC_NUMBER="LC" #optional overrides dc_nano_local_env
 
 
 
 [representatives]
     ##shared config between all reps
-    config_node_path = "./config/config-node.toml" #optional 
-    config_rpc_path = "./config/config-rpc.toml" #optional
+    config_node_path = "./config/default_config-node.toml" #optional 
+    config_rpc_path = "./config/default_config-rpc.toml" #optional
 
     #https://hub.docker.com/r/nanocurrency/nano-test/tags
-    docker_tag = "V23.0" #shared between all nodes 
+    docker_tag = "latest" #shared between all nodes 
        
 
 [[representatives.nodes]] 
-    name = "PR_1"
-    seed = "00001837C846F875F56F67CD83040A832CFC0F131AF3DFF9E502C0D43F5D0000"
+    name = "nl_pr1"
+    seed = "1110000000000000000000000000000000000000000000000000000000000001"
     balance = "43000000000000000000000000000000000000"   
     #vote_weight_percent = 35
-    config_node_path = "./config/config-node-pr_1.toml" #overrides shared property representatives.config_node_path
-    config_rpc_path = "./config/config-rpc-pr_1.toml"  #overrides shared property representatives.config_rpc_path
-    docker_tag = "V22.1"  #overrides shared property representatives.docker_tag
+    #config_node_path = "./config/default_config-node.toml" #overrides shared property representatives.config_node_path
+    #config_rpc_path = "./config/default_config-rpc.toml"  #overrides shared property representatives.config_rpc_path
+    #docker_tag = "V22.1"  #overrides shared property representatives.docker_tag
 
     #node_count = 3 #creates 3 nodes with same properties. issues : configurable peers needs updating. seeds are radnom
     #ALternative : seeds as array --> confirgurable peer neeeds updating. names need to be updates
     
 
 [[representatives.nodes]] 
-    name = "PR_2"
-    seed = ["00001837C846F875F56F67CD83040A832CFC0F131AF3DFF9E502C0D43F5D0001" ]  
+    name = "nl_pr2"
+    seed = "1110000000000000000000000000000000000000000000000000000000000002" 
     vote_weight_percent = 35
-    nano_node_path = "/path/to/nano_node"   #path to executable
+    #nano_node_path = "/home/bl/Dev/Git/nano-workspace/build/nano_node"   #path to executable
 
 
 [[representatives.nodes]] 
-    name = "low_weight_1"
-    seed = "00001837C846F875F56F67CD83040A832CFC0F131AF3DFF9E502C0D43F5D0002"   
+    name = "nl_node3"
+    seed = "1110000000000000000000000000000000000000000000000000000000000003"   
     vote_weight_percent = 0.05
     #docker_tag = "" #overrides shared property
