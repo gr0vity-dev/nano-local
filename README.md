@@ -17,24 +17,26 @@ Enter into the virtual environment
 
 #### Optional configure the network :
 
-<code>$config/nano_local_config.toml</code>
+<code>config/nano_local_config.toml</code>
 
 #### Spin up a network :
 
-Create foldes and config : <code>$ python3 nano_local_net.py create</code>
 
-Run docker-compose <code>$ python3 nano_local_net.py start</code>
+Create folders and node config : <code>$ python3 run_nano_local.py create</code>
 
-TODO: Generate blocks with vote weights specified in the nano_local_config.toml
+Start all nodes <code>$ python3 run_nano_local.py start</code>
 
-<code>$ python3 nano_local_net.py init</code>  
+Create Epochs Canary Burn and Vote weight distribution <code>$ python3 run_nano_local.py init</code>  
+
+Do all above : <code>$ python3 run_nano_local.py csi</code> c(reate) s(tart) i(nit)
+
 
 #### Stop / Delete network nodes
 To stop all nodes
-<code>$ python3 nano_local_net.py stop</code>
+<code>$ python3 run_nano_local.py stop</code>
 
 To remove all nodes
-<code>$ python3 nano_local_net.py delete</code>
+<code>$ python3 run_nano_local.py delete</code>
 
 #### Delete virtual python environment
 To remove your virtual python environment 
