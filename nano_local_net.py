@@ -5,8 +5,8 @@ import requests
 import json
 import logging
 import os
-from config.parse_nano_local_config import get_config_variables, get_config_from_path, get_set_node_names, write_docker_compose, get_preconfigured_peers, add_preconfigured_peer
-from config.parse_nano_local_config import Config_rw
+from config.parse_nano_local_config import ConfigParser
+from config.parse_nano_local_config import ConfigReadWrite
 import argparse
 from ed25519_blake2b import SigningKey
 import binascii
@@ -24,9 +24,9 @@ from nano_local_initial_blocks import InitialBlocks
 log_format = '[%(asctime)s] [%(levelname)s] - %(message)s'
 logging.basicConfig(level=logging.INFO , format=log_format)
 
-
-config_rw = Config_rw()
-#built from 
+_genesis_node_name = "nano_private_genesis"
+_config_rw = ConfigReadWrite()
+_config_parse = ConfigParser(_genesis_node_name)
 _node_path = {"container" : "./nano_nodes"}
 
 
@@ -53,47 +53,55 @@ def create_node_folders(node_name):
                             "config_rpc_path"  : f"./nano_nodes/{node_name}/NanoTest/config-rpc.toml"}
 
 
-def docker_add_account(container,command, genesis_key = None):
-    #command = nano-workspace/build/nano_node --network test ##for custom biulds using dsiganos/nano-workspace
-    #comand = /usr/bin/nano_node ##when using existing docker-tags from nanocurrency/nano-test
 
-    wallet_create =    f"docker exec -it {container} {command} --wallet_create"
-    wallet_list =      f"docker exec -it {container} {command} --wallet_list | awk 'FNR == 1 {{print $3}}' | tr -d '\r'"
-    account_create =   f"docker exec -it {container} {command} --account_create --wallet={wallet}"
-    wallet_add_adhoc = f"docker exec -it {container} {command} --wallet_add_adhoc --wallet={wallet} --key={genesis_key}"
-    account_get =      f"docker exec -it {container} {command} --wallet_list | awk 'FNR == 2 {{print $1}}' | tr -d '\r')"
+### Using the docker approch to create a wallet will result in blocks not being cemented...
+# def create_node_wallet(node_name, private_key = None , seed = None):
+#     #command = nano-workspace/build/nano_node --network test ##for custom biulds using dsiganos/nano-workspace
+#     #comand = /usr/bin/nano_node ##when using existing docker-tags from nanocurrency/nano-test
 
-    os.system(wallet_create)
-    wallet = os.popen(wallet_list).read()
-    if genesis_key != None : os.system(account_create)
-    if genesis_key == None : os.system(wallet_add_adhoc)
-    account = os.popen(account_get).read()
+#     wallet_create =    f"docker exec -it {node_name} /usr/bin/nano_node --wallet_create"
+#     wallet_list =      f"docker exec -it {node_name} /usr/bin/nano_node --wallet_list | awk 'FNR == 1 {{print $3}}' | tr -d '\r' | tr -d '\n'" 
+#     os.system(wallet_create)
+#     wallet =           os.popen(wallet_list).read()  
+#     account_create =   f"docker exec -it {node_name} /usr/bin/nano_node --account_create --wallet={wallet}"
+#     change_seed =      f"docker exec -it {node_name} /usr/bin/nano_node --wallet_change_seed --wallet={wallet} --key={seed}"
+#     wallet_add_adhoc = f"docker exec -it {node_name} /usr/bin/nano_node --wallet_add_adhoc --wallet={wallet} --key={private_key}"
+#     account_get =      f"docker exec -it {node_name} /usr/bin/nano_node --wallet_list | awk 'FNR == 2 {{print $1}}' | tr -d '\r'"
+      
+    
+#     if seed != None : os.system(change_seed)
+#     elif private_key != None : os.system(wallet_add_adhoc)
+#     else : os.system(account_create) #use the random default seed from wallet_create 
 
-    return {"wallet" : wallet, "account" : account}
+#     account = os.popen(account_get).read()
+#     logging.info(f"WALLET {wallet} CREATED FOR {node_name} WITH ACCOUNT {account}")
+
+#     return {"wallet" : wallet, "account" : account}
+
 
 
 
 def write_config_node(node_name):
-    config_node = get_config_from_path(node_name, "config_node_path")
+    config_node = _config_parse.get_config_from_path(node_name, "config_node_path")
     if config_node is None :
         logging.warn("No config-node.toml found. minimal version was created")
         config_node = get_default("config_node")
 
-    config_node["node"]["preconfigured_peers"] = get_preconfigured_peers()
-    config_rw.write_toml(_node_path[node_name]["config_node_path"], config_node)    
+    config_node["node"]["preconfigured_peers"] = _config_parse.preconfigured_peers
+    _config_rw.write_toml(_node_path[node_name]["config_node_path"], config_node)    
  
 def write_config_rpc(node_name):
-    config_rpc = get_config_from_path(node_name, "config_rpc_path")
+    config_rpc = _config_parse.get_config_from_path(node_name, "config_rpc_path")
     if config_rpc is None :
         logging.warn("No config-rpc.toml found. minimal version was created")
         config_rpc = get_default("config_rpc")
 
-    config_rw.write_toml(_node_path[node_name]["config_rpc_path"], config_rpc) 
+    _config_rw.write_toml(_node_path[node_name]["config_rpc_path"], config_rpc) 
 
 
 def write_docker_compose_env():
     #Read default env file
-    conf_variables = get_config_variables()
+    conf_variables = _config_parse.config_dict
     env_variables = []
     genesis_block = generate_genesis_open(conf_variables['genesis_key'])
     s_genesis_block = str(genesis_block).replace("'", '"')
@@ -105,7 +113,7 @@ def write_docker_compose_env():
     for key,value in conf_variables.items() :
         if key.startswith("NANO_TEST_") : env_variables.append(f'{key}="{value}"')
 
-    config_rw.write_list(f'{_node_path["container"]}/dc_nano_local_env', env_variables)    
+    _config_rw.write_list(f'{_node_path["container"]}/dc_nano_local_env', env_variables)    
     
 
 def get_public_key(private_key):   
@@ -134,27 +142,39 @@ def generate_genesis_open(genesis_key):
     except Exception as e:
          logging.error(str(e))        
          os.system(docker_stop_rm)
-  
-    
 
 def prepare_nodes(genesis_node_name):
     #prepare genesis 
     prepare_node_env(genesis_node_name)    
     #prepare nodes from config
-    for node_name in get_set_node_names():
+    for node_name in _config_parse.get_node_names():
         prepare_node_env(node_name)
        
 def prepare_node_env(node_name): 
-    node_name = node_name.lower()  #docker-compose requires lower case names
-    add_preconfigured_peer(node_name) 
+    node_name = node_name.lower()  #docker-compose requires lower case names   
     create_node_folders(node_name)
     write_config_node(node_name)
     write_config_rpc(node_name) 
 
+
+def init_nodes(genesis_node_name = "nl_genesis"):
+    init_blocks = InitialBlocks()        
+    for node_name in _config_parse.get_node_names():
+        if node_name == genesis_node_name :
+            init_blocks.create_node_wallet(_config_parse.get_node_config(genesis_node_name)["rpc_url"], 
+                                   genesis_node_name, 
+                                   private_key = _config_parse.config_dict["genesis_key"])
+        else :                           
+            init_blocks.create_node_wallet(_config_parse.get_node_config(node_name)["rpc_url"],
+                                        node_name, 
+                                        seed = _config_parse.get_node_config(node_name)["seed"])
+    
+    init_blocks.publish_initial_blocks()
+
 def create_nodes(genesis_node_name = "nl_genesis"):
     prepare_nodes(genesis_node_name = genesis_node_name)
     write_docker_compose_env()
-    write_docker_compose(genesis_node_name = genesis_node_name)
+    _config_parse.write_docker_compose()
 
 def start_nodes(build_f):
     dir_nano_nodes = _node_path["container"]
@@ -198,19 +218,31 @@ def parse_args():
 def main():  
 
     args = parse_args()   
+    if args.command == 'csi' : #c(reate) s(tart) i(nit)
+        create_nodes(genesis_node_name = _genesis_node_name)
+        start_nodes(True)
+        init_nodes(genesis_node_name = _genesis_node_name)
+        stop_nodes()
+        start_nodes(False)
 
     if args.command == 'create':
-        create_nodes(genesis_node_name = "nano_private_genesis")  
-        logging.info("./nano_nodes folder was created")      
+        create_nodes(genesis_node_name = _genesis_node_name)  
+        logging.info("./nano_nodes folder was created") 
+
     elif args.command == 'start':
         start_nodes(args.build)
-    elif args.command == 'init':   
-        init_blocks = InitialBlocks()
-        init_blocks.publish_initial_blocks()
+
+    elif args.command == 'init': 
+        init_nodes(genesis_node_name = _genesis_node_name)
+        stop_nodes(False)
+        start_nodes()
+
     elif args.command == 'stop':
         stop_nodes()
+
     elif args.command == 'delete':
         delete_all()
+
     else:
         print('Unknown command %s', args.command)    
    

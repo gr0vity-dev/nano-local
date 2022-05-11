@@ -34,8 +34,8 @@ class Api:
             if "error" in r.text:
                 if self.debug : logging.debug("error in post_with_auth |\n request: \n{}\nresponse:\n{}".format(content, r.text)) 
             return json.loads(r.text)
-        except : 
-            if self.debug : logging.debug("{} Retrys left for post_with_auth : {}".format(max_retry, content["action"]))
+        except Exception as e: 
+            if self.debug : logging.debug(f'Error str{e} ... {max_retry} Retrys left for post_with_auth : {content["action"]}')
             max_retry = max_retry - 1   
             if max_retry >= 0 : 
                 time.sleep(0.1)  #100ms
@@ -147,9 +147,9 @@ class Api:
     def wallet_add(self, wallet, private_key) :
         # response = {"success" : False}
         req_wallet_add = {
-        "action": "wallet_add",
-        "wallet": wallet,
-        "key": private_key
+            "action": "wallet_add",
+            "wallet": wallet,
+            "key": private_key
         }
         data = self.post_with_auth(req_wallet_add)
         # {

@@ -5,9 +5,9 @@ epoch_count = 2
 #burn_amount = "200000000000000000000000000000000000000" #sent to xrb_1111111111111111111111111111111111111111111111111111hifc8npp
 
 #NODE ENV VARIABLES
-NANO_TEST_EPOCH_1="0x00000000000fff00" #optional overrides dc_nano_local_env
-NANO_TEST_EPOCH_2="0x0000000000ffff00" #optional overrides dc_nano_local_env
-NANO_TEST_EPOCH_2_RECV="0x00000000000fff0f" #optional overrides dc_nano_local_env
+#NANO_TEST_EPOCH_1="0x00000000000fff00" #this is fixed to 0x000000000000000f
+NANO_TEST_EPOCH_2="0xffffc00000ffff00" #optional overrides dc_nano_local_env
+NANO_TEST_EPOCH_2_RECV="0xffffc00000ffff00" #optional overrides dc_nano_local_env
 NANO_TEST_MAGIC_NUMBER="LC" #optional overrides dc_nano_local_env
 
 
