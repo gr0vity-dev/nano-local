@@ -22,21 +22,21 @@ Enter into the virtual environment
 #### Spin up a network :
 
 
-Create folders and node config : <code>$ python3 run_nano_local.py create</code>
+<code>$ python3 run_nano_local.py create</code> : Create folders and node config
 
-Start all nodes <code>$ python3 run_nano_local.py start</code>
+<code>$ python3 run_nano_local.py start</code> : Start all nodes
 
-Create Epochs Canary Burn and Vote weight distribution <code>$ python3 run_nano_local.py init</code>  
+<code>$ python3 run_nano_local.py init</code> : Create Epochs Canary Burn and Vote weight distribution   
 
-Do all above : <code>$ python3 run_nano_local.py csi</code> c(reate) s(tart) i(nit)
+Do all above with a single command: 
+
+<code>$ python3 run_nano_local.py csi</code> c(reate) s(tart) i(nit)
 
 
 #### Stop / Delete network nodes
-To stop all nodes
-<code>$ python3 run_nano_local.py stop</code>
+<code>$ python3 run_nano_local.py stop</code> : Stop all nodes
 
-To remove all nodes
-<code>$ python3 run_nano_local.py delete</code>
+<code>$ python3 run_nano_local.py delete</code> : Remove all nodes
 
 #### Delete virtual python environment
 To remove your virtual python environment 
