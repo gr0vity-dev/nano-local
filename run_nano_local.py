@@ -234,8 +234,8 @@ def main():
 
     elif args.command == 'init': 
         init_nodes(genesis_node_name = _genesis_node_name)
-        stop_nodes(False)
-        start_nodes()
+        stop_nodes()
+        start_nodes(False)
 
     elif args.command == 'stop':
         stop_nodes()

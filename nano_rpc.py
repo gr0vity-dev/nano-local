@@ -166,12 +166,13 @@ class Api:
         return data           
 
 
-    def check_balance(self, account):
+    def check_balance(self, account, include_only_confirmed = True):
        
         multiplier = 10 ** 30
         req_account_balance = {
             "action": "account_balance",
             "account": account,
+            "include_only_confirmed" : include_only_confirmed
         }
         data = self.post_with_auth(req_account_balance)
        

@@ -94,7 +94,8 @@ class InitialBlocks :
                                                      self.config["burn_account_data"]["account"],
                                                      self.config["burn_amount"])
         
-        logging.info("SEND FROM {} To {} : HASH {}".format( self.config["genesis_account_data"]["account"],
+        logging.info("SENT {:>40} FROM {} To {} : HASH {}".format( send_block["amount_raw"],
+                                                            self.config["genesis_account_data"]["account"],
                                                             self.config["burn_account_data"]["account"],
                                                             send_block["hash"] ))
          
@@ -102,7 +103,7 @@ class InitialBlocks :
     def __send_vote_weigh(self):
 
         #Convert from vote_weigh_% into balance
-        genesis_balance = int(self.api.check_balance(self.config["genesis_account_data"]["account"])["balance_raw"])
+        genesis_balance = int(self.api.check_balance(self.config["genesis_account_data"]["account"], include_only_confirmed = False)["balance_raw"])
         for node_account_data in self.config["node_account_data"]:
             if "vote_weight_percent" in node_account_data :
                 node_account_data["balance"] = int(genesis_balance * node_account_data["vote_weight_percent"] * 0.01)
@@ -114,9 +115,11 @@ class InitialBlocks :
                                                              self.config["genesis_account_data"]["account"],
                                                              node_account_data["account"],
                                                              node_account_data["balance"])
-                logging.info("SEND FROM {} To {} : HASH {}".format(self.config["genesis_account_data"]["account"],
-                                                                                node_account_data["account"],
-                                                                                send_block["hash"] ))
+
+                logging.info("SENT {:>40} FROM {} To {} : HASH {}".format(send_block["amount_raw"],
+                                                                      self.config["genesis_account_data"]["account"],
+                                                                      node_account_data["account"],
+                                                                      send_block["hash"] ))
                 
                 open_block = self.api.create_open_block(node_account_data["account"],
                                     node_account_data["private"],
@@ -134,8 +137,8 @@ class InitialBlocks :
             wallet = api.wallet_create(None)["wallet"]  
             account = api.wallet_add(wallet, private_key)["account"]            
         if seed != None : 
-            wallet = api.wallet_create(seed)
-            account = api.get_account_data(seed,0)
+            wallet = api.wallet_create(seed)["wallet"] 
+            account = api.get_account_data(seed,0)["account"]    
         logging.info(f"WALLET {wallet} CREATED FOR {node_name} WITH ACCOUNT {account}")
         
     
