@@ -3,42 +3,39 @@
 prerequisites : 
 * python3
 * docker
-* docker-compose V2 (if you use docker-compose v1.xx rename <code>config/default_dc_env_V1</code> to <code>config/default_dc_env)</code>
+* docker-compose (if you use docker-compose v1.xx make add <code>--compose_version=1</code> flag)
 
 ## Quickstart :
 
 #### Create a virtual python environment with all dependencies :
 
-<code>$ ./venv_nano_local.sh create</code>
-
-Enter into the virtual environment
-
-<code>$ source venv_nano_local/bin/activate</code>
-
-#### Optional configure the network :
-
-<code>config/nano_local_config.toml</code>
+<code>$ ./venv_nano_local.sh</code>
 
 #### Spin up a network :
 
+<code>$ ./run_nano_local.py create</code> : Create folders and node config
 
-<code>$ python3 run_nano_local.py create</code> : Create folders and node config
+<code>$ ./run_nano_local.py start</code> : Start all nodes
 
-<code>$ python3 run_nano_local.py start</code> : Start all nodes
-
-<code>$ python3 run_nano_local.py init</code> : Create Epochs Canary Burn and Vote weight distribution   
+<code>$ ./run_nano_local.py init</code> : Create Epochs Canary Burn and Vote weight distribution   
 
 Do all above with a single command: 
 
-<code>$ python3 run_nano_local.py csi</code> c(reate) s(tart) i(nit)
+<code>$ ./run_nano_local.py csi</code> c(reate) s(tart) i(nit)
 
 
 #### Stop / Delete network nodes
-<code>$ python3 run_nano_local.py stop</code> : Stop all nodes
+<code>$ ./run_nano_local.py stop</code> : Stop all nodes
 
-<code>$ python3 run_nano_local.py delete</code> : Remove all nodes
+<code>$ ./run_nano_local.py delete</code> : Remove all nodes and delte virtaul environment
 
-#### Delete virtual python environment
+
+#### Optional : Configure the network :
+
+<code>config/nano_local_config.toml</code>
+
+#### Optional : Delete virtual python environment
 To remove your virtual python environment 
 <code>$ ./venv_nano_local.sh delete</code>
-<code>$ deactivate</code>
+
+

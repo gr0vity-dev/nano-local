@@ -1,11 +1,9 @@
- 
 import requests
 import json
 import secrets
 import math
 import time
 import logging
-import os
 
 
 class Api:

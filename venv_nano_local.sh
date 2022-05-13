@@ -6,7 +6,7 @@
 
 action=$1
 
-if [ "$action" = "create" ]; 
+if [ "$action" = "" ]; 
 then
     pip3 install virtualenv --quiet
     python3 -m venv venv_nano_local
@@ -15,14 +15,9 @@ then
     pip3 install -r ./config/requirements.txt --quiet
 
     echo "A new virstaul environment was created. "
-    echo "To enter the virtal environment run"
-    echo "   $ source venv_nano_local/bin/activate"
-    echo ""
-    echo "To exit the virtual environemnt run"
-    echo "   $ deactivate"
-
-    return 0
-
+    echo "Quickstart to your nano-local network:"
+    echo "   $ ./run_nano_local.py csi"
+    
 elif [ "$action" = "delete" ];
 then 
     . venv_nano_local/bin/activate
@@ -30,9 +25,9 @@ then
     rm -rf venv_nano_local
 
 else
-     echo "run ./venv_nano_local.sh create "
+     echo "run ./venv_nano_local.sh  to create a virtual python environment"
      echo "or"
-     echo "run ./venv_nano_local.sh delete "
+     echo "run ./venv_nano_local.sh delete  to delete the virstual python environment"
 fi
 
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!./venv_nano_local/bin/python
 
 from distutils.debug import DEBUG
 import requests
