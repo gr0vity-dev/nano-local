@@ -24,9 +24,8 @@ from nano_local_initial_blocks import InitialBlocks
 log_format = '[%(asctime)s] [%(levelname)s] - %(message)s'
 logging.basicConfig(level=logging.INFO , format=log_format)
 
-_genesis_node_name = "nano_private_genesis"
 _config_rw = ConfigReadWrite()
-_config_parse = ConfigParser(_genesis_node_name)
+_config_parse = ConfigParser()
 _node_path = {"container" : "./nano_nodes"}
 
 
@@ -224,21 +223,21 @@ def main():
 
     args = parse_args()   
     if args.command == 'csi' : #c(reate) s(tart) i(nit)
-        create_nodes(args.compose_version, genesis_node_name = _genesis_node_name)
+        create_nodes(args.compose_version)
         start_nodes(True)
-        init_nodes(genesis_node_name = _genesis_node_name)
+        init_nodes()
         stop_nodes()
         start_nodes(False)
 
     if args.command == 'create':
-        create_nodes(args.compose_version, genesis_node_name = _genesis_node_name)  
+        create_nodes(args.compose_version)  
         logging.info("./nano_nodes folder was created") 
 
     elif args.command == 'start':
         start_nodes(args.build)
 
     elif args.command == 'init': 
-        init_nodes(genesis_node_name = _genesis_node_name)
+        init_nodes()
         stop_nodes()
         start_nodes(False)
 
