@@ -35,7 +35,7 @@ Do all above with a single command:
 
 #### Optional : Configure the network :
 
-<code>config/nano_local_config.toml</code>
+<code>nano_local_config.toml</code> define all aspects of the network : genesis account, burn_amount, number of nodes, versions,...
 
 #### Optional : Delete virtual python environment
 To remove your virtual python environment 
