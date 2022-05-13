@@ -7,11 +7,12 @@ import logging
 import os
 from config.parse_nano_local_config import ConfigParser
 from config.parse_nano_local_config import ConfigReadWrite
+from nano_local_initial_blocks import InitialBlocks
+from nano_rpc import Api
 import argparse
 from ed25519_blake2b import SigningKey
 import binascii
-
-from nano_local_initial_blocks import InitialBlocks
+import copy
 
 # * Create (this will create the one time resources that need creating)
 # * Start (this will start the nodes)
@@ -145,6 +146,19 @@ def generate_genesis_open(genesis_key):
          logging.error(str(e))        
          os.system(docker_stop_rm)
 
+def is_rpc_available(node_names):    
+    while len(node_names) > 0 :
+        containers = copy.deepcopy(node_names)
+        for container in containers:            
+            cmd_rpc_url = f"docker port {container} | grep 17076/tcp | awk '{{print $3}}'"
+            rpc_url = "http://" + str(os.popen(cmd_rpc_url).read()).strip()
+            if Api(rpc_url).is_online(timeout=3) :
+                node_names.remove(container)
+            else :
+                logging.warn(f"RPC {rpc_url} not reachable for node {container} ")
+
+
+
 def prepare_nodes(genesis_node_name):
     #prepare genesis 
     prepare_node_env(genesis_node_name)    
@@ -183,7 +197,9 @@ def start_nodes(build_f):
     command =  f'cd {dir_nano_nodes} && docker-compose up -d'
     if build_f :
         command =  f'cd {dir_nano_nodes} && docker-compose up -d --build'
-    os.system(command)       
+    os.system(command) 
+    is_rpc_available(_config_parse.get_node_names()) 
+
     
 def stop_nodes():
     dir_nano_nodes = _node_path["container"]    
@@ -215,7 +231,9 @@ def parse_args():
 # def parse_args() :
 #     return argClass
 # class argClass :    
-#     command = "init"
+#     command = "start"
+#     build = False
+#     compose_version = 2
 
 
 

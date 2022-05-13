@@ -39,6 +39,16 @@ class Api:
                 time.sleep(0.1)  #100ms
                 self.post_with_auth(content,max_retry)
 
+    def is_online(self, timeout = 1):
+        while timeout > 0 :
+            try : 
+                logging.debug(self.block_count(max_retry=0)["count"])
+                return True
+            except :
+                timeout = timeout -1
+                time.sleep(1)
+        return False
+
     def generate_seed(self):
         return secrets.token_hex(32)
 
@@ -78,6 +88,12 @@ class Api:
         
         return payload
 
+    def block_count(self, max_retry = 2):
+        req_block_count = {
+            "action": "block_count"
+        } 
+        return self.post_with_auth(req_block_count, max_retry=max_retry) 
+    
     def generate_account(self, seed, index):
         
         req_deterministic_key = {
