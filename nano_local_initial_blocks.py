@@ -1,5 +1,3 @@
-#!./venv_nano_local python3
-
 from nano_rpc import Api
 from config.parse_nano_local_config import ConfigParser
 import logging
