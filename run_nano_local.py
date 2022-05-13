@@ -99,14 +99,17 @@ def write_config_rpc(node_name):
     _config_rw.write_toml(_node_path[node_name]["config_rpc_path"], config_rpc) 
 
 
-def write_docker_compose_env():
+def write_docker_compose_env(compose_version):
     #Read default env file
     conf_variables = _config_parse.config_dict
     env_variables = []
     genesis_block = generate_genesis_open(conf_variables['genesis_key'])
     s_genesis_block = str(genesis_block).replace("'", '"')
     
-    env_variables.append( f"'NANO_TEST_GENESIS_BLOCK={s_genesis_block}'")
+    if compose_version == 1 :
+        env_variables.append( f"'NANO_TEST_GENESIS_BLOCK={s_genesis_block}'")
+    elif compose_version == 2 :
+        env_variables.append( f"NANO_TEST_GENESIS_BLOCK={s_genesis_block}")
     env_variables.append( f'NANO_TEST_GENESIS_PUB="{genesis_block["source"]}"')
     env_variables.append( f'NANO_TEST_CANARY_PUB="{get_public_key(conf_variables["canary_key"])}"')
 
@@ -171,9 +174,9 @@ def init_nodes(genesis_node_name = "nl_genesis"):
     
     init_blocks.publish_initial_blocks()
 
-def create_nodes(genesis_node_name = "nl_genesis"):
+def create_nodes(compose_version, genesis_node_name = "nl_genesis"):
     prepare_nodes(genesis_node_name = genesis_node_name)
-    write_docker_compose_env()
+    write_docker_compose_env(compose_version)
     _config_parse.write_docker_compose()
 
 def start_nodes(build_f):
@@ -202,6 +205,8 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-b', '--build', type=bool, default = False,
                         help='build docker container for new executable')
+    parser.add_argument('--compose_version', type=int, default = 2, choices={1,2},
+                        help='run $ docker-compose --version to identify the version. Defaults to 2')
     parser.add_argument('command',
             help='create , start, init, stop, delete', default = 'init')
     return parser.parse_args()
@@ -219,14 +224,14 @@ def main():
 
     args = parse_args()   
     if args.command == 'csi' : #c(reate) s(tart) i(nit)
-        create_nodes(genesis_node_name = _genesis_node_name)
+        create_nodes(args.compose_version, genesis_node_name = _genesis_node_name)
         start_nodes(True)
         init_nodes(genesis_node_name = _genesis_node_name)
         stop_nodes()
         start_nodes(False)
 
     if args.command == 'create':
-        create_nodes(genesis_node_name = _genesis_node_name)  
+        create_nodes(args.compose_version, genesis_node_name = _genesis_node_name)  
         logging.info("./nano_nodes folder was created") 
 
     elif args.command == 'start':
