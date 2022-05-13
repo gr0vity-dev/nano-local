@@ -216,9 +216,10 @@ def reset_nodes():
 
 def destroy_all():
     dir_nano_nodes = _node_path["container"]
-    commands =  [ f'cd {dir_nano_nodes} && docker-compose down',
-                  'rm -rf ./nano_nodes' ,
-                  'rm -rf ./__pycache__']
+    commands =  [ f'cd {dir_nano_nodes} && docker-compose down', #stop all nodes
+                  'rm -rf ./nano_nodes' , #remove all nodes and their configs
+                  'rm -rf ./__pycache__',
+                  'rm -rf ./venv_nano_local'] #remove python virtual environemtn
 
     for command in commands:
         os.system(command)
