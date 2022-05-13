@@ -3,7 +3,7 @@
 prerequisites : 
 * python3
 * docker
-* docker-compose
+* docker-compose V2 (if you use docker-compose v1.xx rename config/default_dc_env_V1 to config/default_dc_env)
 
 ## Quickstart :
 
