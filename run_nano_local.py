@@ -1,6 +1,5 @@
 #!./venv_nano_local/bin/python
 
-from distutils.debug import DEBUG
 import requests
 import json
 import logging
@@ -175,6 +174,7 @@ def prepare_node_env(node_name):
 
 
 def init_nodes(genesis_node_name = "nl_genesis"):
+    start_nodes(False) #fixes a bug on mac m1
     init_blocks = InitialBlocks()        
     for node_name in _config_parse.get_node_names():
         if node_name == genesis_node_name :

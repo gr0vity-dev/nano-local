@@ -36,13 +36,13 @@ class Api:
             if self.debug : logging.debug(f'Error str{e} ... {max_retry} Retrys left for post_with_auth : {content["action"]}')
             max_retry = max_retry - 1   
             if max_retry >= 0 : 
-                time.sleep(0.1)  #100ms
+                time.sleep(0.5)  #100ms
                 self.post_with_auth(content,max_retry)
 
     def is_online(self, timeout = 1):
         while timeout > 0 :
             try : 
-                logging.debug(self.block_count(max_retry=0)["count"])
+                logging.debug("block_count: " + self.block_count(max_retry=0)["count"])
                 return True
             except :
                 timeout = timeout -1
