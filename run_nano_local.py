@@ -155,7 +155,7 @@ def is_rpc_available(node_names):
             if Api(rpc_url).is_online(timeout=3) :
                 node_names.remove(container)
             else :
-                logging.warning(f"RPC {rpc_url} not reachable for node {container} ")
+                logging.warning(f"RPC {rpc_url} not yet reachable for node {container} ")
 
 
 
