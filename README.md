@@ -23,11 +23,14 @@ Do all above with a single command:
 
 <code>$ ./run_nano_local.py csi</code> c(reate) s(tart) i(nit)
 
+#### Reset network nodes 
+
+<code>$ ./run_nano_local.py csi</code> : Delete all blocks except genesis block
 
 #### Stop / Delete network nodes
 <code>$ ./run_nano_local.py stop</code> : Stop all nodes
 
-<code>$ ./run_nano_local.py delete</code> : Remove all nodes and delte virtaul environment
+<code>$ ./run_nano_local.py destroy</code> : Remove all nodes and delte virtaul environment
 
 
 #### Optional : Configure the network :
