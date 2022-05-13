@@ -25,7 +25,7 @@ Do all above with a single command:
 
 #### Reset network nodes 
 
-<code>$ ./run_nano_local.py csi</code> : Delete all blocks except genesis block
+<code>$ ./run_nano_local.py reset</code> : Delete all blocks except genesis block by removing data.ldb from all nodes
 
 #### Stop / Delete network nodes
 <code>$ ./run_nano_local.py stop</code> : Stop all nodes
