@@ -12,8 +12,8 @@ NANO_TEST_MAGIC_NUMBER="LC" #optional overrides dc_nano_local_env
 
 [representatives]
     #### shared config between all reps
-    config_node_path = "./default_config-node.toml" #optional if you want to modify parameters
-    config_rpc_path = "./default_config-rpc.toml" #optional if you want to modify parameters
+    config_node_path = "./config/default_config-node.toml" #optional if you want to modify parameters
+    config_rpc_path = "./config/default_config-rpc.toml" #optional if you want to modify parameters
 
     ### Choose between --docker_tag (existing tag  --nano_node_path
     #https://hub.docker.com/r/nanocurrency/nano-test/tags
