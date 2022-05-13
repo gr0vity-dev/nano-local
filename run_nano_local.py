@@ -4,10 +4,10 @@ import requests
 import json
 import logging
 import os
-from config.parse_nano_local_config import ConfigParser
-from config.parse_nano_local_config import ConfigReadWrite
-from nano_local_initial_blocks import InitialBlocks
-from nano_rpc import Api
+from src.parse_nano_local_config import ConfigParser
+from src.parse_nano_local_config import ConfigReadWrite
+from src.nano_local_initial_blocks import InitialBlocks
+from src.nano_rpc import Api
 import argparse
 from ed25519_blake2b import SigningKey
 import binascii

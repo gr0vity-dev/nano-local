@@ -7,11 +7,12 @@ import secrets
 import json
 import copy
 
-_script_dir = os.path.dirname(__file__) #<-- absolute dir the script is in
-_config_path = os.path.join(_script_dir, "./nano_local_config.toml") 
-_default_compose_path = os.path.join(_script_dir, "./default_docker-compose.yml")  
-_dockerfile_path = _script_dir.replace("config", "nano_nodes/{node_name}")
-_nano_nodes_path = _script_dir.replace("config", "nano_nodes")
+_app_dir = os.path.dirname(__file__).replace("/src", "") #<-- absolute dir the script is in
+_config_dir = os.path.join(_app_dir, "./config")
+_config_path = os.path.join(_app_dir, "./nano_local_config.toml") 
+_default_compose_path = os.path.join(_app_dir, "./config/default_docker-compose.yml")  
+_dockerfile_path = os.path.join(_app_dir, "./nano_nodes/{node_name}")
+_nano_nodes_path = os.path.join(_app_dir,  "./nano_nodes")
 
 
 #compose output file : nano-local/nano_nodes/docker-compose.yml
@@ -182,7 +183,7 @@ class ConfigParser :
         #copy nano_node into working directory for Dockerfile      
         dockerfile_path = _dockerfile_path.format(node_name=node_name)  
         copy_node =        f"cp -p {nano_node_path} {dockerfile_path}/nano_node"
-        copy_dockerfile =  f"cp -p {_script_dir}/default_Dockerfile {dockerfile_path}/Dockerfile"        
+        copy_dockerfile =  f"cp -p {_config_dir}/default_Dockerfile {dockerfile_path}/Dockerfile"        
 
         if os.path.exists(nano_node_path) :         
             os.system(copy_node)  
