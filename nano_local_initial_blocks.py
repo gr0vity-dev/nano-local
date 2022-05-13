@@ -85,7 +85,7 @@ class InitialBlocks :
 
         genesis_balance = int(self.api.check_balance(self.config["genesis_account_data"]["account"])["balance_raw"]) 
         if int(self.config["burn_amount"]) > genesis_balance:
-            logging.warn("[burn_amount] exceeds genesis balance. exit send_to_burn()")
+            logging.warning("[burn_amount] exceeds genesis balance. exit send_to_burn()")
             return False               
        
         send_block = self.api.create_send_block_pkey(self.config["genesis_account_data"]["private"],

@@ -77,13 +77,13 @@ class ConfigParser :
         for node in self.config_dict["representatives"]["nodes"]:
             if "name" not in node:
                 node["name"] = f"nl_{secrets.token_hex(6)}"
-                logging.warn (f'no name set for a node. New name : {node["name"].lower()}')
+                logging.warning (f'no name set for a node. New name : {node["name"].lower()}')
                 #TODO write new config file with updates name to disk?
             node["name"] = node["name"].lower()
 
             if "seed" not in node:
                 node["seed"] = secrets.token_hex(32)
-                logging.warn (f'no seed set for a node. New seed : {node["seed"]}')     
+                logging.warning (f'no seed set for a node. New seed : {node["seed"]}')     
     
     def __config_dict_set_default_values(self) :
         #self.config_dict = conf_rw.read_toml(_config_path)
@@ -167,7 +167,7 @@ class ConfigParser :
         else:
             container = self.add_docker_compose_container(node_name, "default_docker")
             container["image"] = f"nanocurrency/nano-test:latest" 
-            logging.warn("No docker_tag or nano_node_path specified. use [latest] (nanocurrency/nano-test:latest)")
+            logging.warning("No docker_tag or nano_node_path specified. use [latest] (nanocurrency/nano-test:latest)")
     
     def set_docker_ports(self, node_name, port_i):
         host_port_rpc = 45000 + port_i

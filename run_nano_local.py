@@ -84,7 +84,7 @@ def create_node_folders(node_name):
 def write_config_node(node_name):
     config_node = _config_parse.get_config_from_path(node_name, "config_node_path")
     if config_node is None :
-        logging.warn("No config-node.toml found. minimal version was created")
+        logging.warning("No config-node.toml found. minimal version was created")
         config_node = get_default("config_node")
 
     config_node["node"]["preconfigured_peers"] = _config_parse.preconfigured_peers
@@ -93,7 +93,7 @@ def write_config_node(node_name):
 def write_config_rpc(node_name):
     config_rpc = _config_parse.get_config_from_path(node_name, "config_rpc_path")
     if config_rpc is None :
-        logging.warn("No config-rpc.toml found. minimal version was created")
+        logging.warning("No config-rpc.toml found. minimal version was created")
         config_rpc = get_default("config_rpc")
 
     _config_rw.write_toml(_node_path[node_name]["config_rpc_path"], config_rpc) 
@@ -155,7 +155,7 @@ def is_rpc_available(node_names):
             if Api(rpc_url).is_online(timeout=3) :
                 node_names.remove(container)
             else :
-                logging.warn(f"RPC {rpc_url} not reachable for node {container} ")
+                logging.warning(f"RPC {rpc_url} not reachable for node {container} ")
 
 
 
