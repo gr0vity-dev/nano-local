@@ -63,7 +63,7 @@ class InitialBlocks :
         pass
 
     def __log_active_difficulty(self):
-        diff = logging.info(self.api.get_active_difficulty()[""])
+        diff = self.api.get_active_difficulty()
         logging.info(f'current_diff : [{diff["network_current"]}]  current_receive_diff: [{diff["network_receive_current"]}]' )
 
     def __publish_canary(self):
