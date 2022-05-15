@@ -100,6 +100,7 @@ class ConfigParser :
         if "NANO_TEST_MAGIC_NUMBER" not in self.config_dict : self.config_dict["NANO_TEST_MAGIC_NUMBER"] = "LC"
         if "NANO_TEST_CANARY_PUB" not in self.config_dict : self.config_dict["NANO_TEST_CANARY_PUB"] = "CCAB949948224D6B33ACE0E078F7B2D3F4D79DF945E46915C5300DAEF237934E"        
 
+        if "nanolooker_enable" not in self.config_dict : self.config_dict["nanolooker_enable"] = False        
         return self.config_dict 
     
     def __config_dict_add_genesis_to_nodes(self, genesis_node_name) :
@@ -127,11 +128,18 @@ class ConfigParser :
     def __set_docker_compose(self):  
         host_port_inc = 0
         for node in self.config_dict["representatives"]["nodes"]:  
-            self.set_docker_tag(node["name"])
-            self.set_docker_ports(node["name"], host_port_inc)
+            self.compose_add_node(node["name"])
+            self.compose_set_node_ports(node["name"], host_port_inc)
             host_port_inc = host_port_inc + 1  
         
-        #remove default containers
+        if self.config_dict["nanolooker_enable"] :
+            nanolooker_compose = self.conf_rw.read_yaml ( f'{_config_dir}/nanolooker/docker-compose.yml')
+
+            for container in nanolooker_compose["services"] :
+                self.compose_dict["services"][container] = nanolooker_compose["services"][container]
+
+        
+        #remove default container
         self.compose_dict["services"].pop("default_docker", None)
         self.compose_dict["services"].pop("default_build", None)  
 
@@ -139,42 +147,42 @@ class ConfigParser :
         self.conf_rw.write_yaml( f"{_nano_nodes_path}/docker-compose.yml", self.compose_dict)
 
 
-    def set_docker_tag(self, node_name):
+    def compose_add_node(self, node_name):
         #Search for individual docker_tag, then individual executable, then shared docker-tag then shared-executable
         
         if self.get_representative_config("docker_tag", node_name)["found"]: #search by individual docker_tag   
             #default_docker
-            container = self.add_docker_compose_container(node_name, "default_docker")
+            container = self.compose_add_container(node_name, "default_docker")
             docker_tag = self.get_representative_config("docker_tag", node_name)["value"]
             container["image"] = f"nanocurrency/nano-test:{docker_tag}" 
 
         elif self.get_representative_config("nano_node_path", node_name)["found"]: #search by individual nano_node_path
             #default_build
-            container = self.add_docker_compose_container(node_name, "default_build")
+            container = self.compose_add_container(node_name, "default_build")
             dockerfile_path = self.cp_dockerfile_and_nano_node(self.get_representative_config("nano_node_path", node_name)["value"], node_name)
             container["build"] = f"{dockerfile_path}/."       
 
         elif self.get_representative_config("docker_tag", None)["found"]: #search by shared docker_tag
             #default_docker
-            container = self.add_docker_compose_container(node_name, "default_docker")
+            container = self.compose_add_container(node_name, "default_docker")
             docker_tag = self.get_representative_config("docker_tag", None)["value"]
             container["image"] = f"nanocurrency/nano-test:{docker_tag}" 
         
         elif self.get_representative_config("nano_node_path", None)["found"]: #search by shared nano_node_path
             #default_build
-            container = self.add_docker_compose_container(node_name, "default_build")
+            container = self.compose_add_container(node_name, "default_build")
             dockerfile_path = self.cp_dockerfile_and_nano_node(self.get_representative_config("nano_node_path", None)["value"], node_name)
             container["build"] = f"{dockerfile_path}/."  
         else:
-            container = self.add_docker_compose_container(node_name, "default_docker")
+            container = self.compose_add_container(node_name, "default_docker")
             container["image"] = f"nanocurrency/nano-test:latest" 
             logging.warning("No docker_tag or nano_node_path specified. use [latest] (nanocurrency/nano-test:latest)")
     
-    def set_docker_ports(self, node_name, port_i):
+    def compose_set_node_ports(self, node_name, port_i):
         host_port_rpc = 45000 + port_i
         host_port_ws = 47000 + port_i
         self.compose_dict["services"][node_name]["ports"] = [f'{host_port_rpc}:17076', f'{host_port_ws}:17078'] 
-        #hijack port settings to appen config
+        #hijack port settings to append config
         node_config = self.get_node_config(node_name)
         node_config["rpc_url"] = f'http://localhost:{host_port_rpc}'
         
@@ -194,7 +202,7 @@ class ConfigParser :
 
         return dockerfile_path
     
-    def add_docker_compose_container(self, node_name, default_container) :
+    def compose_add_container(self, node_name, default_container) :
         #copies a default container and adds it as a new container
         self.compose_dict["services"][node_name] = copy.deepcopy(self.compose_dict["services"][default_container])
         self.compose_dict["services"][node_name]["container_name"] = node_name

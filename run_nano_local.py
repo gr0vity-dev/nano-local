@@ -240,7 +240,7 @@ def parse_args():
 # def parse_args() :
 #     return argClass
 # class argClass :    
-#     command = "start"
+#     command = "stop"
 #     build = False
 #     compose_version = 2
 
