@@ -28,10 +28,15 @@ class Api:
             url = self.RPC_URL 
             headers = {"Content-type": "application/json", "Accept": "text/plain"}    
             r = requests.post(url, json=content, headers=headers)
+            r_json = json.loads(r.text)
             # print("request: {} \rrepsonse: {}".format(content["action"], r.text ))
-            if "error" in r.text:
-                if self.debug : logging.debug("error in post_with_auth |\n request: \n{}\nresponse:\n{}".format(content, r.text)) 
-            return json.loads(r.text)
+            if "error" in r_json:
+                msg = "error in post_with_auth |\n request: \n{}\nresponse:\n{}".format(content, r.text)
+                if r_json["error"] == "Account not found" :
+                    logging.debug(msg)
+                else :
+                    logging.warn(msg)
+            return r_json
         except Exception as e: 
             if self.debug : logging.debug(f'Error str{e} ... {max_retry} Retrys left for post_with_auth : {content["action"]}')
             max_retry = max_retry - 1   
@@ -74,6 +79,11 @@ class Api:
             result['error_message'] = 'Wrong seed length'
 
         return result
+
+    def get_active_difficulty(self):
+        req_active_difficulty = {"action" : "active_difficulty"}
+        return self.post_with_auth(req_active_difficulty)
+
     def get_account_data(self, seed):
         payload = self.generate_account(seed, 0)
         payload["success"] = True
@@ -280,8 +290,8 @@ class Api:
             "key": open_private_key,
             "representative": rep_account,
             "link": send_block_hash,
-            "previous": previous
-            # ,"difficulty": difficulty,
+            "previous": previous,
+            "difficulty" : self.get_active_difficulty()["network_receive_current"]
         }
         block = self.post_with_auth(req_block_create)
 
@@ -361,7 +371,8 @@ class Api:
             "representative": current_rep,
             "link": destination_link,
             "link_as_account": destination_account,
-            "previous": source_previous
+            "previous": source_previous,
+            "difficulty" : self.get_active_difficulty()["network_current"]
             # ,"difficulty": difficulty,
         }
         if self.debug : logging.debug("req_block_create : {}".format(time.time() - t1))
@@ -442,8 +453,8 @@ class Api:
             "representative": current_rep,
             "link": destination_link,
             "link_as_account": destination_account,
-            "previous": source_previous
-            # ,"difficulty": difficulty,
+            "previous": source_previous,
+            "difficulty" : self.get_active_difficulty()["network_current"] 
         }
         if self.debug : logging.debug("req_block_create : {}".format(time.time() - t1))
         if self.debug : t1 = time.time() 
@@ -503,7 +514,8 @@ class Api:
             "key": genesis_private_key,
             "representative": account_info["representative"],
             "link": epoch_link,
-            "previous": account_info["frontier"]
+            "previous": account_info["frontier"],
+            "difficulty" : self.get_active_difficulty()["network_current"]
         }
 
         if self.debug : logging.debug("req_block_create : {}".format(time.time() - t1))
@@ -517,6 +529,7 @@ class Api:
             "subtype": "epoch",
             "block": epoch_block["block"],
         }
+        logging.debug(req_process)
         publish = self.post_with_auth(req_process)
         if self.debug : logging.debug("req_process : {}".format(time.time() - t1))
         return {"success" : True,

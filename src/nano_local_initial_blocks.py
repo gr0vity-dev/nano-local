@@ -48,7 +48,8 @@ class InitialBlocks :
  
 
     def __publish_epochs(self):
-        e = 1
+        e = 1        
+        self.__log_active_difficulty()
         while e <= self.config["epoch_count"]:
             link = self.__epoch_link(e)
             epoch_block = self.api.create_epoch_block(
@@ -57,8 +58,13 @@ class InitialBlocks :
                 self.config["genesis_account_data"]["account"]
                 )
             logging.info("EPOCH {} sent by genesis : HASH {}".format(e, epoch_block["hash"]))
+            self.__log_active_difficulty()
             e += 1
         pass
+
+    def __log_active_difficulty(self):
+        diff = logging.info(self.api.get_active_difficulty()[""])
+        logging.info(f'current_diff : [{diff["network_current"]}]  current_receive_diff: [{diff["network_receive_current"]}]' )
 
     def __publish_canary(self):
         fv_canary_send_block = self.api.create_send_block_pkey( self.config["genesis_account_data"]["private"],
