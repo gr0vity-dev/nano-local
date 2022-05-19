@@ -6,18 +6,29 @@ import oyaml as yaml
 import secrets
 import json
 import copy
+import hashlib
+from ed25519_blake2b import SigningKey
+from binascii import hexlify, unhexlify
+from base64 import b32encode, b32decode  
+import string 
+from pyblake2 import blake2b
 
 _app_dir = os.path.dirname(__file__).replace("/src", "") #<-- absolute dir the script is in
 _config_dir = os.path.join(_app_dir, "./config")
 _config_path = os.path.join(_app_dir, "./nano_local_config.toml") 
 _default_compose_path = os.path.join(_app_dir, "./config/default_docker-compose.yml")  
 _dockerfile_path = os.path.join(_app_dir, "./nano_nodes/{node_name}")
+_default_nanomonitor_config = os.path.join(_config_dir, "nanomonitor/default_config.php")
 _nano_nodes_path = os.path.join(_app_dir,  "./nano_nodes")
 
 
 #compose output file : nano-local/nano_nodes/docker-compose.yml
 
 class ConfigReadWrite: 
+
+    def read_file(self,path):
+        with open(path, "r") as f:
+            return f.readlines()
 
     def write_list(self,path,list):                
         with open(path, "w") as f:    
@@ -56,7 +67,45 @@ class Helpers:
         for key,value in dict.items():
             if value==value_l:
                 return {"found" : True, "value" : dict}
-        return {"found" : False, "value" : None}   
+        return {"found" : False, "value" : None}      
+     
+
+    maketrans = bytes.maketrans if hasattr(bytes, 'maketrans') else string.maketrans
+    B32_ALPHABET = b'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
+    XRB_ALPHABET = b'13456789abcdefghijkmnopqrstuwxyz'
+    XRB_ENCODE_TRANS = maketrans(B32_ALPHABET, XRB_ALPHABET)
+    XRB_DECODE_TRANS = maketrans(XRB_ALPHABET, B32_ALPHABET)
+
+    def bytes_to_xrb(self,value):        
+        return b32encode(value).translate(self.XRB_ENCODE_TRANS)
+
+    def hex_to_xrb(self,value):      
+        return self.bytes_to_xrb(unhexlify(value))
+
+
+    def xrb_to_bytes(self,value):       
+        return b32decode(value.translate(self.XRB_DECODE_TRANS))
+
+    def xrb_to_hex(self,value):        
+        return hexlify(self.xrb_to_bytes(value)) 
+    
+    def address_checksum(self,address):        
+        address_bytes = address
+        h = blake2b(digest_size=5)
+        h.update(address_bytes)
+        checksum = bytearray(h.digest())
+        checksum.reverse()
+        return checksum
+
+    
+    def public_key_to_xrb_address(self,public_key):
+        if not len(public_key) == 32:
+            raise ValueError('public key must be 32 chars')
+
+        padded = b'000' + public_key
+        address = self.bytes_to_xrb(padded)[4:]
+        checksum = self.bytes_to_xrb(self.address_checksum(public_key))
+        return 'xrb_' + address.decode('ascii') + checksum.decode('ascii')
 
 class ConfigParser :
 
@@ -72,6 +121,18 @@ class ConfigParser :
         self.__config_dict_add_genesis_to_nodes(genesis_node_name)
         self.__set_preconfigured_peers()    
         self.__set_docker_compose() #also sets rpc_url in config_dict.representative.nodes.node_name.rpc_url     
+        self.__set_node_accounts()
+
+    def __set_node_accounts(self):   
+       
+        for node in self.config_dict["representatives"]["nodes"]:          
+
+            if "key" in node :
+                account_data = self.key_expand(node["key"])
+            else:
+                account_data = self.account_from_seed(node["seed"]) #index 0           
+            
+            node["account"] = account_data["account"]
 
     def __config_dict_set_node_variables(self):
         
@@ -100,13 +161,14 @@ class ConfigParser :
         if "NANO_TEST_MAGIC_NUMBER" not in self.config_dict : self.config_dict["NANO_TEST_MAGIC_NUMBER"] = "LC"
         if "NANO_TEST_CANARY_PUB" not in self.config_dict : self.config_dict["NANO_TEST_CANARY_PUB"] = "CCAB949948224D6B33ACE0E078F7B2D3F4D79DF945E46915C5300DAEF237934E"        
 
-        if "nanolooker_enable" not in self.config_dict : self.config_dict["nanolooker_enable"] = False        
+        if "nanolooker_enable" not in self.config_dict : self.config_dict["nanolooker_enable"] = False      
+        if "nanomonitor_enable" not in self.config_dict : self.config_dict["nanomonitor_enable"] = False    
+        if "nanoticker_enable" not in self.config_dict : self.config_dict["nanoticker_enable"] = False   
         return self.config_dict 
     
     def __config_dict_add_genesis_to_nodes(self, genesis_node_name) :
         self.config_dict["representatives"]["nodes"].insert(0, { "name" : genesis_node_name,
                                                                  "key" : self.config_dict["genesis_key"] })
-
 
     def __set_preconfigured_peers(self ):    
         for node in self.config_dict["representatives"]["nodes"]:            
@@ -114,6 +176,33 @@ class ConfigParser :
                 self.preconfigured_peers.append(node["name"])    
         return self.preconfigured_peers      
 
+    def account_from_seed(self, seed):  
+        seed =  unhexlify(seed)
+        index = 0x00000000.to_bytes(4, 'big') # 1
+        blake2b_state = hashlib.blake2b(digest_size=32)
+        concat = seed+index
+        blake2b_state.update(concat)
+        # where `+` means concatenation, not sum: https://docs.python.org/3/library/hashlib.html#hashlib.hash.update
+        # code line above is equal to `blake2b_state.update(seed); blake2b_state.update(index)`
+        private_key = blake2b_state.digest()
+        return self.key_expand(hexlify(private_key))
+
+    def key_expand(self,private_key): 
+
+        signing_key = SigningKey(unhexlify(private_key))
+        private_key = signing_key.to_bytes().hex()
+        public_key = signing_key.get_verifying_key().to_bytes().hex()
+
+        return {"public" : public_key, "account" : self.h.public_key_to_xrb_address(unhexlify(public_key))}     
+
+    def write_nanomonitor_config(self, node_name):
+        nanomonitor_config = self.conf_rw.read_file(_default_nanomonitor_config)
+        destination_path = str(os.path.join(_dockerfile_path, "nanoNodeMonitor/config.php")).format(node_name=node_name)
+        node_config = self.get_node_config(node_name)
+        nanomonitor_config[4] = f"$nanoNodeName = '{node_name}';"
+        nanomonitor_config[5] = f"$nanoNodeRPCIP   = '{node_name}';"
+        nanomonitor_config[7] = f"$nanoNodeAccount = '{node_config['account']}';"
+        self.conf_rw.write_list(destination_path,nanomonitor_config)
 
     def get_node_config(self, node_name):
         result = self.h.value_in_dict_array(self.config_dict["representatives"]["nodes"], node_name)
@@ -130,18 +219,48 @@ class ConfigParser :
         for node in self.config_dict["representatives"]["nodes"]:  
             self.compose_add_node(node["name"])
             self.compose_set_node_ports(node["name"], host_port_inc)
-            host_port_inc = host_port_inc + 1  
+            host_port_inc = host_port_inc + 1 
         
-        if self.config_dict["nanolooker_enable"] :
-            nanolooker_compose = self.conf_rw.read_yaml ( f'{_config_dir}/nanolooker/docker-compose.yml')
+        if self.get_config_value("nanolooker_enable") :
+            self.set_nanolooker_compose()
+        
+        if self.get_config_value("nanomonitor_enable") :
+            self.set_nanomonitor_compose()
 
-            for container in nanolooker_compose["services"] :
-                self.compose_dict["services"][container] = nanolooker_compose["services"][container]
+        if self.get_config_value("nanoticker_enable") :
+            self.set_nanoticker_compose()
 
         
         #remove default container
         self.compose_dict["services"].pop("default_docker", None)
         self.compose_dict["services"].pop("default_build", None)  
+
+    def set_nanoticker_compose(self):
+        nanoticker_compose = self.conf_rw.read_yaml ( f'{_config_dir}/nanoticker/default_docker-compose.yml')
+        self.compose_dict["services"]["nl_nanoticker"] = nanoticker_compose["services"]["nl_nanoticker"]
+
+    def set_nanolooker_compose(self):
+        nanolooker_compose = self.conf_rw.read_yaml ( f'{_config_dir}/nanolooker/default_docker-compose.yml')
+        for container in nanolooker_compose["services"] :
+            self.compose_dict["services"][container] = nanolooker_compose["services"][container]
+
+
+    def set_nanomonitor_compose(self):
+        host_port_inc = 0
+        for node in self.config_dict["representatives"]["nodes"]: 
+                nanomonitor_compose = self.conf_rw.read_yaml ( f'{_config_dir}/nanomonitor/default_docker-compose.yml')               
+                container = nanomonitor_compose["services"]["default_monitor"] 
+                container_name = f'{node["name"]}_monitor'
+                self.compose_dict["services"][container_name] = copy.deepcopy(container)
+                self.compose_dict["services"][container_name]["container_name"] = container_name
+                self.compose_dict["services"][container_name]["volumes"][0] =  self.compose_dict["services"][container_name]["volumes"][0].replace("default_monitor", node["name"])
+                self.compose_set_nanomonitor_ports(container_name, host_port_inc)
+                host_port_inc = host_port_inc + 1
+
+
+    def get_config_value(self, key) :
+        if key not in self.config_dict : return None
+        return self.config_dict[key]
 
     def write_docker_compose(self):  
         self.conf_rw.write_yaml( f"{_nano_nodes_path}/docker-compose.yml", self.compose_dict)
@@ -185,6 +304,11 @@ class ConfigParser :
         #hijack port settings to append config
         node_config = self.get_node_config(node_name)
         node_config["rpc_url"] = f'http://localhost:{host_port_rpc}'
+    
+    def compose_set_nanomonitor_ports(self, container_name, port_i):
+        host_port_monitor = 46000 + port_i
+        self.compose_dict["services"][container_name]["ports"] = [f'{host_port_monitor}:80']   
+            
         
     
     def cp_dockerfile_and_nano_node(self, nano_node_path, node_name):

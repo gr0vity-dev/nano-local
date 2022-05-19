@@ -3,3 +3,4 @@ tomli-w
 requests
 oyaml
 ed25519-blake2b
+pyblake2==1.1.0

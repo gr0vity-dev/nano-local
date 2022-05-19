@@ -1,17 +1,21 @@
-genesis_key = "12C91837C846F875F56F67CD83040A832CFC0F131AF3DFF9E502C0D43F5D2D14" #initial_balance = 340282366920938463463374607431768211455
-canary_key = "FB4E458CB13508353C5B2574B82F1D1D61367F61E88707F773F068FF90050BEA"
+genesis_key = "12C91837C846F875F56F67CD83040A832CFC0F131AF3DFF9E502C0D43F5D2D15" #initial_balance = 340282366920938463463374607431768211455
+canary_key = "FB4E458CB13508353C5B2574B82F1D1D61367F61E88707F773F068FF90050BEE"
 epoch_count = 2 
 burn_amount = "200000000000000000000000000000000000000" #sent to xrb_1111111111111111111111111111111111111111111111111111hifc8npp
 
 ##### NANO NODE ENV VARIABLES ####
-#NANO_TEST_EPOCH_1="0x00000000000fff00" #this is fixed to 0x000000000000000f
-NANO_TEST_EPOCH_2="0xffffc00000ffff00" #optional overrides dc_nano_local_env
-NANO_TEST_EPOCH_2_RECV="0xffffc00000ffff00" #optional overrides dc_nano_local_env
+NANO_TEST_EPOCH_1="0xfff0000000000000" #this is fixed to 0x000000000000000f
+NANO_TEST_EPOCH_2="0xf000000000000000" #optional overrides dc_nano_local_env
+NANO_TEST_EPOCH_2_RECV="0xf000000000000000" #optional overrides dc_nano_local_env
 NANO_TEST_MAGIC_NUMBER="LC" #optional overrides dc_nano_local_env
 
 #enables nanolooker block explorer at port 42000.
 #creates mongodb docker container with default port 27017
-nanolooker_enable = false
+nanolooker_enable = true
+#Enable monitor on port 46000 for genesis, 46001 for first representative.node , ...
+nanomonitor_enable = false 
+#Enable live stats localhost:42002
+nanoticker_enable = false #nanomonitor_enable must be true for this to properly work
 
 [representatives]
     #### shared config between all reps

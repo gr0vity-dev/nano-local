@@ -12,8 +12,8 @@ class InitialBlocks :
         self.config = ConfigParser().config_dict
         self.__append_config()
 
-
-    def __append_config(self):    
+    def __append_config(self):           
+            
         self.config["burn_account_data"] = {"account" : "nano_1111111111111111111111111111111111111111111111111111hifc8npp"}
 
         self.config["genesis_account_data"] = self.api.key_expand(self.config["genesis_key"])
@@ -24,21 +24,23 @@ class InitialBlocks :
             if "seed" not in node :
                 node["seed"] = self.api.generate_new_seed()["seed"]
             
-            account_data = self.api.get_account_data(node["seed"], 0)
+            if "key" in node :
+                account_data = self.api.key_expand(node["key"])
+            else:
+                account_data = self.api.get_account_data(node["seed"], 0)
             if "balance" in node :
                 account_data["balance"] = node["balance"]
             if "vote_weight_percent" in node :
                 account_data["vote_weight_percent"] = node["vote_weight_percent"]
-
+            
+            node["account"] = account_data["account"]
             self.config["node_account_data"].append(account_data)  
             # "seed": seed,
             # "index": index,
             # "private": account_data["private"],
             # "public": account_data["public"],
-            # "account": account_data["account"],
+            # "account": account_data["account"],    
     
-
-
 
     def __epoch_link(self, epoch: int):
         message = f"epoch v{epoch} block"

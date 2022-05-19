@@ -1,6 +1,5 @@
 #!./venv_nano_local/bin/python
 
-import requests
 import json
 import logging
 import os
@@ -9,8 +8,6 @@ from src.parse_nano_local_config import ConfigReadWrite
 from src.nano_local_initial_blocks import InitialBlocks
 from src.nano_rpc import Api
 import argparse
-from ed25519_blake2b import SigningKey
-import binascii
 import copy
 
 # * create (this will create the one time resources that need creating)
@@ -43,10 +40,13 @@ def create_node_folders(node_name):
 
     commands = [ "mkdir -p nano_nodes",                 
                 f"cd nano_nodes && mkdir -p {node_name}",
-                f"cd nano_nodes/{node_name} && mkdir -p NanoTest" ]
+                f"cd nano_nodes/{node_name} && mkdir -p NanoTest" ]    
+    
+    if _config_parse.get_config_value("nanomonitor_enable") :
+        commands.append(f"cd nano_nodes/{node_name} && mkdir -p nanoNodeMonitor")       
 
     for command in commands:
-        os.system(command)
+        os.system(command)   
 
     _node_path[node_name] = {"data_path" :       f"./nano_nodes/{node_name}/NanoTest",
                             "config_node_path" : f"./nano_nodes/{node_name}/NanoTest/config-node.toml",
@@ -79,8 +79,6 @@ def create_node_folders(node_name):
 #     return {"wallet" : wallet, "account" : account}
 
 
-
-
 def write_config_node(node_name):
     config_node = _config_parse.get_config_from_path(node_name, "config_node_path")
     if config_node is None :
@@ -98,6 +96,9 @@ def write_config_rpc(node_name):
 
     _config_rw.write_toml(_node_path[node_name]["config_rpc_path"], config_rpc) 
 
+def write_nanomonitor_config(node_name):
+    if _config_parse.get_config_value("nanomonitor_enable"):
+         _config_parse.write_nanomonitor_config(node_name)
 
 def write_docker_compose_env(compose_version):
     #Read default env file
@@ -111,21 +112,13 @@ def write_docker_compose_env(compose_version):
     elif compose_version == 2 :
         env_variables.append( f"NANO_TEST_GENESIS_BLOCK={s_genesis_block}")
     env_variables.append( f'NANO_TEST_GENESIS_PUB="{genesis_block["source"]}"')
-    env_variables.append( f'NANO_TEST_CANARY_PUB="{get_public_key(conf_variables["canary_key"])}"')
+    env_variables.append( f'NANO_TEST_CANARY_PUB="{_config_parse.key_expand(conf_variables["canary_key"])["public"]}"')
 
     for key,value in conf_variables.items() :
         if key.startswith("NANO_TEST_") : env_variables.append(f'{key}="{value}"')
 
     _config_rw.write_list(f'{_node_path["container"]}/dc_nano_local_env', env_variables)    
-    
-
-def get_public_key(private_key):   
-
-    signing_key = SigningKey(binascii.unhexlify(private_key))
-    private_key = signing_key.to_bytes().hex()
-    public_key = signing_key.get_verifying_key().to_bytes().hex()
-
-    return public_key   
+      
 
 def generate_genesis_open(genesis_key):
     #TODO find a less intrusive way to create a legacy open block.
@@ -165,12 +158,15 @@ def prepare_nodes(genesis_node_name):
     #prepare nodes from config
     for node_name in _config_parse.get_node_names():
         prepare_node_env(node_name)
+        
        
 def prepare_node_env(node_name): 
     node_name = node_name.lower()  #docker-compose requires lower case names   
     create_node_folders(node_name)
     write_config_node(node_name)
     write_config_rpc(node_name) 
+    write_nanomonitor_config(node_name)
+    
 
 
 def init_nodes(genesis_node_name = "nl_genesis"):
@@ -240,7 +236,7 @@ def parse_args():
 # def parse_args() :
 #     return argClass
 # class argClass :    
-#     command = "stop"
+#     command = "create"
 #     build = False
 #     compose_version = 2
 

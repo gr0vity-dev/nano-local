@@ -1,0 +1,15 @@
+version : '3'
+
+#when nanoticker_enable = true, this will be copied into the docker-compose file in nano_nodes
+services:
+
+  default_monitor:
+    image: "nanotools/nanonodemonitor:latest"
+    container_name : default_monitor
+    restart: "unless-stopped"
+    ports:
+    - "42001:80"
+    volumes:
+    - ./default_monitor:/opt
+    networks:
+    - nano-local

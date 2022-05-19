@@ -1,0 +1,18 @@
+version : '3'
+
+#when nanoticker_enable = true, this will be copied into the docker-compose file in nano_nodes
+services:
+
+  nl_nanoticker:
+    build: 
+      context: ../
+      dockerfile: ./config/nanoticker/Dockerfile
+    container_name : nl_nanoticker
+    restart: "unless-stopped"
+    ports:
+    - "42002:80"
+    - "42003:19999"
+    volumes:
+    - ./.nanoticker:/var/www/html/json
+    networks:
+    - nano-local

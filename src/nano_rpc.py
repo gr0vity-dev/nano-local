@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 import requests
 import json
 import secrets

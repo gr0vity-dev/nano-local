@@ -8,7 +8,7 @@ RUN apk add git
 RUN git clone https://github.com/running-coder/nanolooker.git
 WORKDIR /usr/src/app/nanolooker
 
-RUN sed -i 's/localhost:27017/nl_nanolooker_mongo:27017/g' server/constants.js
+RUN sed -i 's/localhost:27017/nl_nanolooker_mongo:27017/g' ./server/constants.js
 #COPY test.txt .env
 # Install app dependencies
 # A wildcard is used to ensure both package.json AND package-lock.json are copied
