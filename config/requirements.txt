@@ -1,3 +1,4 @@
+wheel
 tomli==2.0.1
 tomli-w
 requests
