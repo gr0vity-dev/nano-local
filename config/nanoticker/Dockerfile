@@ -33,6 +33,8 @@ RUN echo "repstats_v21: yes" >> /usr/lib/netdata/conf.d/python.d.conf
 
 RUN cp -r /var/www/repstat/public_html/* /var/www/localhost/htdocs/
 RUN sed -i "s/localhost/${REMOTE_ADDRESS}/g" /var/www/localhost/htdocs/index.html
+RUN chown -R root /usr/share/netdata/web/
+RUN chgrp -R root /usr/share/netdata/web/
 
 #Reset netdata base container entrypoint
 ENTRYPOINT ["/usr/bin/env"]
