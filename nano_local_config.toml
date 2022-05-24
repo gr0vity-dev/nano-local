@@ -23,9 +23,8 @@ nanoticker_enable = false #nanomonitor_enable must be true for this to properly 
     config_node_path = "./config/default_config-node.toml" #optional if you want to modify parameters
     config_rpc_path = "./config/default_config-rpc.toml" #optional if you want to modify parameters
 
-    ### Choose between --docker_tag (existing tag  --nano_node_path
-    #https://hub.docker.com/r/nanocurrency/nano-test/tags
-    docker_tag = "V23.0" #shared between all nodes 
+    ### Choose between --docker_tag (existing tag  --nano_node_path    
+    docker_tag = "nanocurrency/nano:V23.1" #shared between all nodes 
     #nano_node_path = "/path/to/nano_node"   #path to nano_node executable  
 
 #### individual node settings

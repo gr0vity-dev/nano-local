@@ -277,7 +277,7 @@ class ConfigParser :
             #default_docker
             container = self.compose_add_container(node_name, "default_docker")
             docker_tag = self.get_representative_config("docker_tag", node_name)["value"]
-            container["image"] = f"nanocurrency/nano-test:{docker_tag}" 
+            container["image"] = f"{docker_tag}" 
 
         elif self.get_representative_config("nano_node_path", node_name)["found"]: #search by individual nano_node_path
             #default_build
@@ -289,7 +289,7 @@ class ConfigParser :
             #default_docker
             container = self.compose_add_container(node_name, "default_docker")
             docker_tag = self.get_representative_config("docker_tag", None)["value"]
-            container["image"] = f"nanocurrency/nano-test:{docker_tag}" 
+            container["image"] = f"{docker_tag}" 
         
         elif self.get_representative_config("nano_node_path", None)["found"]: #search by shared nano_node_path
             #default_build
@@ -298,7 +298,7 @@ class ConfigParser :
             container["build"] = f"{dockerfile_path}/."  
         else:
             container = self.compose_add_container(node_name, "default_docker")
-            container["image"] = f"nanocurrency/nano-test:latest" 
+            container["image"] = f"nanocurrency/nano-beta:latest" 
             logging.warning("No docker_tag or nano_node_path specified. use [latest] (nanocurrency/nano-test:latest)")
     
     def compose_set_node_ports(self, node_name, port_i):
