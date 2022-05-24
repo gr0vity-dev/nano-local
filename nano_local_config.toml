@@ -12,6 +12,7 @@ NANO_TEST_MAGIC_NUMBER="LC" #optional overrides dc_nano_local_env
 #enables nanolooker block explorer at port 42000.
 #creates mongodb docker container with default port 27017
 nanolooker_enable = true
+remote_address = '127.0.0.1' #if you run this on another machine in your network. default 127.0.0.1 
 #Enable monitor on port 46000 for genesis, 46001 for first representative.node , ...
 nanomonitor_enable = false 
 #Enable live stats localhost:42002

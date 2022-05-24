@@ -164,6 +164,7 @@ class ConfigParser :
         if "nanolooker_enable" not in self.config_dict : self.config_dict["nanolooker_enable"] = False      
         if "nanomonitor_enable" not in self.config_dict : self.config_dict["nanomonitor_enable"] = False    
         if "nanoticker_enable" not in self.config_dict : self.config_dict["nanoticker_enable"] = False   
+        if "remote_address" not in self.config_dict : self.config_dict["remote_address"] = '127.0.0.1'  
         return self.config_dict 
     
     def __config_dict_add_genesis_to_nodes(self, genesis_node_name) :
@@ -243,7 +244,8 @@ class ConfigParser :
         nanolooker_compose = self.conf_rw.read_yaml ( f'{_config_dir}/nanolooker/default_docker-compose.yml')
         for container in nanolooker_compose["services"] :
             self.compose_dict["services"][container] = nanolooker_compose["services"][container]
-
+        #in webbrowser: access websocket of the remote machine instead of localhost
+        self.compose_dict["services"]["nl_nanolooker"]["environment"][3] = f'WEBSOCKET_DOMAIN=ws://{self.get_config_value("remote_address")}:47000'
 
     def set_nanomonitor_compose(self):
         host_port_inc = 0
