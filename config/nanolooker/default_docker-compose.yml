@@ -20,6 +20,8 @@ services:
     build: 
       context: ../
       dockerfile: ./config/nanolooker/Dockerfile
+      args:
+        - REMOTE_ADDRESS=127.0.0.1 
     command: node /usr/src/app/nanolooker/server/server.js    
     container_name : nl_nanolooker
     restart: unless-stopped
@@ -28,8 +30,7 @@ services:
     environment:
       - NODE_ENV=production
       - SERVER_PORT=3010
-      - RPC_DOMAIN=http://nl_genesis:17076
-      - WEBSOCKET_DOMAIN=ws://127.0.0.1:47000
+      - RPC_DOMAIN=http://nl_genesis:17076      
       - MONGO_USER=root
       - MONGO_PASSWORD=password
     networks:

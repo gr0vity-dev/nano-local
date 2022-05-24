@@ -239,13 +239,15 @@ class ConfigParser :
     def set_nanoticker_compose(self):
         nanoticker_compose = self.conf_rw.read_yaml ( f'{_config_dir}/nanoticker/default_docker-compose.yml')
         self.compose_dict["services"]["nl_nanoticker"] = nanoticker_compose["services"]["nl_nanoticker"]
+        self.compose_dict["services"]["nl_nanoticker"]["build"]["args"][0] = f'REMOTE_ADDRESS={self.get_config_value("remote_address")}'
 
     def set_nanolooker_compose(self):
         nanolooker_compose = self.conf_rw.read_yaml ( f'{_config_dir}/nanolooker/default_docker-compose.yml')
         for container in nanolooker_compose["services"] :
             self.compose_dict["services"][container] = nanolooker_compose["services"][container]
         #in webbrowser: access websocket of the remote machine instead of localhost
-        self.compose_dict["services"]["nl_nanolooker"]["environment"][3] = f'WEBSOCKET_DOMAIN=ws://{self.get_config_value("remote_address")}:47000'
+        self.compose_dict["services"]["nl_nanolooker"]["build"]["args"][0] = f'REMOTE_ADDRESS={self.get_config_value("remote_address")}'
+        #self.compose_dict["services"]["nl_nanolooker"]["environment"][3] = f'WEBSOCKET_DOMAIN=ws://{self.get_config_value("remote_address")}:47000'
 
     def set_nanomonitor_compose(self):
         host_port_inc = 0

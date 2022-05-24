@@ -1,5 +1,6 @@
 FROM netdata/netdata:stable
 
+ARG REMOTE_ADDRESS "127.0.0.1"
 
 RUN apk add --update --no-cache python3 && ln -sf python3 /usr/bin/python
 RUN python3 -m ensurepip
@@ -26,10 +27,12 @@ ENV APACHE_RUN_GROUP www-data
 ENV APACHE_LOG_DIR /var/log/apache2
 ENV APACHE_RUN_DIR /var/www/html
 
+
 ## Add line to pythond.d.conf
 RUN echo "repstats_v21: yes" >> /usr/lib/netdata/conf.d/python.d.conf
 
 RUN cp -r /var/www/repstat/public_html/* /var/www/localhost/htdocs/
+RUN sed -i "s/https:\/\/www.nanolooker.com/http:\/\/${REMOTE_ADDRESS}:42000/g" /var/www/localhost/htdocs/index.html
 
 #Reset netdata base container entrypoint
 ENTRYPOINT ["/usr/bin/env"]

@@ -7,12 +7,14 @@ services:
     build: 
       context: ../
       dockerfile: ./config/nanoticker/Dockerfile
+      args:
+        - REMOTE_ADDRESS=127.0.0.1 
     container_name : nl_nanoticker
     restart: "unless-stopped"
     ports:
     - "42002:80"
     - "42003:19999"
     volumes:
-    - ./.nanoticker:/var/www/html/json
+    - ./.nanoticker:/var/www/html/json    
     networks:
     - nano-local
