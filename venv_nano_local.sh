@@ -12,6 +12,7 @@ then
     python3 -m venv venv_nano_local
     . venv_nano_local/bin/activate
 
+    pip3 install wheel
     pip3 install -r ./config/requirements.txt --quiet
 
     echo "A new virstaul environment was created. "
