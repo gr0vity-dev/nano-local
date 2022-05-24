@@ -144,7 +144,7 @@ def is_rpc_available(node_names):
         containers = copy.deepcopy(node_names)
         for container in containers:            
             cmd_rpc_url = f"docker port {container} | grep 17076/tcp | awk '{{print $3}}'"
-            rpc_url = "http://" + str(os.popen(cmd_rpc_url).read()).strip()
+            rpc_url = "http://" + str(os.popen(cmd_rpc_url).readlines()[0:1][0]).strip()
             if Api(rpc_url).is_online(timeout=3) :
                 node_names.remove(container)
             else :
