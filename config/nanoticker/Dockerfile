@@ -32,7 +32,7 @@ ENV APACHE_RUN_DIR /var/www/html
 RUN echo "repstats_v21: yes" >> /usr/lib/netdata/conf.d/python.d.conf
 
 RUN cp -r /var/www/repstat/public_html/* /var/www/localhost/htdocs/
-RUN sed -i "s/https:\/\/www.nanolooker.com/http:\/\/${REMOTE_ADDRESS}:42000/g" /var/www/localhost/htdocs/index.html
+RUN sed -i "s/localhost/${REMOTE_ADDRESS}/g" /var/www/localhost/htdocs/index.html
 
 #Reset netdata base container entrypoint
 ENTRYPOINT ["/usr/bin/env"]
