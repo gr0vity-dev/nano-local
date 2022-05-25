@@ -98,14 +98,14 @@ class Helpers:
         return checksum
 
     
-    def public_key_to_xrb_address(self,public_key):
+    def public_key_to_nano_address(self,public_key):
         if not len(public_key) == 32:
             raise ValueError('public key must be 32 chars')
 
         padded = b'000' + public_key
         address = self.bytes_to_xrb(padded)[4:]
         checksum = self.bytes_to_xrb(self.address_checksum(public_key))
-        return 'xrb_' + address.decode('ascii') + checksum.decode('ascii')
+        return 'nano_' + address.decode('ascii') + checksum.decode('ascii')
 
 class ConfigParser :
 
@@ -120,8 +120,9 @@ class ConfigParser :
         self.__config_dict_set_default_values() #modifies config_dict
         self.__config_dict_add_genesis_to_nodes(genesis_node_name)
         self.__set_preconfigured_peers()    
-        self.__set_docker_compose() #also sets rpc_url in config_dict.representative.nodes.node_name.rpc_url     
         self.__set_node_accounts()
+        self.__set_docker_compose(genesis_node_name) #also sets rpc_url in config_dict.representative.nodes.node_name.rpc_url     
+        
 
     def __set_node_accounts(self):   
        
@@ -163,8 +164,10 @@ class ConfigParser :
 
         if "nanolooker_enable" not in self.config_dict : self.config_dict["nanolooker_enable"] = False      
         if "nanomonitor_enable" not in self.config_dict : self.config_dict["nanomonitor_enable"] = False    
-        if "nanoticker_enable" not in self.config_dict : self.config_dict["nanoticker_enable"] = False   
+        if "nanoticker_enable" not in self.config_dict : self.config_dict["nanoticker_enable"] = False  
+        if "nanovotevisu_enable" not in self.config_dict : self.config_dict["nanovotevisu_enable"] = False  
         if "remote_address" not in self.config_dict : self.config_dict["remote_address"] = '127.0.0.1'  
+        print(self.config_dict["remote_address"])
         return self.config_dict 
     
     def __config_dict_add_genesis_to_nodes(self, genesis_node_name) :
@@ -194,7 +197,7 @@ class ConfigParser :
         private_key = signing_key.to_bytes().hex()
         public_key = signing_key.get_verifying_key().to_bytes().hex()
 
-        return {"public" : public_key, "account" : self.h.public_key_to_xrb_address(unhexlify(public_key))}     
+        return {"public" : public_key, "account" : self.h.public_key_to_nano_address(unhexlify(public_key))}     
 
     def write_nanomonitor_config(self, node_name):
         nanomonitor_config = self.conf_rw.read_file(_default_nanomonitor_config)
@@ -215,14 +218,14 @@ class ConfigParser :
             response.append(node["name"])
         return response
     
-    def __set_docker_compose(self):  
+    def __set_docker_compose(self, genesis_node_name):  
         host_port_inc = 0
         for node in self.config_dict["representatives"]["nodes"]:  
             self.compose_add_node(node["name"])
             self.compose_set_node_ports(node["name"], host_port_inc)
             host_port_inc = host_port_inc + 1 
         
-        if self.get_config_value("nanolooker_enable") :
+        if self.get_config_value("nanolooker_enable") :            
             self.set_nanolooker_compose()
         
         if self.get_config_value("nanomonitor_enable") :
@@ -230,16 +233,27 @@ class ConfigParser :
 
         if self.get_config_value("nanoticker_enable") :
             self.set_nanoticker_compose()
+        
+        if self.get_config_value("nanovotevisu_enable") :
+            self.set_nanovotevisu_compose(genesis_node_name)
 
         
         #remove default container
         self.compose_dict["services"].pop("default_docker", None)
         self.compose_dict["services"].pop("default_build", None)  
+    
+    def set_nanovotevisu_compose(self,genesis_node_name):
+        nanoticker_compose = self.conf_rw.read_yaml ( f'{_config_dir}/nanovotevisu/default_docker-compose.yml')
+        self.compose_dict["services"]["nl_nanovotevisu"] = nanoticker_compose["services"]["nl_nanovotevisu"]
+        self.compose_dict["services"]["nl_nanovotevisu"]["build"]["args"][0] = f'REMOTE_ADDRESS={self.get_config_value("remote_address")}'
+        self.compose_dict["services"]["nl_nanovotevisu"]["build"]["args"][1] = f'HOST_ACCOUNT={self.get_node_config(genesis_node_name)["account"]}'
+        logging.info(f'nano-vote-visualizer enabled at {self.get_config_value("remote_address")}:42001')
 
     def set_nanoticker_compose(self):
         nanoticker_compose = self.conf_rw.read_yaml ( f'{_config_dir}/nanoticker/default_docker-compose.yml')
         self.compose_dict["services"]["nl_nanoticker"] = nanoticker_compose["services"]["nl_nanoticker"]
         self.compose_dict["services"]["nl_nanoticker"]["build"]["args"][0] = f'REMOTE_ADDRESS={self.get_config_value("remote_address")}'
+        logging.info(f'nanoticker enabled at {self.get_config_value("remote_address")}:42002')
 
     def set_nanolooker_compose(self):
         nanolooker_compose = self.conf_rw.read_yaml ( f'{_config_dir}/nanolooker/default_docker-compose.yml')
@@ -248,6 +262,7 @@ class ConfigParser :
         #in webbrowser: access websocket of the remote machine instead of localhost
         self.compose_dict["services"]["nl_nanolooker"]["build"]["args"][0] = f'REMOTE_ADDRESS={self.get_config_value("remote_address")}'
         #self.compose_dict["services"]["nl_nanolooker"]["environment"][3] = f'WEBSOCKET_DOMAIN=ws://{self.get_config_value("remote_address")}:47000'
+        logging.info(f'nanolooker enabled at {self.get_config_value("remote_address")}:42000')
 
     def set_nanomonitor_compose(self):
         host_port_inc = 0
@@ -259,6 +274,7 @@ class ConfigParser :
                 self.compose_dict["services"][container_name]["container_name"] = container_name
                 self.compose_dict["services"][container_name]["volumes"][0] =  self.compose_dict["services"][container_name]["volumes"][0].replace("default_monitor", node["name"])
                 self.compose_set_nanomonitor_ports(container_name, host_port_inc)
+                logging.info(f'nano-node-monitor enabled at {self.get_config_value("remote_address")}:{host_port_inc}')
                 host_port_inc = host_port_inc + 1
 
 

@@ -17,6 +17,9 @@ remote_address = '127.0.0.1' #if you run this on another machine in your network
 nanomonitor_enable = false 
 #Enable live stats localhost:42002
 nanoticker_enable = false #nanomonitor_enable must be true for this to properly work
+#Enable nano-vote-visualizer for genesis account on port 42001
+nanovotevisu_enable = true
+
 
 [representatives]
     #### shared config between all reps
