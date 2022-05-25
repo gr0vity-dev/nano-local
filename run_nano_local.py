@@ -228,7 +228,7 @@ def parse_args():
     parser.add_argument('--compose_version', type=int, default = 2, choices={1,2},
                         help='run $ docker-compose --version to identify the version. Defaults to 2')
     parser.add_argument('command',
-            help='create , start, init, stop, delete', default = 'init')
+            help='create , start, init, csi, stop, reset, destroy', default = 'create')
     return parser.parse_args()
 
 
