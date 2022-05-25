@@ -13,8 +13,8 @@ prerequisites :
 
 #### Spin up a network :
 
-| Action       | Code          | Description  |
-| :------------- |:-------------| -----|
+| Action       | Code       | Description  |
+| :----------  |:-----------| -----|
 | Create | <code>$ ./run_nano_local.py create</code> | Create folders and node config |
 | Start | <code>$ ./run_nano_local.py start</code> | Start all nodes |
 | Init |<code>$ ./run_nano_local.py init</code>  | Create Epochs Canary Burn and Vote weight distribution |
@@ -30,8 +30,8 @@ prerequisites :
 
 You can enable various services :
 
-| Service       | Code          | Description  |
-| :------------- |:-------------| -----|
+| Service       | Code      | Description  |
+| :-----------  |:----------| -----|
 | remote_address | <code>remote_address='127.0.0.1'</code> | server address inside your LAN (localhost by default) |
 | [nanolooker](https://github.com/running-coder/nanolooker) | <code>nanolooker_enable = true</code> | Available at http://{remote_address}:42000 |
 | [nano-vote-visualizer](https://github.com/numsu/nano-vote-visualizer) | <code>nanovotevisu_enable = true</code> | Available at http://{remote_address}:42001 |
