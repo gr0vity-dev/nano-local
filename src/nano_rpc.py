@@ -190,6 +190,12 @@ class Api:
         data = self.post_with_auth(req_key_expand)     
         return data           
 
+    def peers(self):
+        req_peers = {
+            "action": "peers"
+        }
+        data = self.post_with_auth(req_peers)     
+        return data           
 
     def check_balance(self, account, include_only_confirmed = True):
        

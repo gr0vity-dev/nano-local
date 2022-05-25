@@ -9,6 +9,7 @@ from src.nano_local_initial_blocks import InitialBlocks
 from src.nano_rpc import Api
 import argparse
 import copy
+import subprocess
 
 # * create (this will create the one time resources that need creating)
 # * start (this will start the nodes)
@@ -22,8 +23,8 @@ import copy
 log_format = '[%(asctime)s] [%(levelname)s] - %(message)s'
 logging.basicConfig(level=logging.INFO , format=log_format)
 
-_config_rw = ConfigReadWrite()
-_config_parse = ConfigParser()
+_config_rw = None
+_config_parse = None
 _node_path = {"container" : "./nano_nodes"}
 
 
@@ -170,6 +171,9 @@ def prepare_node_env(node_name):
 
 
 def init_nodes(genesis_node_name = "nl_genesis"):
+    global _config_parse
+    _config_parse = ConfigParser()
+
     start_nodes(False) #fixes a bug on mac m1
     init_blocks = InitialBlocks()        
     for node_name in _config_parse.get_node_names():
@@ -185,11 +189,18 @@ def init_nodes(genesis_node_name = "nl_genesis"):
     init_blocks.publish_initial_blocks()
 
 def create_nodes(compose_version, genesis_node_name = "nl_genesis"):
+    global _config_rw, _config_parse
+    _config_rw = ConfigReadWrite()
+    _config_parse = ConfigParser()
+
     prepare_nodes(genesis_node_name = genesis_node_name)
     write_docker_compose_env(compose_version)
     _config_parse.write_docker_compose()
 
 def start_nodes(build_f):
+    global _config_parse
+    if _config_parse is None : _config_parse = ConfigParser()
+
     dir_nano_nodes = _node_path["container"]
     command =  f'cd {dir_nano_nodes} && docker-compose up -d'
     if build_f :
@@ -225,6 +236,9 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-b', '--build', type=bool, default = False,
                         help='build docker container for new executable')
+    parser.add_argument('-c', '--case', default = 'basic',
+                        help='example : test --case basic')
+
     parser.add_argument('--compose_version', type=int, default = 2, choices={1,2},
                         help='run $ docker-compose --version to identify the version. Defaults to 2')
     parser.add_argument('command',
@@ -272,6 +286,9 @@ def main():
 
     elif args.command == 'destroy':
         destroy_all()
+    
+    elif args.command == 'test' :
+        subprocess.run([f'./venv_nano_local/bin/python -m unittest -v testcases.{args.case}'],shell=True) #using the run() method
 
     else:
         print('Unknown command %s', args.command)    
