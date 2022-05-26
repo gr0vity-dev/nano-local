@@ -1,4 +1,4 @@
-from src.nano_rpc import Api
+from src.nano_rpc import Api, NanoTools
 from src.parse_nano_local_config import ConfigParser
 import logging
 import time
@@ -9,6 +9,7 @@ class InitialBlocks :
 
     def __init__(self, rpc_url="http://localhost:45000"):   
         self.api = Api(rpc_url)
+        self.nano_tools = NanoTools()
         self.config = ConfigParser().config_dict
         self.__append_config()
 
@@ -111,9 +112,11 @@ class InitialBlocks :
 
         #Convert from vote_weigh_% into balance
         genesis_balance = int(self.api.check_balance(self.config["genesis_account_data"]["account"], include_only_confirmed = False)["balance_raw"])
+        genesis_remaing = genesis_balance
         for node_account_data in self.config["node_account_data"]:
             if "vote_weight_percent" in node_account_data :
-                node_account_data["balance"] = int(genesis_balance * node_account_data["vote_weight_percent"] * 0.01)
+                node_account_data["balance"] = min(self.nano_tools.raw_percent(genesis_balance, node_account_data["vote_weight_percent"]), genesis_remaing)
+                genesis_remaing = genesis_remaing - node_account_data["balance"]              
 
         for node_account_data in self.config["node_account_data"]: 
                 if "balance" not in node_account_data : continue #skip genesis that was added as node              

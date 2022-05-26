@@ -7,6 +7,7 @@ import time
 import logging
 
 
+
 class Api:
 
     # api_config = None
@@ -53,8 +54,8 @@ class Api:
             except :
                 timeout = timeout -1
                 time.sleep(1)
-        return False
-
+        return False    
+    
     def generate_seed(self):
         return secrets.token_hex(32)
 
@@ -195,7 +196,14 @@ class Api:
             "action": "peers"
         }
         data = self.post_with_auth(req_peers)     
-        return data           
+        return data      
+
+    def confirmation_quorum(self):
+        req_confirmation_quorum = {  
+            "action": "confirmation_quorum"      
+        }     
+        data = self.post_with_auth(req_confirmation_quorum)     
+        return data 
 
     def check_balance(self, account, include_only_confirmed = True):
        
@@ -544,3 +552,10 @@ class Api:
                 "hash": epoch_block["hash"]
                 }
 
+class NanoTools:
+    import gmpy2
+    from gmpy2 import mpfr ,mpz
+    gmpy2.get_context().precision=1000
+    
+    def raw_percent(self, raw, percent) :        
+        return self.mpz(self.mpz(str(raw)) * self.mpz(str(percent)) / self.mpz('100'))  
