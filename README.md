@@ -16,8 +16,9 @@ prerequisites :
 | Action       | Code       | Description  |
 | :----------  |:-----------| -----|
 | Create | <code>$ ./run_nano_local.py create</code> | Create folders and node config |
-| Start | <code>$ ./run_nano_local.py start</code> | Start all nodes |
+| Start | <code>$ ./run_nano_local.py start</code> | Start all nodes (optional flag <code>--build = true</code> rebuilds docker containers)|
 | Init |<code>$ ./run_nano_local.py init</code>  | Create Epochs Canary Burn and Vote weight distribution |
+| Test |<code>$ ./run_nano_local.py test</code>  | runs all tests (optional flag <code>--case = {module.class.test_method}</code>) |
 | CSI | <code>$ ./run_nano_local.py csi</code> | Do all of the above : c(reate) s(tart) i(nit) |
 | Stop | <code>$ ./run_nano_local.py stop</code>|  Stop all nodes and services |
 | Reset | <code>$ ./run_nano_local.py reset</code> |  Delete all blocks except genesis block by removing data.ldb from all nodes |
