@@ -204,6 +204,14 @@ class Api:
         }     
         data = self.post_with_auth(req_confirmation_quorum)     
         return data 
+    
+    def representatives_online(self, weight = "false"):
+        req_representatives_online = {  
+            "action": "representatives_online"  ,
+            "weight" :  str(weight).lower()   
+        }     
+        data = self.post_with_auth(req_representatives_online)     
+        return data 
 
     def check_balance(self, account, include_only_confirmed = True):
        
@@ -559,3 +567,11 @@ class NanoTools:
     
     def raw_percent(self, raw, percent) :        
         return self.mpz(self.mpz(str(raw)) * self.mpz(str(percent)) / self.mpz('100'))  
+    
+    def raw_add(self, val1, val2) :  
+        #val1 + val2             
+        return str(self.mpz(self.mpz(str(val1)) + self.mpz(str(val2)))) 
+    
+    def raw_sub(self, val1, val2) : 
+        #val1 - val2       
+        return str(self.mpz(self.mpz(str(val1)) - self.mpz(str(val2))))
