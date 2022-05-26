@@ -1,7 +1,7 @@
 genesis_key = "12C91837C846F875F56F67CD83040A832CFC0F131AF3DFF9E502C0D43F5D2D15" #initial_balance = 340282366920938463463374607431768211455
 canary_key = "FB4E458CB13508353C5B2574B82F1D1D61367F61E88707F773F068FF90050BEE"
 epoch_count = 2 
-burn_amount = "200000000000000000000000000000000000000" #sent to xrb_1111111111111111111111111111111111111111111111111111hifc8npp
+burn_amount = "140282366920938463463374607431768211454" #sent to xrb_1111111111111111111111111111111111111111111111111111hifc8npp
 
 ##### NANO NODE ENV VARIABLES ####
 NANO_TEST_EPOCH_1="0xfff0000000000000" #this is fixed to 0x000000000000000f
@@ -18,7 +18,7 @@ nanomonitor_enable = false
 #Enable live stats localhost:42002
 nanoticker_enable = false #nanomonitor_enable must be true for this to properly work
 #Enable nano-vote-visualizer for genesis account on port 42001
-nanovotevisu_enable = true
+nanovotevisu_enable = false
 
 
 [representatives]
@@ -36,7 +36,8 @@ nanovotevisu_enable = true
     seed = "1110000000000000000000000000000000000000000000000000000000000001"
 
     ### Chose between -balance or -vote_weight_percent
-    balance = "43000000000000000000000000000000000000"   #final node balance
+    # balance = "50000000000000000000000000000000000000"   #final node balance
+    vote_weight_percent = 25  
     #vote_weight_percent = 35   
    
     ### Choose between --docker_tag (existing tag  --nano_node_path
@@ -49,7 +50,7 @@ nanovotevisu_enable = true
 [[representatives.nodes]] 
     name = "nl_pr2"
     seed = "1110000000000000000000000000000000000000000000000000000000000002" 
-    vote_weight_percent = 35  
+    vote_weight_percent = 25  
 
 [[representatives.nodes]] 
     name = "nl_node3"
