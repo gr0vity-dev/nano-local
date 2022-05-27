@@ -9,7 +9,7 @@ A test-suite is included to do some basic checks. Currently some tests may fail.
 prerequisites : 
 * python3
 * docker
-* docker-compose (if you use docker-compose v1.xx make add <code>--compose_version=1</code> flag)
+* docker-compose (if you use docker-compose v1.xx try adding <code>--compose_version=1</code> flag)
 
 ## Quickstart :
 
