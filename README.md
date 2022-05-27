@@ -52,13 +52,14 @@ You can enable various services :
 | Test       | Code      | Description  |
 | :-----------  |:----------| -----|
 |all | <code>$ ./run_nano_local.py test</code> | run all tests|
-|test_rpc_online|<code>$ ./run_nano_local.py test -c basic.NetworkChecks.test_rpc_online</code> | all nodes online|
-|test_peer_count|<code>$ ./run_nano_local.py test -c basic.NetworkChecks.test_peer_count</code> | all nodes interconnected|
-|test_equal_block_count|<code>$ ./run_nano_local.py test -c basic.NetworkChecks.test_equal_block_count</code> | all nodes have same blocks|
-|test_equal_online_stake_total|<code>$ ./run_nano_local.py test -c basic.NetworkChecks.test_equal_online_stake_total</code> | all nodes see same online wieght|
-|test_equal_confirmation_quorum|<code>$ ./run_nano_local.py test -c basic.NetworkChecks.test_equal_confirmation_quorum</code> |all nodes have equal network view |
-|test_equal_peers_stake_total|<code>$ ./run_nano_local.py test -c basic.NetworkChecks.test_equal_peers_stake_total</code> | all nodes have equal peer weight|
-|test_equal_representatives_online|<code>$ ./run_nano_local.py test -c basic.NetworkChecks.test_equal_representatives_online</code> | all nodes have same online representatives|
+||||
+|rpc_online|<code>test -c basic.NetworkChecks.test_rpc_online</code> | all nodes online|
+|peer_count|<code>test -c basic.NetworkChecks.test_peer_count</code> | all nodes interconnected|
+|equal_block_count|<code>test -c basic.NetworkChecks.test_equal_block_count</code> | all nodes have same blocks|
+|equal_online_stake_total|<code>test -c basic.NetworkChecks.test_equal_online_stake_total</code> | all nodes see same online weight|
+|equal_confirmation_quorum|<code>test -c basic.NetworkChecks.test_equal_confirmation_quorum</code> |all nodes have equal network view |
+|equal_peers_stake_total|<code>test -c basic.NetworkChecks.test_equal_peers_stake_total</code> | all nodes have equal peer weight|
+|equal_representatives_online|<code>test -c basic.NetworkChecks.test_equal_representatives_online</code> | all nodes have same online representatives|
 
 
 
