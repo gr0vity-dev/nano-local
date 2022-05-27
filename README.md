@@ -1,4 +1,10 @@
 # nano-local
+This projects enables you to spin up your own local nano network with your own genesis block.
+RPC access to the genesis account is enabled by default at port http://localhost:45000 
+All configuration is done inside <code>nano_local_config.toml</code>
+Many additional services can be enabled : [nanolooker, nanoNodeMonitor, nano-vote-visualizer, nanoticker]
+A test-suite is included to do some basic checks. Currently some tests may fail.
+
 
 prerequisites : 
 * python3
@@ -38,6 +44,22 @@ You can enable various services :
 | [nano-vote-visualizer](https://github.com/numsu/nano-vote-visualizer) | <code>nanovotevisu_enable = true</code> | Available at http://{remote_address}:42001 |
 | [nanoticker](https://github.com/Joohansson/nanoticker) | <code>nanoticker_enable = true</code> | Available at http://{remote_address}:42002 |
 | [nano-node-monitor](https://github.com/nanotools/nanoNodeMonitor)| <code>nanomonitor_enable = true</code> | Available at http://{remote_address}:46000, 46001, 46002, ... |
+
+#### Optional : Run Tests :
+
+<code>$ ./run_nano_local.py test</code> runs all tests.
+
+| Test       | Code      | Description  |
+| :-----------  |:----------| -----|
+|all | <code>$ ./run_nano_local.py test</code> | run all tests|
+|test_rpc_online|<code>$ ./run_nano_local.py test -c basic.NetworkChecks.test_rpc_online</code> | all nodes online|
+|test_peer_count|<code>$ ./run_nano_local.py test -c basic.NetworkChecks.test_peer_count</code> | all nodes interconnected|
+|test_equal_block_count|<code>$ ./run_nano_local.py test -c basic.NetworkChecks.test_equal_block_count</code> | all nodes have same blocks|
+|test_equal_online_stake_total|<code>$ ./run_nano_local.py test -c basic.NetworkChecks.test_equal_online_stake_total</code> | all nodes see same online wieght|
+|test_equal_confirmation_quorum|<code>$ ./run_nano_local.py test -c basic.NetworkChecks.test_equal_confirmation_quorum</code> |all nodes have equal network view |
+|test_equal_peers_stake_total|<code>$ ./run_nano_local.py test -c basic.NetworkChecks.test_equal_peers_stake_total</code> | all nodes have equal peer weight|
+|test_equal_representatives_online|<code>$ ./run_nano_local.py test -c basic.NetworkChecks.test_equal_representatives_online</code> | all nodes have same online representatives|
+
 
 
 #### Optional : Delete virtual python environment
