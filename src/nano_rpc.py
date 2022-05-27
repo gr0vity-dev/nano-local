@@ -565,8 +565,8 @@ class NanoTools:
     from gmpy2 import mpfr ,mpz
     gmpy2.get_context().precision=1000
     
-    def raw_percent(self, raw, percent) :        
-        return self.mpz(self.mpz(str(raw)) * self.mpz(str(percent)) / self.mpz('100'))  
+    def raw_percent(self, raw, percent) :
+        return self.mpz(self.mpz(str(raw)) * self.mpfr(str(percent)) / self.mpz('100'))
     
     def raw_add(self, val1, val2) :  
         #val1 + val2             
