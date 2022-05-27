@@ -108,18 +108,30 @@ class InitialBlocks :
                                                             send_block["hash"] ))
          
 
-    def __send_vote_weigh(self):
 
-        #Convert from vote_weigh_% into balance
+    def __convert_weight_percentage_to_balance(self) :
         genesis_balance = int(self.api.check_balance(self.config["genesis_account_data"]["account"], include_only_confirmed = False)["balance_raw"])
         genesis_remaing = genesis_balance
         for node_account_data in self.config["node_account_data"]:
+            if "vote_weight_percent" not in node_account_data and  "balance" not in node_account_data : continue #skip genesis that was added as node   
             if "vote_weight_percent" in node_account_data :
-                node_account_data["balance"] = min(self.nano_tools.raw_percent(genesis_balance, node_account_data["vote_weight_percent"]), genesis_remaing)
-                genesis_remaing = genesis_remaing - node_account_data["balance"]              
+                node_account_data["balance"] = self.nano_tools.raw_percent(genesis_balance, node_account_data["vote_weight_percent"]) 
+            node_account_data["balance"] = int(node_account_data["balance"])
+
+            if genesis_remaing == 0 :
+                logging.warning(f'No Genesis funds remaining! Account [{node_account_data["account"]}] will not be opened!')
+                self.config["node_account_data"].remove(node_account_data)
+                continue
+            if genesis_remaing < node_account_data["balance"]:
+                logging.warning(f'Genesis remaining balance is too small! Send {genesis_remaing} instead of {node_account_data["balance"]}.')
+            
+            node_account_data["balance"] = min(node_account_data["balance"], genesis_remaing)            
+            genesis_remaing = max(0, genesis_remaing - node_account_data["balance"])
+
+    def __send_vote_weigh(self):        
 
         for node_account_data in self.config["node_account_data"]: 
-                if "balance" not in node_account_data : continue #skip genesis that was added as node              
+                if "balance" not in node_account_data : continue #skip genesis that was added as node                            
                 
                 send_block = self.api.create_send_block_pkey(self.config["genesis_account_data"]["private"],
                                                              self.config["genesis_account_data"]["account"],
@@ -156,4 +168,5 @@ class InitialBlocks :
         self.__publish_epochs()
         self.__publish_canary()
         self.__send_to_burn()
+        self.__convert_weight_percentage_to_balance()
         self.__send_vote_weigh()
