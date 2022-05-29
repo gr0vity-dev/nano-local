@@ -1,10 +1,14 @@
 #!../venv_nano_local/bin/python
+from time import time
 import unittest
 from src.nano_rpc import Api, NanoTools
 from src.nano_local_initial_blocks import InitialBlocks
 from src.parse_nano_local_config import ConfigReadWrite, ConfigParser
 import copy
 from interruptingcow import timeout
+import logging
+import time
+import json
 
 
 
@@ -92,7 +96,7 @@ class BlockPropagation(unittest.TestCase):
 
         
         destination = self.nano_rpc.generate_account(destination_seed, 0)
-        print("destination_seed {} representative {} send_amount  {:>6}".format(destination_seed,representative, send_amount), end='\r')
+        #print("destination_seed {} representative {} send_amount  {:>6}".format(destination_seed,representative, send_amount), end='\r')
         #print("soiurce_key", send_key , "destination_seed", destination_seed)
         send_block = self.nano_rpc.create_send_block_pkey(send_key,
                                                           destination["account"],
@@ -159,28 +163,45 @@ class BlockPropagation(unittest.TestCase):
         block_count = len(lines)   
         try:
             with timeout(timeout_s, exception=RuntimeError):
+                confirmed_count = 0       
                 while confirmed_count < block_count:
                     confirmed_count = 0                   
                     for publish_command in lines:          
-                        if self.nano_rpc.block_confirmed(json_block= publish_command["block"]) : confirmed_count = confirmed_count +1                     
+                        if self.nano_rpc.block_confirmed(json_block= json.loads(publish_command)["block"]) : confirmed_count = confirmed_count +1 
+                    if confirmed_count  != block_count  :
+                        print(f"{confirmed_count}/{block_count} blocks confirmed... Rerun in 5 seconds.")             
                     
         except RuntimeError as ex:
             self.assertFalse(True, f'RuntimeError raised: {str(ex)}')
 
         self.assertEqual(block_count , confirmed_count)               
-            
-    
-    def test_account_splitting_1022(self):
+   
+    def account_splitting_1022_step1(self):        
         #accountsplitting creates 2+ 4+ 8 +16 + 32 + 64 + 128 + 256 + 512  = 1022 accounts
+        print("create send and open blocks")
         splitting_depth = 9       
-        blocks = self.account_splitting('A0', write_to_disk=True)                
+        blocks = self.account_splitting('A0',splitting_depth, write_to_disk=True)                
         #self.assertEqual(len(blocks), 2*1022 )
     
-    def test_publish_blocks(self):
+    def account_splitting_1022_step2(self):
+        print("publish blocks")
         self.publish_blocks("./nano_nodes/publish_2044_blocks.txt")
     
-    def test_blocks_confirmed(self) :
+    def account_splitting_1022_step3(self) :
+        print("test if blocks are confirmed")
         self.blocks_confirmed("./nano_nodes/publish_2044_blocks.txt", 30)
+
+    def _account_splitting_1022_steps(self):
+        for name in dir(self): # dir() result is implicitly sorted
+            if name.startswith("account_splitting_1022_step"):
+                yield name, getattr(self, name) 
+    
+    def test_account_splitting_1022(self):
+        for name, step in self._account_splitting_1022_steps():
+            try:
+                step()
+            except Exception as e:
+                self.fail("{} failed ({}: {})".format(step, type(e), e))
 
 
 if __name__ == '__main__':

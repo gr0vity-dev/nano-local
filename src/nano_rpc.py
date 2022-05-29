@@ -133,7 +133,10 @@ class Api:
             block_hash = self.block_hash(json_block)["hash"]
         if block_hash is None : 
             return False
-        return True if self.block_info(block_hash)["confirmed"] == "true" else False 
+        response = self.block_info(block_hash)
+        if "error" in response : 
+            return False
+        return True if response["confirmed"] == "true" else False 
 
     def get_account_data(self, seed, index):
         payload = self.generate_account(seed, index)
