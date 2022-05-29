@@ -537,7 +537,7 @@ class Api:
             if self.debug : logging.debug("req_process : {}".format(time.time() - t1))
             req_process = True
         else :
-            _account_info[source_account_data["account"]] = {"frontier" : send_block["hash"] , "balance" :  amount_per_chunk_raw,  "representative" : current_rep}
+            _account_info[source_account_data["account"]] = {"frontier" : send_block["hash"] , "balance" :  block_balance,  "representative" : current_rep}
             #print("send_added" , source_account_data["account"], send_block["hash"])
         
         

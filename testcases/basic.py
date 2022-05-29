@@ -1,8 +1,8 @@
-#!./venv_nano_local/bin/python
+#!../venv_nano_local/bin/python
 import unittest
 from src.nano_rpc import Api, NanoTools
 from src.nano_local_initial_blocks import InitialBlocks
-from src.parse_nano_local_config import ConfigReadWrite
+from src.parse_nano_local_config import ConfigReadWrite, ConfigParser
 import copy
 
 
@@ -91,6 +91,7 @@ class BlockPropagation(unittest.TestCase):
 
         
         destination = self.nano_rpc.generate_account(destination_seed, 0)
+        print("destination_seed", destination_seed, "send_amount" , send_amount, end='\r')
         #print("soiurce_key", send_key , "destination_seed", destination_seed)
         send_block = self.nano_rpc.create_send_block_pkey(send_key,
                                                           destination["account"],
@@ -113,7 +114,7 @@ class BlockPropagation(unittest.TestCase):
         #   - AB - ABA...
         #        - ABB...
         
-              
+             
         if current_depth > max_depth : return []
         
         if current_depth == 0 : 
@@ -131,15 +132,15 @@ class BlockPropagation(unittest.TestCase):
         
         seed_prefix_A = f'{seed_prefix}A'        
         seed_A = f'{seed_prefix_A}{str(0)*(63 - len(seed_prefix))}' 
-        blocks_A = self.open_account(source_account["account"] , source_account["private"], seed_A, max_depth - current_depth)       
+        blocks_A = self.open_account(source_account["account"] , source_account["private"], seed_A, 2**(max_depth - current_depth))       
         blocks_Aab = self.account_splitting(seed_prefix_A, max_depth, current_depth=current_depth+1, representative=representative, source_seed=seed_A )      
         
         seed_prefix_B = f'{seed_prefix}B' 
         seed_B = f'{seed_prefix_B}{str(0)*(63 - len(seed_prefix))}' 
-        blocks_B = self.open_account(source_account["account"] , source_account["private"], seed_B, max_depth - current_depth)
+        blocks_B = self.open_account(source_account["account"] , source_account["private"], seed_B, 2**(max_depth - current_depth))
         blocks_Bab = self.account_splitting(seed_prefix_B, max_depth, current_depth=current_depth+1, representative=representative, source_seed=seed_B)    
         
-        lst = blocks_A + blocks_B + blocks_Aab + blocks_Bab
+        lst = blocks_A + blocks_Aab + blocks_B +  blocks_Bab
 
                  
         if current_depth == 0 :    
