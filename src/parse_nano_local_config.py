@@ -166,8 +166,7 @@ class ConfigParser :
         if "nanomonitor_enable" not in self.config_dict : self.config_dict["nanomonitor_enable"] = False    
         if "nanoticker_enable" not in self.config_dict : self.config_dict["nanoticker_enable"] = False  
         if "nanovotevisu_enable" not in self.config_dict : self.config_dict["nanovotevisu_enable"] = False  
-        if "remote_address" not in self.config_dict : self.config_dict["remote_address"] = '127.0.0.1'  
-        print(self.config_dict["remote_address"])
+        if "remote_address" not in self.config_dict : self.config_dict["remote_address"] = '127.0.0.1'         
         return self.config_dict 
     
     def __config_dict_add_genesis_to_nodes(self, genesis_node_name) :

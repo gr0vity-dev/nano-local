@@ -6,7 +6,7 @@ import math
 import time
 import logging
 
-
+_account_info = {}
 
 class Api:
 
@@ -92,6 +92,26 @@ class Api:
         payload["error_message"] = ''
         
         return payload
+    
+    def publish(self, payload = None , json_block = None, subtype = None) :  
+        if json_block is not None:
+            if subtype is None :
+                logging.warning("It's dangerous to publish blocks without subtype!")
+                payload = {
+                    "action": "process",
+                    "json_block": "true",
+                    "block": json_block,
+                }
+            else :
+                payload = {
+                    "action": "process",
+                    "json_block": "true",
+                    "subtype": subtype,
+                    "block": json_block,
+                }
+        if payload is not None:                    
+            return self.post_with_auth(json.loads(str(payload)))   
+
 
     def get_account_data(self, seed, index):
         payload = self.generate_account(seed, index)
@@ -282,6 +302,7 @@ class Api:
         amount_per_chunk_raw,
         rep_account,
         send_block_hash,
+        broadcast = True
     ):
 
         req_account_info = {
@@ -319,22 +340,28 @@ class Api:
         block = self.post_with_auth(req_block_create)
 
         next_hash = block["hash"]
-
         req_process = {
-            "action": "process",
-            "json_block": "true",
-            "subtype": subtype,
-            "block": block["block"],
-        }
-
-        publish = self.post_with_auth(req_process)
+                "action": "process",
+                "json_block": "true",
+                "subtype": subtype,
+                "block": block["block"],
+            }
+        if broadcast:            
+            publish = self.post_with_auth(req_process)
+            req_process = True
+        else :
+            _account_info[destination_account] = {"frontier" : block["hash"] , "balance" :  balance,  "representative" : rep_account}
+            #print("open_added" , destination_account, block["hash"], )
+        
         return {"success" : True,
                 "account" : destination_account, 
                 "balance_raw": balance,
                 "balance": self.truncate(int(balance) / (10 ** 30)), 
                 "hash": next_hash,
                 "amount_raw": amount_per_chunk_raw,
-                "amount": self.truncate(int(amount_per_chunk_raw) / (10 ** 30))}
+                "amount": self.truncate(int(amount_per_chunk_raw) / (10 ** 30)),
+                "req_process": req_process       
+                }      
         # return next_hash
 
     def create_send_block(
@@ -342,7 +369,8 @@ class Api:
         source_seed,
         source_index,
         destination_account,
-        amount_per_chunk_raw
+        amount_per_chunk_raw,
+        broadcast = True
     ):
         if self.debug : t1 = time.time() 
         req_source_account = {
@@ -403,15 +431,17 @@ class Api:
         send_block = self.post_with_auth(req_block_create)
         logging.debug(send_block["hash"])
 
-
         req_process = {
-            "action": "process",
-            "json_block": "true",
-            "subtype": "send",
-            "block": send_block["block"],
-        }
-        publish = self.post_with_auth(req_process)
-        if self.debug : logging.debug("req_process : {}".format(time.time() - t1))
+                "action": "process",
+                "json_block": "true",
+                "subtype": "send",
+                "block": send_block["block"],
+            }
+
+        if broadcast:            
+            publish = self.post_with_auth(req_process)
+            if self.debug : logging.debug("req_process : {}".format(time.time() - t1))
+            req_process = True
         
 
         # prepare for next iteration
@@ -425,23 +455,25 @@ class Api:
                 "balance": self.truncate(int(block_balance) / (10 ** 30)), 
                 "hash": send_block["hash"],
                 "amount_raw": amount_per_chunk_raw,
-                "amount": self.truncate(int(amount_per_chunk_raw) / (10 ** 30))
+                "amount": self.truncate(int(amount_per_chunk_raw) / (10 ** 30)),
+                "req_process": req_process             
                 }
-
-
 
     def create_send_block_pkey(
         self,
         private_key,
-        source_account,
         destination_account,
-        amount_per_chunk_raw
+        amount_per_chunk_raw,
+        broadcast = True
     ):
+        
         if self.debug : t1 = time.time() 
+
+        key_expand = self.key_expand(private_key)
        
         source_account_data = {    
-            "private": private_key,
-            "account": source_account,
+            "private": key_expand["private"],
+            "account": key_expand["account"],
         }
 
         req_account_info = {
@@ -451,9 +483,18 @@ class Api:
             "pending": "true",
             "include_confirmed": "true"
         }
+
+        
         account_info = self.post_with_auth(req_account_info)
         if self.debug : logging.debug("post_with_auth : {}".format(time.time() - t1))
         if self.debug : t1 = time.time() 
+
+        if broadcast == False:
+            if _account_info == {} :
+                pass #first call
+            else :
+                account_info = _account_info[source_account_data["account"]]
+            #print("found" , source_account_data["account"], account_info["frontier"])
 
         source_previous = account_info["frontier"]
         source_balance = account_info["balance"]
@@ -484,15 +525,21 @@ class Api:
         send_block = self.post_with_auth(req_block_create)
         logging.debug(send_block["hash"])
 
-
+        
         req_process = {
-            "action": "process",
-            "json_block": "true",
-            "subtype": "send",
-            "block": send_block["block"],
-        }
-        publish = self.post_with_auth(req_process)
-        if self.debug : logging.debug("req_process : {}".format(time.time() - t1))
+                "action": "process",
+                "json_block": "true",
+                "subtype": "send",
+                "block": send_block["block"],
+            }
+        if broadcast :
+            publish = self.post_with_auth(req_process)
+            if self.debug : logging.debug("req_process : {}".format(time.time() - t1))
+            req_process = True
+        else :
+            _account_info[source_account_data["account"]] = {"frontier" : send_block["hash"] , "balance" :  amount_per_chunk_raw,  "representative" : current_rep}
+            #print("send_added" , source_account_data["account"], send_block["hash"])
+        
         
 
         # prepare for next iteration
@@ -506,14 +553,16 @@ class Api:
                 "balance": self.truncate(int(block_balance) / (10 ** 30)), 
                 "hash": send_block["hash"],
                 "amount_raw": amount_per_chunk_raw,
-                "amount": self.truncate(int(amount_per_chunk_raw) / (10 ** 30))
+                "amount": self.truncate(int(amount_per_chunk_raw) / (10 ** 30)),
+                "req_process": req_process             
                 }
 
     def create_epoch_block(
         self,
         epoch_link,
         genesis_private_key,
-        genesis_account
+        genesis_account,
+        broadcast = True
     ):
 
         if self.debug : t1 = time.time()
@@ -547,18 +596,25 @@ class Api:
         logging.debug(epoch_block["hash"])
 
         req_process = {
-            "action": "process",
-            "json_block": "true",
-            "subtype": "epoch",
-            "block": epoch_block["block"],
-        }
-        logging.debug(req_process)
-        publish = self.post_with_auth(req_process)
-        if self.debug : logging.debug("req_process : {}".format(time.time() - t1))
+                "action": "process",
+                "json_block": "true",
+                "subtype": "epoch",
+                "block": epoch_block["block"],
+            }
+        if broadcast:           
+            logging.debug(req_process)
+            publish = self.post_with_auth(req_process)
+            if self.debug : logging.debug("req_process : {}".format(time.time() - t1))
+            req_process = True
+
         return {"success" : True,
                 "account" : genesis_account,
-                "hash": epoch_block["hash"]
+                "hash": epoch_block["hash"],
+                "req_process" : req_process
                 }
+
+
+
 
 class NanoTools:
     import gmpy2

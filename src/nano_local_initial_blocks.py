@@ -71,7 +71,6 @@ class InitialBlocks :
 
     def __publish_canary(self):
         fv_canary_send_block = self.api.create_send_block_pkey( self.config["genesis_account_data"]["private"],
-                                                                self.config["genesis_account_data"]["account"],
                                                                 self.config["canary_account_data"]["account"],
                                                                 1)
         logging.info("SEND FINAL VOTES CANARY BLOCK FROM {} To {} : HASH {}".format(self.config["genesis_account_data"]["account"],
@@ -98,7 +97,6 @@ class InitialBlocks :
             return False               
        
         send_block = self.api.create_send_block_pkey(self.config["genesis_account_data"]["private"],
-                                                     self.config["genesis_account_data"]["account"],
                                                      self.config["burn_account_data"]["account"],
                                                      self.config["burn_amount"])
         
@@ -134,7 +132,6 @@ class InitialBlocks :
                 if "balance" not in node_account_data : continue #skip genesis that was added as node                            
                 
                 send_block = self.api.create_send_block_pkey(self.config["genesis_account_data"]["private"],
-                                                             self.config["genesis_account_data"]["account"],
                                                              node_account_data["account"],
                                                              node_account_data["balance"])
 
