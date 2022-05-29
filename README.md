@@ -1,9 +1,15 @@
 # nano-local
+This projects enables you to spin up your own local nano network with your own genesis block.
+RPC access to the genesis account is enabled by default at port http://localhost:45000 
+All configuration is done inside <code>nano_local_config.toml</code>
+Many additional services can be enabled : [nanolooker, nanoNodeMonitor, nano-vote-visualizer, nanoticker]
+A test-suite is included to do some basic checks. Currently some tests may fail.
+
 
 prerequisites : 
 * python3
 * docker
-* docker-compose (if you use docker-compose v1.xx make add <code>--compose_version=1</code> flag)
+* docker-compose (if you use docker-compose v1.xx try adding <code>--compose_version=1</code> flag)
 
 ## Quickstart :
 
@@ -38,6 +44,23 @@ You can enable various services :
 | [nano-vote-visualizer](https://github.com/numsu/nano-vote-visualizer) | <code>nanovotevisu_enable = true</code> | Available at http://{remote_address}:42001 |
 | [nanoticker](https://github.com/Joohansson/nanoticker) | <code>nanoticker_enable = true</code> | Available at http://{remote_address}:42002 |
 | [nano-node-monitor](https://github.com/nanotools/nanoNodeMonitor)| <code>nanomonitor_enable = true</code> | Available at http://{remote_address}:46000, 46001, 46002, ... |
+
+#### Optional : Run Tests :
+
+<code>$ ./run_nano_local.py test</code> runs all tests.
+
+| Test       | Code      | Description  |
+| :-----------  |:----------| -----|
+|all | <code>$ ./run_nano_local.py test</code> | run all tests|
+||||
+|rpc_online|<code>test -c basic.NetworkChecks.test_rpc_online</code> | all nodes online|
+|peer_count|<code>test -c basic.NetworkChecks.test_peer_count</code> | all nodes interconnected|
+|equal_block_count|<code>test -c basic.NetworkChecks.test_equal_block_count</code> | all nodes have same blocks|
+|equal_online_stake_total|<code>test -c basic.NetworkChecks.test_equal_online_stake_total</code> | all nodes see same online weight|
+|equal_confirmation_quorum|<code>test -c basic.NetworkChecks.test_equal_confirmation_quorum</code> |all nodes have equal network view |
+|equal_peers_stake_total|<code>test -c basic.NetworkChecks.test_equal_peers_stake_total</code> | all nodes have equal peer weight|
+|equal_representatives_online|<code>test -c basic.NetworkChecks.test_equal_representatives_online</code> | all nodes have same online representatives|
+
 
 
 #### Optional : Delete virtual python environment
