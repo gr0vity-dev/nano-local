@@ -112,6 +112,28 @@ class Api:
         if payload is not None:                    
             return self.post_with_auth(json.loads(str(payload)))   
 
+    def block_hash(self, json_block):
+        req = {  
+            "action": "block_hash",
+            "json_block": "true", 
+            "block": json_block
+            }
+        return self.post_with_auth(req) 
+    
+    def block_info(self, block_hash) :
+        req = {  
+            "action": "block_info",
+            "json_block": "true",
+            "hash": block_hash
+            }
+        return self.post_with_auth(req) 
+
+    def block_confirmed(self, json_block = None , block_hash = None) :
+        if json_block is not None :
+            block_hash = self.block_hash(json_block)["hash"]
+        if block_hash is None : 
+            return False
+        return True if self.block_info(block_hash)["confirmed"] == "true" else False 
 
     def get_account_data(self, seed, index):
         payload = self.generate_account(seed, index)

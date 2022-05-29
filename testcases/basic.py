@@ -4,6 +4,7 @@ from src.nano_rpc import Api, NanoTools
 from src.nano_local_initial_blocks import InitialBlocks
 from src.parse_nano_local_config import ConfigReadWrite, ConfigParser
 import copy
+from interruptingcow import timeout
 
 
 
@@ -91,7 +92,7 @@ class BlockPropagation(unittest.TestCase):
 
         
         destination = self.nano_rpc.generate_account(destination_seed, 0)
-        print("destination_seed", destination_seed, "send_amount" , send_amount, end='\r')
+        print("destination_seed {} representative {} send_amount  {:>6}".format(destination_seed,representative, send_amount), end='\r')
         #print("soiurce_key", send_key , "destination_seed", destination_seed)
         send_block = self.nano_rpc.create_send_block_pkey(send_key,
                                                           destination["account"],
@@ -107,19 +108,15 @@ class BlockPropagation(unittest.TestCase):
         res = [ send_block["req_process"], open_block["req_process"] ]       
         return res
 
-    def account_splitting(self, seed_prefix, max_depth, current_depth = 0, representative = None, source_seed = None, write_to_disk = False ):
-        # search for an account that has
-        # A - AA - AAA...
-        #        - AAB...
-        #   - AB - ABA...
-        #        - ABB...
-        
+    def account_splitting(self, seed_prefix, splitting_depth, current_depth = 1, representative = None, source_seed = None, write_to_disk = False ):
+        #split each account into 2 by sending half of the account funds to 2 other accounts.
+        # at the end of teh split, each account will have 1 nano 
              
-        if current_depth > max_depth : return []
+        if current_depth > splitting_depth : return []
         
-        if current_depth == 0 : 
+        if current_depth == 1 : 
             #find account that holds 2**power_of_2 nano and send 1 nano to each account
-            lst_expected_length = 2**(max_depth +2) -2  
+            lst_expected_length = 2**(splitting_depth +1) -2  
             for node in self.conf["node_account_data"]:
                 if int(self.nano_rpc.check_balance(node["account"])["balance_raw"]) > (lst_expected_length * 10**30) : #raw
                     source_account = node
@@ -132,18 +129,18 @@ class BlockPropagation(unittest.TestCase):
         
         seed_prefix_A = f'{seed_prefix}A'        
         seed_A = f'{seed_prefix_A}{str(0)*(63 - len(seed_prefix))}' 
-        blocks_A = self.open_account(source_account["account"] , source_account["private"], seed_A, 2**(max_depth - current_depth))       
-        blocks_Aab = self.account_splitting(seed_prefix_A, max_depth, current_depth=current_depth+1, representative=representative, source_seed=seed_A )      
+        blocks_A = self.open_account(representative , source_account["private"], seed_A, 2**(splitting_depth - current_depth +1) -1)          
+        blocks_Aab = self.account_splitting(seed_prefix_A, splitting_depth, current_depth=current_depth+1, representative=representative, source_seed=seed_A )      
         
         seed_prefix_B = f'{seed_prefix}B' 
         seed_B = f'{seed_prefix_B}{str(0)*(63 - len(seed_prefix))}' 
-        blocks_B = self.open_account(source_account["account"] , source_account["private"], seed_B, 2**(max_depth - current_depth))
-        blocks_Bab = self.account_splitting(seed_prefix_B, max_depth, current_depth=current_depth+1, representative=representative, source_seed=seed_B)    
+        blocks_B = self.open_account(representative , source_account["private"], seed_B, 2**(splitting_depth - current_depth +1) -1)       
+        blocks_Bab = self.account_splitting(seed_prefix_B, splitting_depth, current_depth=current_depth+1, representative=representative, source_seed=seed_B)    
         
         lst = blocks_A + blocks_Aab + blocks_B +  blocks_Bab
 
                  
-        if current_depth == 0 :    
+        if current_depth == 1 :    
             self.assertEqual(len(lst), 2* lst_expected_length)  
             if write_to_disk :
                 ConfigReadWrite().write_list(f"./nano_nodes/publish_{2* lst_expected_length}_blocks.txt", [str(line).replace("'", '"') for line in lst])
@@ -156,16 +153,34 @@ class BlockPropagation(unittest.TestCase):
         for publish_command in lines:          
             response = self.nano_rpc.publish(publish_command)
             self.assertFalse("error" in response)
+    
+    def blocks_confirmed(self, file_name, timeout_s = 30):
+        lines = ConfigReadWrite().read_file(file_name) 
+        block_count = len(lines)   
+        try:
+            with timeout(timeout_s, exception=RuntimeError):
+                while confirmed_count < block_count:
+                    confirmed_count = 0                   
+                    for publish_command in lines:          
+                        if self.nano_rpc.block_confirmed(json_block= publish_command["block"]) : confirmed_count = confirmed_count +1                     
+                    
+        except RuntimeError as ex:
+            self.assertFalse(True, f'RuntimeError raised: {str(ex)}')
+
+        self.assertEqual(block_count , confirmed_count)               
             
     
     def test_account_splitting_1022(self):
-        #accountsplitting creates 2+ 4+ 8 +16 + ... + 512 = 1022 = (2**10 -2) = 1024 -2 accounts
-        pow_2 = 10       
-        blocks = self.account_splitting('A0',pow_2-2, write_to_disk=True)                
+        #accountsplitting creates 2+ 4+ 8 +16 + 32 + 64 + 128 + 256 + 512  = 1022 accounts
+        splitting_depth = 9       
+        blocks = self.account_splitting('A0', write_to_disk=True)                
         #self.assertEqual(len(blocks), 2*1022 )
     
     def test_publish_blocks(self):
         self.publish_blocks("./nano_nodes/publish_2044_blocks.txt")
+    
+    def test_blocks_confirmed(self) :
+        self.blocks_confirmed("./nano_nodes/publish_2044_blocks.txt", 30)
 
 
 if __name__ == '__main__':
