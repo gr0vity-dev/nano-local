@@ -273,7 +273,8 @@ class ConfigParser :
                 self.compose_dict["services"][container_name]["container_name"] = container_name
                 self.compose_dict["services"][container_name]["volumes"][0] =  self.compose_dict["services"][container_name]["volumes"][0].replace("default_monitor", node["name"])
                 self.compose_set_nanomonitor_ports(container_name, host_port_inc)
-                logging.info(f'nano-node-monitor enabled at {self.get_config_value("remote_address")}:{host_port_inc}')
+                host_port_monitor = 46000 + host_port_inc
+                logging.info(f'nano-node-monitor enabled at {self.get_config_value("remote_address")}:{host_port_monitor}')
                 host_port_inc = host_port_inc + 1
 
 
