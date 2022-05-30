@@ -5,6 +5,8 @@ import secrets
 import math
 import time
 import logging
+import asyncio
+import aiohttp
 
 _account_info = {}
 
@@ -16,20 +18,35 @@ class Api:
     def __init__(self, url):       
         self.debug = True
         self.RPC_URL = url
+        self.aio_conn = None #aiohttp.TCPConnector(limit_per_host=100, limit=0, ttl_dns_cache=300)
+        self.aio_results = []
     
-    # def post_with_auth(self, content):
+    async def set_aio_connection(self):
+        # 0.1s for 1million connections
+        if self.aio_conn is None : 
+            self.aio_conn = aiohttp.TCPConnector(limit_per_host=100, limit=0, ttl_dns_cache=300)         
+
+    async def aio_post(self,parallel_requests, data):        
+        semaphore = asyncio.Semaphore(parallel_requests)
+        session = aiohttp.ClientSession(connector=self.aio_conn)
+
+        async def post(el):
+            async with semaphore:
+                async with session.post(url=self.RPC_URL, json=json.loads(el), ssl=False) as response:
+                    obj = json.loads(await response.read())                   
+                    self.aio_results.append(obj)    
         
-    #     url = self.RPC_URL 
-    #     headers = {"Content-type": "application/json", "Accept": "text/plain"}    
-    #     response = requests.post(url, json=content, headers=headers)
-    #     # print("request: {} \rrepsonse: {}".format(content["action"], response.text ))
-    #     return response
+        await asyncio.gather(*(post(el) for el in data))
+        await session.close()  
+        
+    
+    
  
-    def post_with_auth(self, content, max_retry=2):
+    def post_with_auth(self, content, max_retry=2, timeout = 3, silent = True):
         try :
             url = self.RPC_URL 
             headers = {"Content-type": "application/json", "Accept": "text/plain"}    
-            r = requests.post(url, json=content, headers=headers)
+            r = requests.post(url, json=content, headers=headers, timeout=timeout)             
             r_json = json.loads(r.text)
             # print("request: {} \rrepsonse: {}".format(content["action"], r.text ))
             if "error" in r_json:
@@ -37,14 +54,15 @@ class Api:
                 if r_json["error"] == "Account not found" :
                     logging.debug(msg)
                 else :
-                    logging.warn(msg)
+                    if silent : logging.debug(msg)
+                    else : logging.warn(msg)
             return r_json
-        except Exception as e: 
+        except Exception as e:             
             if self.debug : logging.debug(f'Error str{e} ... {max_retry} Retrys left for post_with_auth : {content["action"]}')
             max_retry = max_retry - 1   
             if max_retry >= 0 : 
                 time.sleep(0.5)  #100ms
-                self.post_with_auth(content,max_retry)
+                self.post_with_auth(content,max_retry,timeout=timeout)
 
     def is_online(self, timeout = 1):
         while timeout > 0 :
@@ -93,7 +111,7 @@ class Api:
         
         return payload
     
-    def publish(self, payload = None , json_block = None, subtype = None) :  
+    def publish(self, payload = None , payload_array = None, json_block = None, subtype = None, timeout = 3, sync = True) :  
         if json_block is not None:
             if subtype is None :
                 logging.warning("It's dangerous to publish blocks without subtype!")
@@ -109,8 +127,13 @@ class Api:
                     "subtype": subtype,
                     "block": json_block,
                 }
-        if payload is not None:                    
-            return self.post_with_auth(json.loads(str(payload)))   
+        if payload is not None:              
+            return self.post_with_auth(json.loads(str(payload)), timeout=timeout)   
+        
+        if payload_array is not None :             
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(self.aio_post(1 if sync else 100, payload_array))            
+            return self.aio_results
 
     def block_hash(self, json_block):
         req = {  
@@ -644,8 +667,10 @@ class Api:
 class NanoTools:
     import gmpy2
     from gmpy2 import mpfr ,mpz
+    from itertools import islice    
+
     gmpy2.get_context().precision=1000
-    
+      
     def raw_percent(self, raw, percent) :
         return self.mpz(self.mpz(str(raw)) * self.mpfr(str(percent)) / self.mpz('100'))
     
@@ -656,3 +681,14 @@ class NanoTools:
     def raw_sub(self, val1, val2) : 
         #val1 - val2       
         return str(self.mpz(self.mpz(str(val1)) - self.mpz(str(val2))))
+    
+    #For reference
+    def where(self, array, value) :
+        list(filter(lambda x: value in x, array)) 
+    
+    def where_not(self, array, value) :
+        list(filter(lambda x: value not in x, array)) 
+    
+    def skip_take(self, list, skip_n, take_n):
+        list(self.islice(list, skip_n, take_n)) #skip(skip_n).take(take_n)
+    
