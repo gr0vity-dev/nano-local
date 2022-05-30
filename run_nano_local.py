@@ -174,7 +174,7 @@ def init_nodes(genesis_node_name = "nl_genesis"):
     global _config_parse
     _config_parse = ConfigParser()
 
-    start_nodes(False) #fixes a bug on mac m1
+    start_nodes() #fixes a bug on mac m1
     init_blocks = InitialBlocks()        
     for node_name in _config_parse.get_node_names():
         if node_name == genesis_node_name :
@@ -197,7 +197,7 @@ def create_nodes(compose_version, genesis_node_name = "nl_genesis"):
     write_docker_compose_env(compose_version)
     _config_parse.write_docker_compose()
 
-def start_nodes(build_f):
+def start_all(build_f):
     global _config_parse
     if _config_parse is None : _config_parse = ConfigParser()
 
@@ -208,10 +208,37 @@ def start_nodes(build_f):
     os.system(command) 
     is_rpc_available(_config_parse.get_node_names()) 
     logging.info(f"Nodes {_config_parse.get_node_names()} started successfully")
+
+def start_nodes():
+    global _config_parse
+    if _config_parse is None : _config_parse = ConfigParser()
+
+    dir_nano_nodes = _node_path["container"]  
+    nodes = ' '.join(_config_parse.get_node_names())  
+    command =  f'cd {dir_nano_nodes} && docker-compose start {nodes}'
+    os.system(command)
     
-def stop_nodes():
+def stop_all():
     dir_nano_nodes = _node_path["container"]    
     command =  f'cd {dir_nano_nodes} && docker-compose stop'
+    os.system(command)
+
+def stop_nodes():
+    global _config_parse
+    if _config_parse is None : _config_parse = ConfigParser()
+
+    dir_nano_nodes = _node_path["container"]  
+    nodes = ' '.join(_config_parse.get_node_names())  
+    command =  f'cd {dir_nano_nodes} && docker-compose stop {nodes}'
+    os.system(command)
+
+def restart_nodes():
+    global _config_parse
+    if _config_parse is None : _config_parse = ConfigParser()
+
+    dir_nano_nodes = _node_path["container"]     
+    nodes = ' '.join(_config_parse.get_node_names())
+    command =  f'cd {dir_nano_nodes} && docker-compose stop {nodes} && docker-compose start {nodes}'
     os.system(command)
 
 def reset_nodes():
@@ -219,7 +246,7 @@ def reset_nodes():
     dir_nano_nodes = _node_path["container"] 
     command = f'cd {dir_nano_nodes} && find . -name "data.ldb"  -type f -delete'
     os.system(command)
-    start_nodes(False)
+    start_nodes()
 
 def destroy_all():
     dir_nano_nodes = _node_path["container"]
@@ -261,25 +288,26 @@ def main():
     args = parse_args()   
     if args.command == 'csi' : #c(reate) s(tart) i(nit)
         create_nodes(args.compose_version)
-        start_nodes(True)
+        start_all(True)
         init_nodes()
-        stop_nodes()
-        start_nodes(False)
+        restart_nodes()
 
     if args.command == 'create':
         create_nodes(args.compose_version)  
         logging.info("./nano_nodes folder was created") 
 
     elif args.command == 'start':
-        start_nodes(args.build)
+        start_all(args.build)
 
     elif args.command == 'init': 
         init_nodes()
-        stop_nodes()
-        start_nodes(False)
+        restart_nodes()
 
     elif args.command == 'stop':
-        stop_nodes()
+        stop_all()
+    
+    elif args.command == 'restart':
+        restart_nodes()
 
     elif args.command == 'reset':
         reset_nodes()
