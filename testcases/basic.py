@@ -94,7 +94,10 @@ class BlockPropagation(unittest.TestCase):
         self.nano_tools = NanoTools()
         self.conf = InitialBlocks().config 
         self.open_counter = 0
-        self.splitting_depth = 9 #splitting_depth =9 creates 1022 accounts (2** (splitting_depth+1)) -2
+        self.splitting_depth = 12 #splitting_depth =9 creates 1022 accounts (2** (splitting_depth+1)) -2
+
+    def get_accounts() :
+        pass
 
     def open_account(self, representative, send_key, destination_seed, send_amount, account_info = None):
         self.open_counter = self.open_counter + 1
@@ -141,7 +144,7 @@ class BlockPropagation(unittest.TestCase):
         seed_prefix_A = f'{seed_prefix}A'  #Seed _A ... _AA / _BA...
         seed_prefix_B = f'{seed_prefix}B'  #Seed _B ... _AB / _BB...
 
-        lst = self.recursive_split(seed_prefix_A, representative, source_account, splitting_depth, current_depth)  + self.do_split(seed_prefix_B, representative, source_account, splitting_depth, current_depth)   
+        lst = self.recursive_split(seed_prefix_A, representative, source_account, splitting_depth, current_depth)  + self.recursive_split(seed_prefix_B, representative, source_account, splitting_depth, current_depth)   
                         
         if current_depth == 1 : 
             print("")   
@@ -151,7 +154,6 @@ class BlockPropagation(unittest.TestCase):
 
         
         return lst
-
 
     def publish_blocks(self, file_name):
         
