@@ -52,7 +52,7 @@ You can enable various services :
 | Test       | Code      | Description  |
 | :-----------  |:----------| -----|
 |all | <code>$ ./run_nano_local.py test</code> | run all tests|
-||<code>$ ./run_nano_local.py test -c basic.NetworkChecks</code>||
+|NetworkChecks|<code>$ ./run_nano_local.py test -c basic.NetworkChecks</code>|
 |rpc_online|<code>test_rpc_online</code> | all nodes online|
 |peer_count|<code>test_peer_count</code> | all nodes interconnected|
 |equal_block_count|<code>test_equal_block_count</code> | all nodes have same blocks|
@@ -60,7 +60,7 @@ You can enable various services :
 |equal_confirmation_quorum|<code>test_equal_confirmation_quorum</code> |all nodes have equal network view |
 |equal_peers_stake_total|<code>test_equal_peers_stake_total</code> | all nodes have equal peer weight|
 |equal_representatives_online|<code>test_equal_representatives_online</code> | all nodes have same online representatives|
-||<code>$ ./run_nano_local.py test -c basic.BlockPropagation</code>||
+|BlockPropagation|<code>$ ./run_nano_local.py test -c basic.BlockPropagation</code>|
 |account_splitting_1022_step1|<code>test_account_splitting_1022_step1</code> | Create 1022 accounts by splitting each account into 2|
 |account_splitting_1022_step2|<code>test_account_splitting_1022_step2</code> | Publish all blocks (2044)|
 |account_splitting_1022_step3|<code>test_account_splitting_1022_step3</code> | Check if all blocks are confirmed|
