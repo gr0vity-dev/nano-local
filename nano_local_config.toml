@@ -27,7 +27,7 @@ nanovotevisu_enable = false
     config_rpc_path = "./config/default_config-rpc.toml" #optional if you want to modify parameters
 
     ### Choose between --docker_tag (existing tag  --nano_node_path    
-    docker_tag = "nanocurrency/nano:V23.1" #shared between all nodes 
+    docker_tag = "nanocurrency/nano-beta:latest" #shared between all nodes 
     #nano_node_path = "/path/to/nano_node"   #path to nano_node executable  
 
 #### individual node settings
@@ -56,3 +56,19 @@ nanovotevisu_enable = false
     name = "nl_node3"
     seed = "1110000000000000000000000000000000000000000000000000000000000003"   
     vote_weight_percent = 25   
+
+
+[tescases]
+    # [testcases.run] is empty   and [testcases.skip] is empty    --> all testcases are executed.
+    # [testcases.run] is empty   and [testcases.skip] is defined  --> all testcases are executed except those defined in [testcases.skip].
+    # [testcases.run] is defined and [testcases.skip] is empty    --> only testcases from [testcases.run] are executed
+    # [testcases.run] is defined and [testcases.skip] is defined  --> only testcases from [testcases.run] that are not in [testcases.skip] are executed. 
+    [testcases.run]          
+        basic.NetworkChecks = "all" #run all testcases
+        #basic.BlockPropagation = ["test_account_splitting_1022_step1", 
+        #                         "test_account_splitting_1022_step2", 
+        #                         "test_account_splitting_1022_step3"] 
+    [testcases.skip]
+    ##overwrites testcases.run
+        #basic.BlockPropagation = "all" #["test_account_splitting_1022_step2", 
+        #                       "test_account_splitting_1022_step3"] 

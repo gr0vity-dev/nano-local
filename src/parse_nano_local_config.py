@@ -216,6 +216,58 @@ class ConfigParser :
         for node in self.config_dict["representatives"]["nodes"]:
             response.append(node["name"])
         return response
+
+    def skip_testcase(self, testcase_fullname) :
+        return not self.run_testcase(testcase_fullname)
+    
+    def run_testcase(self,testcase_fullname) :
+        # [testcases.run] is empty   and [testcases.skip] is empty    --> all testcases are executed.
+        # [testcases.run] is empty   and [testcases.skip] is defined  --> all testcases are executed except those defined in [testcases.skip].
+        # [testcases.run] is defined and [testcases.skip] is empty    --> only testcases from [testcases.run] are executed
+        # [testcases.run] is defined and [testcases.skip] is defined  --> only testcases from [testcases.run] that are not in [testcases.skip] are executed. 
+        run = self.get_testcases()["run"]
+        skip = self.get_testcases()["skip"]
+
+        if len(run) == 0 and len(skip) == 0 : 
+            return True
+
+        if len(run) == 0 and len(skip) > 0 :
+            for test_case in skip : 
+                if str(testcase_fullname).startswith(test_case) : return False             
+            return True
+
+        if len(run) > 0 and len(skip) >= 0 :
+            for test_case in run : 
+                if str(testcase_fullname).startswith(test_case) : return True 
+            return False       
+
+         
+
+    def get_testcases(self):
+        run = []
+        skip = []
+        for action in self.config_dict["testcases"]:
+            if action == "run" :
+                for module in self.config_dict["testcases"]["run"]: 
+                    for test_class, test_methods in self.config_dict["testcases"]["run"][module].items():                    
+                        if test_methods == "all" : run.append(f"{module}.{test_class}")
+                        elif len(test_methods) > 0 : 
+                            #print("test_methods" , test_methods, "\n")
+                            run = run + [f"{module}.{test_class}.{test_method}" for test_method in test_methods] 
+            
+            if action == "skip" :
+                for module in self.config_dict["testcases"]["skip"]: 
+                    for test_class, test_methods in self.config_dict["testcases"]["skip"][module].items():  
+                        if test_methods == "all" : 
+                            skip.append(f"{module}.{test_class}")
+                            #remove skipped testcases from run[]
+                            for test_case in run : 
+                                if str(test_case).startswith(f"{module}.{test_class}") : run.remove(test_case) 
+                        if len(test_methods) > 0 : 
+                            skip = skip + [f"{module}.{test_class}.{test_method}" for test_method in test_methods] 
+                            for test_method in test_methods :
+                                if f"{module}.{test_class}.{test_method}" in run :  run.remove(f"{module}.{test_class}.{test_method}")
+        return { "run" : run,"skip" : skip }
     
     def __set_docker_compose(self, genesis_node_name):  
         host_port_inc = 0

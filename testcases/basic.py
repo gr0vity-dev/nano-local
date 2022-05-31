@@ -20,6 +20,7 @@ class NetworkChecks(unittest.TestCase):
         self.nano_tools = NanoTools()
         self.config_parse = ConfigParser()   
 
+    @unittest.skipIf(ConfigParser().skip_testcase("basic.NetworkChecks.test_rpc_online"), "according to nano_local_config.toml")
     def test_rpc_online(self):        
 
         for node_name in self.config_parse.get_node_names() :
@@ -28,6 +29,7 @@ class NetworkChecks(unittest.TestCase):
 
             self.assertTrue(is_online)
 
+    @unittest.skipIf(ConfigParser().skip_testcase("basic.NetworkChecks.test_peer_count"), "according to nano_local_config.toml")
     def test_peer_count(self):
         # check if all nodes are all connected to each_other. 
         for node_name in self.config_parse.get_node_names() :
@@ -35,6 +37,7 @@ class NetworkChecks(unittest.TestCase):
             peer_count = len(Api(node_rpc).peers()["peers"])
             self.assertEqual(peer_count, len(self.config_parse.get_node_names()) -1)    
 
+    @unittest.skipIf(ConfigParser().skip_testcase("basic.NetworkChecks.test_equal_block_count"), "according to nano_local_config.toml")
     def test_equal_block_count(self):
         # compare "block_count" for each node to the "block_count" of the first node.
         first_node_block_count = None
@@ -44,6 +47,7 @@ class NetworkChecks(unittest.TestCase):
             if first_node_block_count is None : first_node_block_count = copy.deepcopy(block_count) 
             self.assertDictEqual(block_count,first_node_block_count) 
 
+    @unittest.skipIf(ConfigParser().skip_testcase("basic.NetworkChecks.test_equal_online_stake_total"), "according to nano_local_config.toml")
     def test_equal_online_stake_total(self):
         # compare "confirmation_quorum" for each node to the "confirmation_quorum" of the first node.
         first_node_online_stake_total = None
@@ -53,6 +57,7 @@ class NetworkChecks(unittest.TestCase):
             if first_node_online_stake_total is None : first_node_online_stake_total = copy.deepcopy(online_stake_total) 
             self.assertEqual(online_stake_total,first_node_online_stake_total)     
     
+    @unittest.skipIf(ConfigParser().skip_testcase("basic.NetworkChecks.test_equal_confirmation_quorum"), "according to nano_local_config.toml")
     def test_equal_confirmation_quorum(self):
         # compare "confirmation_quorum" for each node to the "confirmation_quorum" of the first node. (excludes "peers_stake_total")
         first_node_confirmation_quorum = None
@@ -64,6 +69,7 @@ class NetworkChecks(unittest.TestCase):
             if first_node_confirmation_quorum is None : first_node_confirmation_quorum = copy.deepcopy(confirmation_quorum) 
             self.assertDictEqual(confirmation_quorum,first_node_confirmation_quorum)  
     
+    @unittest.skipIf(ConfigParser().skip_testcase("basic.NetworkChecks.test_equal_peers_stake_total"), "according to nano_local_config.toml")
     def test_equal_peers_stake_total(self):
         # Adds node vote weight to "peers_stake_total" and compares the value to all other nodes
         first_node_response = None
@@ -79,6 +85,7 @@ class NetworkChecks(unittest.TestCase):
             if first_node_response is None : first_node_response = response["peers_stake_total"] 
             self.assertEqual(response["peers_stake_total"],first_node_response)  
     
+    @unittest.skipIf(ConfigParser().skip_testcase("basic.NetworkChecks.test_equal_representatives_online"), "according to nano_local_config.toml")
     def test_equal_representatives_online(self):
         # Compares online representatives among all nodes
         first_node_response = None
@@ -189,16 +196,19 @@ class BlockPropagation(unittest.TestCase):
         print("")
         self.assertEqual(block_count , confirmed_count)               
    
+    @unittest.skipIf(ConfigParser().skip_testcase("basic.BlockPropagation.test_account_splitting_1022_step1"), "according to nano_local_config.toml")
     def test_account_splitting_1022_step1(self):        
         #with a splitting_depth of 9, accountsplitting creates 2+ 4+ 8 +16 + 32 + 64 + 128 + 256 + 512  = 1022 accounts
         print("create send and open blocks")       
         blocks = self.account_splitting('A0',self.splitting_depth, write_to_disk=True)                
         #self.assertEqual(len(blocks), 2*1022 )
     
+    @unittest.skipIf(ConfigParser().skip_testcase("basic.BlockPropagation.test_account_splitting_1022_step2"), "according to nano_local_config.toml")
     def test_account_splitting_1022_step2(self):
         print("publish blocks")
         self.publish_blocks(f"./testcases/storage/test_account_splitting_depth_{self.splitting_depth}.txt")
-      
+
+    @unittest.skipIf(ConfigParser().skip_testcase("basic.BlockPropagation.test_account_splitting_1022_step3"), "according to nano_local_config.toml")
     def test_account_splitting_1022_step3(self) :
         print("test if blocks are confirmed")
         self.blocks_confirmed(f"./testcases/storage/test_account_splitting_depth_{self.splitting_depth}.txt", acceptable_tps = 50)
