@@ -263,9 +263,6 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-b', '--build', type=bool, default = False,
                         help='build docker container for new executable')
-    parser.add_argument('-c', '--case', default = 'basic',
-                        help='example : test --case basic')
-
     parser.add_argument('--compose_version', type=int, default = 2, choices={1,2},
                         help='run $ docker-compose --version to identify the version. Defaults to 2')
     parser.add_argument('command',
@@ -316,7 +313,10 @@ def main():
         destroy_all()
     
     elif args.command == 'test' :
-        subprocess.run([f'./venv_nano_local/bin/python -m unittest -v testcases.{args.case}'],shell=True) #using the run() method
+        modules = ConfigParser().get_testcases()["test_modules"]
+        for module in modules :
+            module_path = f'{os.path.dirname(__file__)}/testcases/{module}.py'
+            subprocess.run([f"venv_nano_local/bin/pytest {module_path} --html=./testcases/reports/report_latest_{module}.html --self-contained-html"], shell=True)
 
     else:
         print('Unknown command %s', args.command)    

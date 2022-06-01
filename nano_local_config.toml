@@ -58,17 +58,12 @@ nanovotevisu_enable = false
     vote_weight_percent = 25   
 
 
-[tescases]
-    # [testcases.run] is empty   and [testcases.skip] is empty    --> all testcases are executed.
-    # [testcases.run] is empty   and [testcases.skip] is defined  --> all testcases are executed except those defined in [testcases.skip].
-    # [testcases.run] is defined and [testcases.skip] is empty    --> only testcases from [testcases.run] are executed
-    # [testcases.run] is defined and [testcases.skip] is defined  --> only testcases from [testcases.run] that are not in [testcases.skip] are executed. 
-    [testcases.run]          
-        basic.NetworkChecks = "all" #run all testcases
-        #basic.BlockPropagation = ["test_account_splitting_1022_step1", 
-        #                         "test_account_splitting_1022_step2", 
-        #                         "test_account_splitting_1022_step3"] 
-    [testcases.skip]
-    ##overwrites testcases.run
-        #basic.BlockPropagation = "all" #["test_account_splitting_1022_step2", 
-        #                       "test_account_splitting_1022_step3"] 
+[testcases]        
+    [testcases.basic.NetworkChecks]   #Run all NetworkChecks except test_equal_block_count   
+        test_equal_block_count = true
+
+    [testcases.basic.BlockPropagation]
+        skip_all = true
+        # test_account_splitting_1022_step1 = false
+        # test_account_splitting_1022_step2 = false
+        # test_account_splitting_1022_step3 = true
