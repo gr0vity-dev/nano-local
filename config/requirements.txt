@@ -7,3 +7,5 @@ pyblake2==1.1.0
 gmpy2
 interruptingcow
 aiohttp
+pytest 
+pytest-html
