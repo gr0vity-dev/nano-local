@@ -12,6 +12,7 @@ from binascii import hexlify, unhexlify
 from base64 import b32encode, b32decode  
 import string 
 from pyblake2 import blake2b
+from math import ceil
 
 _app_dir = os.path.dirname(__file__).replace("/src", "") #<-- absolute dir the script is in
 _config_dir = os.path.join(_app_dir, "./config")
@@ -25,6 +26,14 @@ _nano_nodes_path = os.path.join(_app_dir,  "./nano_nodes")
 #compose output file : nano-local/nano_nodes/docker-compose.yml
 
 class ConfigReadWrite: 
+
+    def write_json(self,path,json_dict):
+         with open(path, "w") as f:    
+            json.dump(json_dict, f)
+    
+    def read_json(self,path):
+         with open(path, "r") as f:    
+            return json.load(f)
 
     def read_file(self,path):
         with open(path, "r") as f:
@@ -96,7 +105,6 @@ class Helpers:
         checksum = bytearray(h.digest())
         checksum.reverse()
         return checksum
-
     
     def public_key_to_nano_address(self,public_key):
         if not len(public_key) == 32:
@@ -106,6 +114,14 @@ class Helpers:
         address = self.bytes_to_xrb(padded)[4:]
         checksum = self.bytes_to_xrb(self.address_checksum(public_key))
         return 'nano_' + address.decode('ascii') + checksum.decode('ascii')
+    
+    def percentile(self,data, percentile):
+        n = len(data)
+        p = n * percentile / 100
+        if p.is_integer():
+            return sorted(data)[int(p)]
+        else:
+            return sorted(data)[int(ceil(p)) - 1]
 
 class ConfigParser :
 

@@ -26,13 +26,13 @@ class Api:
         if self.aio_conn is None : 
             self.aio_conn = aiohttp.TCPConnector(limit_per_host=100, limit=0, ttl_dns_cache=300)         
 
-    async def aio_post(self,parallel_requests, data):        
+    async def aio_post(self,parallel_requests, data, json_data = False):        
         semaphore = asyncio.Semaphore(parallel_requests)
         session = aiohttp.ClientSession(connector=self.aio_conn)
 
         async def post(el):
             async with semaphore:
-                async with session.post(url=self.RPC_URL, json=json.loads(el), ssl=False) as response:
+                async with session.post(url=self.RPC_URL, json=el if json_data else json.loads(el), ssl=False) as response:
                     obj = json.loads(await response.read())                   
                     self.aio_results.append(obj)    
         
@@ -111,7 +111,7 @@ class Api:
         
         return payload
     
-    def publish(self, payload = None , payload_array = None, json_block = None, subtype = None, timeout = 3, sync = True) :  
+    def publish(self, payload = None , payload_array = None, json_block = None, subtype = None, timeout = 3, sync = True, json_data = False) :  
         if json_block is not None:
             if subtype is None :
                 logging.warning("It's dangerous to publish blocks without subtype!")
@@ -132,7 +132,7 @@ class Api:
         
         if payload_array is not None :             
             loop = asyncio.get_event_loop()
-            loop.run_until_complete(self.aio_post(1 if sync else 100, payload_array))            
+            loop.run_until_complete(self.aio_post(1 if sync else 100, payload_array, json_data=json_data))            
             return self.aio_results
 
     def block_hash(self, json_block):
@@ -157,6 +157,8 @@ class Api:
         if block_hash is None : 
             return False
         response = self.block_info(block_hash)
+        if response is None :
+            return False
         if "error" in response : 
             return False
         return True if response["confirmed"] == "true" else False 
@@ -512,7 +514,8 @@ class Api:
         private_key,
         destination_account,
         amount_per_chunk_raw,
-        broadcast = True
+        broadcast = True,
+        in_memory = True
     ):
         
         if self.debug : t1 = time.time() 
@@ -538,10 +541,11 @@ class Api:
         if self.debug : t1 = time.time() 
 
         if broadcast == False:
-            if _account_info == {} :
-                pass #first call
+            if source_account_data["account"] not in _account_info :
+                pass
             else :
-                account_info = _account_info[source_account_data["account"]]
+                if in_memory :
+                    account_info = _account_info[source_account_data["account"]]
             #print("found" , source_account_data["account"], account_info["frontier"])
 
         source_previous = account_info["frontier"]
@@ -560,7 +564,7 @@ class Api:
             "action": "block_create",
             "json_block": "true",
             "type": "state",
-            "balance": str(block_balance),
+            "balance": block_balance,
             "key": source_account_data["private"],
             "representative": current_rep,
             "link": destination_link,
@@ -661,6 +665,90 @@ class Api:
                 "req_process" : req_process
                 }
 
+    def create_change_block(
+        self,
+        source_seed,
+        source_index,
+        new_rep,
+        broadcast = True
+
+    ):  
+        if self.debug : t1 = time.time()  
+        req_source_account = {
+            "action": "deterministic_key",
+            "seed": source_seed,
+            "index": source_index,
+        }
+        source_account_data = self.post_with_auth(req_source_account)
+        if self.debug : logging.info("req_source_account : {}".format(time.time() - t1))
+        if self.debug : t1 = time.time() 
+
+       
+        source_account_data = {
+            "seed": source_seed,
+            "index": source_index,
+            "private": source_account_data["private"],
+            "public": source_account_data["public"],
+            "account": source_account_data["account"],
+        }
+
+        req_account_info = {
+            "action": "account_info",
+            "account": source_account_data["account"],
+            "representative": "true",
+            "pending": "true",
+            "include_confirmed": "true"
+        }
+        account_info = self.post_with_auth(req_account_info)
+
+        if broadcast == False:
+            if source_account_data["account"] not in _account_info :
+                pass
+            else :
+                account_info = _account_info[source_account_data["account"]]          
+       
+
+        source_previous = account_info["frontier"]
+        source_balance = account_info["balance"]      
+
+        # prepare change block
+        req_block_create = {
+            "action": "block_create",
+            "json_block": "true",
+            "type": "state",
+            "balance": source_balance,
+            "key": source_account_data["private"],
+            "representative": new_rep,
+            "link": "0000000000000000000000000000000000000000000000000000000000000000",
+            "link_as_account": "nano_1111111111111111111111111111111111111111111111111111hifc8npp",
+            "previous": source_previous,
+        }        
+
+        change_block =  self.post_with_auth(req_block_create) 
+
+        req_process = {
+                "action": "process",
+                "json_block": "true",
+                "subtype": "change",
+                "block": change_block["block"],
+            }
+        if broadcast :
+            publish = self.post_with_auth(req_process)
+            if self.debug : logging.debug("req_process : {}".format(time.time() - t1))
+            req_process = True
+        else :
+            _account_info[source_account_data["account"]] = {"frontier" : change_block["hash"] , "balance" :  source_balance,  "representative" : new_rep}
+            #print("send_added" ,
+        
+        return {"success" : True,
+                "account" : source_account_data["account"], 
+                "balance_raw": source_balance,
+                "balance": self.truncate(int(source_balance) / (10 ** 30)), 
+                "hash": change_block["hash"],
+                "req_process": req_process             
+                }
+ 
+               
 
 
 
@@ -684,11 +772,11 @@ class NanoTools:
     
     #For reference
     def where(self, array, value) :
-        list(filter(lambda x: value in x, array)) 
+        return list(filter(lambda x: value in x, array)) 
     
     def where_not(self, array, value) :
-        list(filter(lambda x: value not in x, array)) 
+        return list(filter(lambda x: value not in x, array)) 
     
     def skip_take(self, list, skip_n, take_n):
-        list(self.islice(list, skip_n, take_n)) #skip(skip_n).take(take_n)
+        return list(self.islice(list, skip_n, take_n)) #skip(skip_n).take(take_n)
     

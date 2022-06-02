@@ -263,6 +263,10 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-b', '--build', type=bool, default = False,
                         help='build docker container for new executable')
+    parser.add_argument('--test_output', choices={"console", "html", "junitxml"}, default = "console",
+                        help='create a report under ./testcases/reports in the specified format for each module')
+    parser.add_argument('--pytest_args', default = "-v",
+                        help='will be added after pytest. example -rfE')    
     parser.add_argument('--compose_version', type=int, default = 2, choices={1,2},
                         help='run $ docker-compose --version to identify the version. Defaults to 2')
     parser.add_argument('command',
@@ -312,11 +316,20 @@ def main():
     elif args.command == 'destroy':
         destroy_all()
     
-    elif args.command == 'test' :
+    elif args.command == 'pytest' :
         modules = ConfigParser().get_testcases()["test_modules"]
         for module in modules :
             module_path = f'{os.path.dirname(__file__)}/testcases/{module}.py'
-            subprocess.run([f"venv_nano_local/bin/pytest {module_path} --html=./testcases/reports/report_latest_{module}.html --self-contained-html"], shell=True)
+            test_output = ""
+            if(args.test_output)  == "html" : test_output = f"--html=./testcases/reports/report_latest_{module}.html --self-contained-html"
+            elif(args.test_output)  == "junitxml" : test_output = f"--junitxml=./testcases/reports/report_latest_{module}.xml"
+            subprocess.run([f"venv_nano_local/bin/pytest {args.pytest_args} {module_path} {test_output}"], shell=True)
+    
+    elif args.command == 'test' :
+        modules = ConfigParser().get_testcases()["test_modules"]
+        for module in modules :          
+            subprocess.run([f"venv_nano_local/bin/python -m unittest testcases.{module}"], shell=True)
+            
 
     else:
         print('Unknown command %s', args.command)    
