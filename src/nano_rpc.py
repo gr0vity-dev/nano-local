@@ -14,39 +14,43 @@ class Api:
 
     # api_config = None
     # debug = False
-   
-    def __init__(self, url):       
+ 
+    def __init__(self, url):
         self.debug = True
         self.RPC_URL = url
         self.aio_conn = None #aiohttp.TCPConnector(limit_per_host=100, limit=0, ttl_dns_cache=300)
         self.aio_results = []
-    
+        self.loop = asyncio.get_event_loop()
+
     async def set_aio_connection(self):
         # 0.1s for 1million connections
-        if self.aio_conn is None : 
-            self.aio_conn = aiohttp.TCPConnector(limit_per_host=100, limit=0, ttl_dns_cache=300)         
+        if self.aio_conn is None :
+            self.aio_conn = aiohttp.TCPConnector(limit_per_host=500, limit=0, verify_ssl=False , force_close=True)
 
-    async def aio_post(self,parallel_requests, data, json_data = False):        
+    async def aio_post(self,data, sync = True, json_data = False, include_request = False, aio_results = []):
+        parallel_requests = 1 if sync else 5
         semaphore = asyncio.Semaphore(parallel_requests)
         session = aiohttp.ClientSession(connector=self.aio_conn)
 
         async def post(el):
             async with semaphore:
                 async with session.post(url=self.RPC_URL, json=el if json_data else json.loads(el), ssl=False) as response:
-                    obj = json.loads(await response.read())                   
-                    self.aio_results.append(obj)    
-        
+                    obj = json.loads(await response.read())
+                    if include_request : obj["request"] = el if json_data else json.loads(el)
+                    if obj is None :
+                        print("Request failed", el)
+                    if "error" is obj :
+                        print("Request failed", "request", el, "response", obj)
+                    aio_results.append(obj)
+
         await asyncio.gather(*(post(el) for el in data))
-        await session.close()  
-        
-    
-    
+        await session.close()
  
     def post_with_auth(self, content, max_retry=2, timeout = 3, silent = True):
         try :
             url = self.RPC_URL 
-            headers = {"Content-type": "application/json", "Accept": "text/plain"}    
-            r = requests.post(url, json=content, headers=headers, timeout=timeout)             
+            headers = {"Content-type": "application/json", "Accept": "text/plain"}
+            r = requests.post(url, json=content, headers=headers, timeout=timeout)
             r_json = json.loads(r.text)
             # print("request: {} \rrepsonse: {}".format(content["action"], r.text ))
             if "error" in r_json:
@@ -57,9 +61,9 @@ class Api:
                     if silent : logging.debug(msg)
                     else : logging.warn(msg)
             return r_json
-        except Exception as e:             
+        except Exception as e:
             if self.debug : logging.debug(f'Error str{e} ... {max_retry} Retrys left for post_with_auth : {content["action"]}')
-            max_retry = max_retry - 1   
+            max_retry = max_retry - 1
             if max_retry >= 0 : 
                 time.sleep(0.5)  #100ms
                 self.post_with_auth(content,max_retry,timeout=timeout)
@@ -72,8 +76,8 @@ class Api:
             except :
                 timeout = timeout -1
                 time.sleep(1)
-        return False    
-    
+        return False
+
     def generate_seed(self):
         return secrets.token_hex(32)
 
@@ -108,10 +112,10 @@ class Api:
         payload = self.generate_account(seed, 0)
         payload["success"] = True
         payload["error_message"] = ''
-        
+
         return payload
-    
-    def publish(self, payload = None , payload_array = None, json_block = None, subtype = None, timeout = 3, sync = True, json_data = False) :  
+
+    def publish(self, payload = None , payload_array = None, json_block = None, subtype = None, timeout = 3, sync = True, json_data = False) :
         if json_block is not None:
             if subtype is None :
                 logging.warning("It's dangerous to publish blocks without subtype!")
@@ -127,24 +131,57 @@ class Api:
                     "subtype": subtype,
                     "block": json_block,
                 }
-        if payload is not None:              
-            return self.post_with_auth(json.loads(str(payload)), timeout=timeout)   
-        
-        if payload_array is not None :             
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(self.aio_post(1 if sync else 100, payload_array, json_data=json_data))            
-            return self.aio_results
+        if payload is not None:
+            return self.post_with_auth(json.loads(str(payload)), timeout=timeout)
+
+        if payload_array is not None : 
+            res = []
+            #loop = asyncio.get_event_loop()
+            self.loop.run_until_complete(self.aio_post(payload_array, sync=sync, json_data=json_data, aio_results=res))
+            return res
+
+    def block_hash_aio(self, json_blocks, sync = False):
+        lst = []
+        res = []
+        for json_block in json_blocks :
+            lst.append({
+                "action": "block_hash",
+                "json_block": "true", 
+                "block": json_block
+                })
+        #loop = asyncio.get_event_loop()
+        self.loop.run_until_complete(self.aio_post(lst, sync=sync, json_data=True, aio_results=res))
+        return res
+
+    def block_info_aio(self, block_hashes, sync = True) : 
+        lst = []
+        res = []
+        for block_hash in block_hashes :
+            lst.append({
+                "action": "block_info",
+                "json_block": "true",
+                "hash": block_hash
+                })
+        #loop = asyncio.get_event_loop()
+        self.loop.run_until_complete(self.aio_post(lst,sync=sync, json_data=True, include_request=True, aio_results=res))
+        return res 
+
+    def block_confirmed_aio(self, block_hashes) :
+        res = self.block_info_aio(block_hashes)
+        confirmed_blocks = list(filter(lambda x: x is not None and "confirmed" in x and x["confirmed"] == "true", res))
+        return set(map(lambda x: x["request"]["hash"], confirmed_blocks))   #confirmed hashes
+
 
     def block_hash(self, json_block):
-        req = {  
+        req = {
             "action": "block_hash",
             "json_block": "true", 
             "block": json_block
             }
         return self.post_with_auth(req) 
-    
+
     def block_info(self, block_hash) :
-        req = {  
+        req = {
             "action": "block_info",
             "json_block": "true",
             "hash": block_hash
@@ -167,7 +204,7 @@ class Api:
         payload = self.generate_account(seed, index)
         payload["success"] = True
         payload["error_message"] = ''
-        
+
         return payload
 
     def block_count(self, max_retry = 2):
@@ -175,17 +212,15 @@ class Api:
             "action": "block_count"
         } 
         return self.post_with_auth(req_block_count, max_retry=max_retry) 
-    
+
     def generate_account(self, seed, index):
-        
         req_deterministic_key = {
             "action": "deterministic_key",
             "seed": seed,
             "index": index,
         }
-        
         account_data = self.post_with_auth(req_deterministic_key)
-        
+
         account_data = {
             "seed": seed,
             "index": index,
@@ -203,10 +238,10 @@ class Api:
         req_validate_account_number = {
             "action": "validate_account_number",
             "account": account,
-        }        
-        data = self.post_with_auth(req_validate_account_number)  
+        }
+        data = self.post_with_auth(req_validate_account_number)
         if data["valid"] == "1" :
-            response["success"] = True            
+            response["success"] = True
         return response
 
     def unlock_wallet(self, wallet, password):
@@ -215,10 +250,10 @@ class Api:
         "action": "password_enter",
         "wallet": wallet,
         "password": password
-        }        
-        data = self.post_with_auth(req_password_enter)       
+        }
+        data = self.post_with_auth(req_password_enter)
         if data["valid"] == "1" :
-            response["success"] = True            
+            response["success"] = True
         return response
 
     def wallet_create(self, seed):
@@ -232,12 +267,12 @@ class Api:
                 "action": "wallet_create",
                 "seed": seed,
             }
-        data = self.post_with_auth(req_wallet_create)        
+        data = self.post_with_auth(req_wallet_create)
         # {
         #     "wallet": "646FD8B5940AB5B1AD2C0B079576A4CF5A25E8ADB10C91D514547EF5C10C05B7",
         #     "last_restored_account": "nano_3mcsrncubmquwcwgiouih17fjo8183t497c3q9w6qtnwz8bp3fig5x8m4rkw",
         #     "restored_count": "1"
-        # }          
+        # }
         return data
 
     def wallet_add(self, wallet, private_key) :
@@ -250,41 +285,41 @@ class Api:
         data = self.post_with_auth(req_wallet_add)
         # {
         #   "account": "nano_3e3j5tkog48pnny9dmfzj1r16pg8t1e76dz5tmac6iq689wyjfpi00000000"
-        # }        
+        # }
         return data
-        
-    def key_expand(self, private_key):               
+
+    def key_expand(self, private_key):
         req_key_expand = {
             "action": "key_expand",
             "key": private_key
         }
-        data = self.post_with_auth(req_key_expand)     
-        return data           
+        data = self.post_with_auth(req_key_expand)
+        return data
 
     def peers(self):
         req_peers = {
             "action": "peers"
         }
-        data = self.post_with_auth(req_peers)     
-        return data      
+        data = self.post_with_auth(req_peers)
+        return data
 
     def confirmation_quorum(self):
-        req_confirmation_quorum = {  
-            "action": "confirmation_quorum"      
-        }     
-        data = self.post_with_auth(req_confirmation_quorum)     
+        req_confirmation_quorum = {
+            "action": "confirmation_quorum"
+        }
+        data = self.post_with_auth(req_confirmation_quorum)
         return data 
-    
+
     def representatives_online(self, weight = "false"):
-        req_representatives_online = {  
+        req_representatives_online = {
             "action": "representatives_online"  ,
-            "weight" :  str(weight).lower()   
-        }     
-        data = self.post_with_auth(req_representatives_online)     
+            "weight" :  str(weight).lower()
+        }
+        data = self.post_with_auth(req_representatives_online)
         return data 
 
     def check_balance(self, account, include_only_confirmed = True):
-       
+
         multiplier = 10 ** 30
         req_account_balance = {
             "action": "account_balance",
@@ -292,7 +327,7 @@ class Api:
             "include_only_confirmed" : include_only_confirmed
         }
         data = self.post_with_auth(req_account_balance)
-       
+
         return {"account": account, 
                 "balance_raw" : int(data["balance"]), 
                 "balance": self.truncate(int(data["balance"]) / multiplier), 
@@ -308,7 +343,7 @@ class Api:
             result.append(self.check_balance(nano_account["account"]))
 
     def truncate(self, number):
-        if number > 0 :            
+        if number > 0 :
             return str('{:8f}'.format(number))
         else :
             return "0.00"
@@ -331,20 +366,20 @@ class Api:
             "threshold" : str(threshold),
             "sorting" : "true",
             "count": str(number_of_blocks)
-        }       
-        accounts_pending = self.post_with_auth(req_accounts_pending)  
+        }
+        accounts_pending = self.post_with_auth(req_accounts_pending)
 
         if "error" in accounts_pending:
             response["success"] = False
             response["error_message"] = accounts_pending["error"]
-        elif accounts_pending["blocks"][nano_account] == "" :        
+        elif accounts_pending["blocks"][nano_account] == "" :
             response["success"] = False
             response["error_message"] = "no pending blocks"
         else :
             response["blocks"] = accounts_pending["blocks"][nano_account]
-        
+
         return response
-  
+
     def create_open_block(
         self,
         destination_account,
@@ -396,13 +431,13 @@ class Api:
                 "subtype": subtype,
                 "block": block["block"],
             }
-        if broadcast:            
+        if broadcast:
             publish = self.post_with_auth(req_process)
             req_process = True
         else :
             _account_info[destination_account] = {"frontier" : block["hash"] , "balance" :  balance,  "representative" : rep_account}
             #print("open_added" , destination_account, block["hash"], )
-        
+
         return {"success" : True,
                 "account" : destination_account, 
                 "balance_raw": balance,
@@ -410,8 +445,8 @@ class Api:
                 "hash": next_hash,
                 "amount_raw": amount_per_chunk_raw,
                 "amount": self.truncate(int(amount_per_chunk_raw) / (10 ** 30)),
-                "req_process": req_process       
-                }      
+                "req_process": req_process
+                }
         # return next_hash
 
     def create_send_block(
@@ -488,11 +523,10 @@ class Api:
                 "block": send_block["block"],
             }
 
-        if broadcast:            
+        if broadcast:
             publish = self.post_with_auth(req_process)
             if self.debug : logging.debug("req_process : {}".format(time.time() - t1))
             req_process = True
-        
 
         # prepare for next iteration
         #source_balance = block_balance
@@ -506,7 +540,7 @@ class Api:
                 "hash": send_block["hash"],
                 "amount_raw": amount_per_chunk_raw,
                 "amount": self.truncate(int(amount_per_chunk_raw) / (10 ** 30)),
-                "req_process": req_process             
+                "req_process": req_process
                 }
 
     def create_send_block_pkey(
@@ -517,12 +551,11 @@ class Api:
         broadcast = True,
         in_memory = True
     ):
-        
+
         if self.debug : t1 = time.time() 
 
         key_expand = self.key_expand(private_key)
-       
-        source_account_data = {    
+        source_account_data = {
             "private": key_expand["private"],
             "account": key_expand["account"],
         }
@@ -535,7 +568,6 @@ class Api:
             "include_confirmed": "true"
         }
 
-        
         account_info = self.post_with_auth(req_account_info)
         if self.debug : logging.debug("post_with_auth : {}".format(time.time() - t1))
         if self.debug : t1 = time.time() 
@@ -577,7 +609,6 @@ class Api:
         send_block = self.post_with_auth(req_block_create)
         logging.debug(send_block["hash"])
 
-        
         req_process = {
                 "action": "process",
                 "json_block": "true",
@@ -591,8 +622,6 @@ class Api:
         else :
             _account_info[source_account_data["account"]] = {"frontier" : send_block["hash"] , "balance" :  block_balance,  "representative" : current_rep}
             #print("send_added" , source_account_data["account"], send_block["hash"])
-        
-        
 
         # prepare for next iteration
         #source_balance = block_balance
@@ -606,7 +635,7 @@ class Api:
                 "hash": send_block["hash"],
                 "amount_raw": amount_per_chunk_raw,
                 "amount": self.truncate(int(amount_per_chunk_raw) / (10 ** 30)),
-                "req_process": req_process             
+                "req_process": req_process
                 }
 
     def create_epoch_block(
@@ -653,7 +682,7 @@ class Api:
                 "subtype": "epoch",
                 "block": epoch_block["block"],
             }
-        if broadcast:           
+        if broadcast:
             logging.debug(req_process)
             publish = self.post_with_auth(req_process)
             if self.debug : logging.debug("req_process : {}".format(time.time() - t1))
@@ -672,111 +701,112 @@ class Api:
         new_rep,
         broadcast = True
 
-    ):  
-        if self.debug : t1 = time.time()  
-        req_source_account = {
-            "action": "deterministic_key",
-            "seed": source_seed,
-            "index": source_index,
-        }
-        source_account_data = self.post_with_auth(req_source_account)
-        if self.debug : logging.info("req_source_account : {}".format(time.time() - t1))
-        if self.debug : t1 = time.time() 
-
-       
-        source_account_data = {
-            "seed": source_seed,
-            "index": source_index,
-            "private": source_account_data["private"],
-            "public": source_account_data["public"],
-            "account": source_account_data["account"],
-        }
-
-        req_account_info = {
-            "action": "account_info",
-            "account": source_account_data["account"],
-            "representative": "true",
-            "pending": "true",
-            "include_confirmed": "true"
-        }
-        account_info = self.post_with_auth(req_account_info)
-
-        if broadcast == False:
-            if source_account_data["account"] not in _account_info :
-                pass
-            else :
-                account_info = _account_info[source_account_data["account"]]          
-       
-
-        source_previous = account_info["frontier"]
-        source_balance = account_info["balance"]      
-
-        # prepare change block
-        req_block_create = {
-            "action": "block_create",
-            "json_block": "true",
-            "type": "state",
-            "balance": source_balance,
-            "key": source_account_data["private"],
-            "representative": new_rep,
-            "link": "0000000000000000000000000000000000000000000000000000000000000000",
-            "link_as_account": "nano_1111111111111111111111111111111111111111111111111111hifc8npp",
-            "previous": source_previous,
-        }        
-
-        change_block =  self.post_with_auth(req_block_create) 
-
-        req_process = {
-                "action": "process",
-                "json_block": "true",
-                "subtype": "change",
-                "block": change_block["block"],
+    ):
+        try:
+            if self.debug : t1 = time.time()
+            req_source_account = {
+                "action": "deterministic_key",
+                "seed": source_seed,
+                "index": source_index,
             }
-        if broadcast :
-            publish = self.post_with_auth(req_process)
-            if self.debug : logging.debug("req_process : {}".format(time.time() - t1))
-            req_process = True
-        else :
-            _account_info[source_account_data["account"]] = {"frontier" : change_block["hash"] , "balance" :  source_balance,  "representative" : new_rep}
-            #print("send_added" ,
-        
-        return {"success" : True,
-                "account" : source_account_data["account"], 
-                "balance_raw": source_balance,
-                "balance": self.truncate(int(source_balance) / (10 ** 30)), 
-                "hash": change_block["hash"],
-                "req_process": req_process             
+            source_account_data = self.post_with_auth(req_source_account)
+            if self.debug : logging.info("req_source_account : {}".format(time.time() - t1))
+            if self.debug : t1 = time.time() 
+
+            source_account_data = {
+                "seed": source_seed,
+                "index": source_index,
+                "private": source_account_data["private"],
+                "public": source_account_data["public"],
+                "account": source_account_data["account"],
+            }
+
+            req_account_info = {
+                "action": "account_info",
+                "account": source_account_data["account"],
+                "representative": "true",
+                "pending": "true",
+                "include_confirmed": "true"
+            }
+            account_info = self.post_with_auth(req_account_info)
+
+            if broadcast == False:
+                if source_account_data["account"] not in _account_info :
+                    pass
+                else :
+                    account_info = _account_info[source_account_data["account"]]
+
+            source_previous = account_info["frontier"]
+            source_balance = account_info["balance"]
+
+            # prepare change block
+            req_block_create = {
+                "action": "block_create",
+                "json_block": "true",
+                "type": "state",
+                "balance": source_balance,
+                "key": source_account_data["private"],
+                "representative": new_rep,
+                "link": "0000000000000000000000000000000000000000000000000000000000000000",
+                "link_as_account": "nano_1111111111111111111111111111111111111111111111111111hifc8npp",
+                "previous": source_previous,
+            }
+
+            change_block =  self.post_with_auth(req_block_create) 
+
+            req_process = {
+                    "action": "process",
+                    "json_block": "true",
+                    "subtype": "change",
+                    "block": change_block["block"],
                 }
+            if broadcast :
+                publish = self.post_with_auth(req_process)
+                if self.debug : logging.debug("req_process : {}".format(time.time() - t1))
+                req_process = True
+            else :
+                _account_info[source_account_data["account"]] = {"frontier" : change_block["hash"] , "balance" :  source_balance,  "representative" : new_rep}
+                #print("send_added" ,
+
+            return {"success" : True,
+                    "account" : source_account_data["account"], 
+                    "balance_raw": source_balance,
+                    "balance": self.truncate(int(source_balance) / (10 ** 30)), 
+                    "hash": change_block["hash"],
+                    "req_process": req_process
+                    }
+        except:
+            return  {"success" : False}
  
-               
+
 
 
 
 class NanoTools:
     import gmpy2
     from gmpy2 import mpfr ,mpz
-    from itertools import islice    
+    from itertools import islice
 
     gmpy2.get_context().precision=1000
-      
+
     def raw_percent(self, raw, percent) :
         return self.mpz(self.mpz(str(raw)) * self.mpfr(str(percent)) / self.mpz('100'))
-    
-    def raw_add(self, val1, val2) :  
-        #val1 + val2             
+
+    def raw_add(self, val1, val2) :
+        #val1 + val2
         return str(self.mpz(self.mpz(str(val1)) + self.mpz(str(val2)))) 
-    
+
     def raw_sub(self, val1, val2) : 
-        #val1 - val2       
+        #val1 - val2
         return str(self.mpz(self.mpz(str(val1)) - self.mpz(str(val2))))
-    
+
     #For reference
     def where(self, array, value) :
         return list(filter(lambda x: value in x, array)) 
-    
+
     def where_not(self, array, value) :
         return list(filter(lambda x: value not in x, array)) 
-    
+
     def skip_take(self, list, skip_n, take_n):
         return list(self.islice(list, skip_n, take_n)) #skip(skip_n).take(take_n)
-    
+
