@@ -122,6 +122,14 @@ class Helpers:
             return sorted(data)[int(p)]
         else:
             return sorted(data)[int(ceil(p)) - 1]
+    
+class DotDict(dict):     
+    """dot.notation access to dictionary attributes"""
+    def __getattr__(*args):
+        val = dict.get(*args)
+        return DotDict(val) if type(val) is dict else val
+    __setattr__ = dict.__setitem__ 
+    __delattr__ = dict.__delitem__ 
 
 class ConfigParser :
 
@@ -150,6 +158,7 @@ class ConfigParser :
                 account_data = self.account_from_seed(node["seed"]) #index 0           
             
             node["account"] = account_data["account"]
+            node["account_data"] = account_data
 
     def __config_dict_set_node_variables(self):
         
@@ -204,7 +213,9 @@ class ConfigParser :
         # where `+` means concatenation, not sum: https://docs.python.org/3/library/hashlib.html#hashlib.hash.update
         # code line above is equal to `blake2b_state.update(seed); blake2b_state.update(index)`
         private_key = blake2b_state.digest()
-        return self.key_expand(hexlify(private_key))
+        expanded_key = self.key_expand(hexlify(private_key))
+        expanded_key["seed"] = seed
+        return expanded_key
 
     def key_expand(self,private_key): 
 
@@ -212,7 +223,7 @@ class ConfigParser :
         private_key = signing_key.to_bytes().hex()
         public_key = signing_key.get_verifying_key().to_bytes().hex()
 
-        return {"public" : public_key, "account" : self.h.public_key_to_nano_address(unhexlify(public_key))}     
+        return {"private" : private_key, "public" : public_key, "account" : self.h.public_key_to_nano_address(unhexlify(public_key))}     
 
     def write_nanomonitor_config(self, node_name):
         nanomonitor_config = self.conf_rw.read_file(_default_nanomonitor_config)
@@ -227,11 +238,18 @@ class ConfigParser :
         result = self.h.value_in_dict_array(self.config_dict["representatives"]["nodes"], node_name)
         if result["found"] : return result["value"]   
 
-    def get_node_names(self) :
+    def get_nodes_name(self) :
         response = []
         for node in self.config_dict["representatives"]["nodes"]:
             response.append(node["name"])
         return response
+    
+    def get_nodes_config(self) :
+        res = []
+        for node_name in self.get_nodes_name():
+            #res[node_name] = self.get_node_config(node_name)
+            res.append(DotDict(self.get_node_config(node_name)))
+        return res
 
     def skip_testcase(self, testcase_fullname) :
         testcase_fullname = testcase_fullname.replace("testcases.", "")        
