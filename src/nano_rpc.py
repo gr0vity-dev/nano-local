@@ -119,10 +119,12 @@ class Api:
     
     def publish_blocks(self, blocks, json_data=True):
         publish_commands = [{"action": "process","json_block": "true", "subtype" : block["subtype"] ,"block": (block if json_data else json.loads(block.replace("'", '"')))  } for block in blocks]
-        self.publish(payload_array = publish_commands, json_data=True)
+        return self.__publish(payload_array = publish_commands, json_data=True)
+    
+    def publish_block(self, block, subtype=None):
+        return self.__publish(json_block = block, subtype=subtype if subtype is not None else block["subtype"] if "subtype" in block else None)  
 
-
-    def publish(self, payload = None , payload_array = None, json_block = None, subtype = None, timeout = 3, sync = True, json_data = False) :
+    def __publish(self, payload = None , payload_array = None, json_block = None, subtype = None, timeout = 3, sync = True, json_data = False) :
         if json_block is not None:
             if subtype is None :
                 logging.warning("It's dangerous to publish blocks without subtype!")
@@ -440,7 +442,7 @@ class Api:
             elif source_seed is not None and source_index is not None :
                 source_account_data = self.generate_account(source_seed, source_index)  
             
-            print(source_account_data["account"], sub_type, destination_account  )
+            print(source_private_key, source_account_data["account"], sub_type, destination_account  )
             if destination_account == "nano_3774eerz4t8hhmgz5om13nwfrht46fnpebezmrk433fyxmuzben91b1yk1xx":
                 debug = ""
         
@@ -476,12 +478,14 @@ class Api:
                 previous = source_account_info["frontier"]
             
             elif sub_type == "change" :
+                amount_raw = "0"
                 destination_account = source_account_data["account"]
                 link = link
 
             block = self.block_create(balance, source_account_data["account"], source_account_data["private"],representative,link, previous )
             block["private"] = source_account_data["private"]
             block["subtype"] = sub_type
+            block["amount_raw"] = amount_raw
 
             if "error" in block :
                 block["success"] = False
@@ -492,16 +496,19 @@ class Api:
                 block["error"] = None    
                 if in_memory :
                     _account_info[source_account_data["account"]] = {"frontier" : block["hash"] , "balance" :  balance,  "representative" : representative}
+            block["block"]["subtype"] = sub_type
 
         except Exception as e :
-            block = {"success" : False,  "block" : { }, "hash" : None, "subtype" : sub_type, "error" : str(e)}
+            block = {"success" : False,  "block" : {}, "hash" : None, "subtype" : sub_type, "error" : str(e)}
         return block
 
     
-    def get_block_result(self, block, published, source_seed=None, source_index = None) :        
+    def get_block_result(self, block, published, source_seed=None, source_index = None) :    
+        if not block["success"] : logging.warn(block["error"])  
         result = {"success" : block["success"],
                     "published" : published,
                     "balance_raw": block["block"]["balance"] if "balance" in block["block"] else "",
+                    "amount_raw" : block["amount_raw"] if "amount_raw" in block else "0" ,
                     "hash": block["hash"],
                     "block": block["block"],
                     "subtype" : block["subtype"],
@@ -531,7 +538,7 @@ class Api:
                                    in_memory = not broadcast)
         published = False
         if broadcast :
-            publish = self.publish(json_block=block["block"], subtype="change")
+            publish = self.publish_block(block["block"], subtype="open")
             if "hash" in publish: published = True 
         
         return self.get_block_result(block, published)
@@ -553,7 +560,7 @@ class Api:
                                    in_memory = not broadcast)
         published = False
         if broadcast :
-            publish = self.publish(json_block=block["block"], subtype="change")
+            publish = self.publish_block(block["block"], subtype="send")
             if "hash" in publish: published = True 
         
         return self.get_block_result(block, published, source_seed=source_seed, source_index=source_index)
@@ -574,7 +581,7 @@ class Api:
                                    representative=new_rep, in_memory = not broadcast)
         published = False
         if broadcast :
-            publish = self.publish(json_block=block["block"], subtype="change")
+            publish = self.publish_block(block["block"], subtype="change")
             if "hash" in publish: published = True 
         
         return self.get_block_result(block, published, source_seed=source_seed, source_index=source_index)
@@ -594,7 +601,7 @@ class Api:
                                       in_memory= not broadcast)
             published = False
             if broadcast :
-                publish = self.publish(json_block=block["block"], subtype="change")
+                publish = self.publish_block(block["block"], subtype="send")
                 if "hash" in publish: published = True 
             
             return self.get_block_result(block, published)
@@ -613,7 +620,7 @@ class Api:
         logging.debug(epoch_block["hash"])
        
         if broadcast:
-            publish = self.publish(json_block=epoch_block["block"], subtype="epoch")           
+            publish = self.publish_block(epoch_block["block"], subtype="epoch")           
             
         return {"success" : True,
                 "account" : genesis_account,
@@ -631,6 +638,10 @@ class NanoTools:
 
     def raw_percent(self, raw, percent) :
         return self.mpz(self.mpz(str(raw)) * self.mpfr(str(percent)) / self.mpz('100'))
+    
+    def raw_mul(self, val1, val2) :
+        mul = str(self.mpz(self.mpz(str(val1)) * self.mpfr(str(val2))))        
+        return mul
 
     def raw_add(self, val1, val2) :
         #val1 + val2

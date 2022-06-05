@@ -145,6 +145,7 @@ class ConfigParser :
         self.__config_dict_add_genesis_to_nodes(genesis_node_name)
         self.__set_preconfigured_peers()    
         self.__set_node_accounts()
+        self.__set_special_account_data()
         self.__set_docker_compose(genesis_node_name) #also sets rpc_url in config_dict.representative.nodes.node_name.rpc_url     
         
 
@@ -159,6 +160,12 @@ class ConfigParser :
             
             node["account"] = account_data["account"]
             node["account_data"] = account_data
+    
+    def __set_special_account_data(self):
+        self.config_dict["burn_account_data"] = {"account" : "nano_1111111111111111111111111111111111111111111111111111hifc8npp"}
+        self.config_dict["genesis_account_data"] = self.key_expand(self.config_dict["genesis_key"])
+        self.config_dict["canary_account_data"] = self.key_expand(self.config_dict["canary_key"])   
+
 
     def __config_dict_set_node_variables(self):
         
@@ -205,10 +212,10 @@ class ConfigParser :
         return self.preconfigured_peers      
 
     def account_from_seed(self, seed):  
-        seed =  unhexlify(seed)
+        seed_u =  unhexlify(seed)
         index = 0x00000000.to_bytes(4, 'big') # 1
         blake2b_state = hashlib.blake2b(digest_size=32)
-        concat = seed+index
+        concat = seed_u+index
         blake2b_state.update(concat)
         # where `+` means concatenation, not sum: https://docs.python.org/3/library/hashlib.html#hashlib.hash.update
         # code line above is equal to `blake2b_state.update(seed); blake2b_state.update(index)`
@@ -233,10 +240,24 @@ class ConfigParser :
         nanomonitor_config[5] = f"$nanoNodeRPCIP   = '{node_name}';"
         nanomonitor_config[7] = f"$nanoNodeAccount = '{node_config['account']}';"
         self.conf_rw.write_list(destination_path,nanomonitor_config)
+    
+    def get_all(self):
+        return self.config_dict
 
     def get_node_config(self, node_name):
         result = self.h.value_in_dict_array(self.config_dict["representatives"]["nodes"], node_name)
         if result["found"] : return result["value"]   
+    
+    def get_genesis_account_data(self):
+        return self.config_dict["genesis_account_data"] 
+    
+    def get_burn_account_data(self):
+        return self.config_dict["burn_account_data"] 
+        
+    
+    def get_canary_account_data(self):
+        return self.config_dict["canary_account_data"] 
+    
 
     def get_nodes_name(self) :
         response = []
@@ -250,6 +271,9 @@ class ConfigParser :
             #res[node_name] = self.get_node_config(node_name)
             res.append(DotDict(self.get_node_config(node_name)))
         return res
+    
+    def set_node_balance(self,node_name, balance) :
+        self.get_node_config(node_name)["balance"] = balance
 
     def skip_testcase(self, testcase_fullname) :
         testcase_fullname = testcase_fullname.replace("testcases.", "")        
