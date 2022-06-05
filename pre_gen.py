@@ -33,20 +33,19 @@ class PreGenLedger():
                                            "bucket_rounds" : f"{self.pre_gen_path}/3_change_blocks_rounds.json", })
         self.online_splitting_depth = 9
         self.pre_gen_bucket_seed_prefix = "FACE" # {prefix}000.000{bucket_id} (example bucket_17_seed : FACE000000000000000000000000000000000000000000000000000000000017)
-        self.pre_gen_splitting_depth = 12
+        
         self.pre_gen_account_end_balance = 100 * 10**30
-        self.pre_gen_max_bucket = 5 #used to prefill buckets from 0 to 105 (at 105 you'll need at least pre_gen_account_end_balance=2**106 (~81.113) )
+        self.pre_gen_max_bucket = 105 #used to prefill buckets from 0 to 105 (at 105 you'll need at least pre_gen_account_end_balance=2**106 (~81.113) )
         self.pre_gen_start_index = 0 #skip # seeds and pre_generation at index # (should be 0 except for testing purposes)
-        self.pre_gen_accounts = 15 #(must be smaller than (2**(pre_gen_splitting_depth+1) -2))
-        self.pre_gen_bucket_saturation_main_index = 5
-        self.pre_gen_bucket_saturation_indexes = [1,2,3]
-        self.pre_gen_bucket_saturation_rounds = 3 # (pre_gen_bucket_saturation_rounds * pre_gen_accounts will be crated per index.  Example: 10*5000 * 4 = 200'000 )
+        self.pre_gen_accounts = 5000 #(must be smaller than (2**(pre_gen_splitting_depth+1) -2))
+        self.pre_gen_bucket_saturation_main_index = 100
+        self.pre_gen_bucket_saturation_indexes = [1,2,3,4,5]
+        self.pre_gen_bucket_saturation_rounds = 2 # (pre_gen_bucket_saturation_rounds * pre_gen_accounts will be crated per index.  Example: 10*5000 * 4 = 200'000 )
         self.validate()
     
     def validate(self):        
         system(f"mkdir -p {self.pre_gen_path}")
-        tc.assertGreater((2**(self.pre_gen_splitting_depth+1) -2), self.pre_gen_accounts)
-        tc.assertGreater((2**(self.pre_gen_splitting_depth+1) -2), self.pre_gen_accounts + self.pre_gen_start_index )
+       
         tc.assertGreater(self.pre_gen_account_end_balance, 2 ** (self.pre_gen_max_bucket+1))
         tc.assertGreater(self.pre_gen_max_bucket+1, self.pre_gen_bucket_saturation_main_index)
         for bucket_index in self.pre_gen_bucket_saturation_indexes :
@@ -153,66 +152,7 @@ class PreGenLedger():
         print("")       
         tc.assertEqual(confirmed_count, block_count)
         
-
-    def test_1_params_integrity(self):
-        tc.assertGreater((2**(self.pre_gen_splitting_depth+1) -2), self.pre_gen_accounts)
-        tc.assertGreater((2**(self.pre_gen_splitting_depth+1) -2), self.pre_gen_accounts + self.pre_gen_start_index )
-        tc.assertGreater(self.pre_gen_account_end_balance, 2 ** (self.pre_gen_max_bucket+1))
-        tc.assertGreater(self.pre_gen_max_bucket, self.pre_gen_bucket_saturation_main_index)
-        for bucket_index in self.pre_gen_bucket_saturation_indexes :
-            tc.assertGreater(self.pre_gen_max_bucket,bucket_index)
-
-    def test_account_splitting_1022_step1(self):
-        #with a splitting_depth of 9, accountsplitting creates 2+ 4+ 8 +16 + 32 + 64 + 128 + 256 + 512  = 1022 accounts
-        print("create send and open blocks")
-        all_publish_commands = self.account_splitting('A0',self.online_splitting_depth, write_to_disk=True)
-        tc.assertEqual(len(all_publish_commands), 2*1022 )
-
-    def test_account_splitting_1022_step2(self):
-        print("publish blocks")
-        blocks = ConfigReadWrite().read_file(f"./testcases/storage/test_account_splitting_depth_{self.online_splitting_depth}.txt")
-        self.publish_blocks(blocks)
-
-    def test_account_splitting_1022_step3(self) :
-        print("test if blocks are confirmed")
-        self.blocks_confirmed(file_name = f"./testcases/storage/test_account_splitting_depth_{self.online_splitting_depth}.txt", acceptable_tps = 50)
-
-    def test_4_pregenerate_depth_12(self):
-        #with a splitting_depth of 9, accountsplitting creates 2+ 4+ 8 +16 + 32 + 64 + 128 + 256 + 512  = 1022 accounts
-        print("create send and open blocks")
-        splitting_depth = self.pre_gen_splitting_depth
-        all_publish_commands = self.account_splitting('A0',splitting_depth, write_to_disk=True, final_account_balance_raw=self.pre_gen_account_end_balance, folder="pregenerated_blocks")
-        tc.assertEqual(len(all_publish_commands), 2* (2**(splitting_depth+1) -2) )
-
-    def test_5_publish_depth_12(self):
-        splitting_depth = self.pre_gen_splitting_depth
-        blocks = ConfigReadWrite().read_file(f"./testcases/pregenerated_blocks/test_account_splitting_depth_{splitting_depth}.txt")
-        self.publish_blocks(blocks)
-
-
-    def test_7_publish_buckets(self):
-        data = ConfigReadWrite().read_json("./testcases/pregenerated_blocks/start_0_105x5000x2.json")
-        for bucket_id, value in data["buckets"].items() :
-            self.publish_blocks(value["send_commands"], json_data=True, sync=False)
-            self.publish_blocks(value["open_commands"], json_data=True, sync=False)
-
-    def test_8_pre_gen_bucket_saturation(self):
-        data = {"buckets" : {}} # {"buckets" : {"bucket_0" : {"round_0" : [publish_commands]},
-                                #               "bucket_0" : {"round_1" : [publish_commands]},
-                                #               "bucket_1" : {"round_0" : [publish_commands]}, ...}
-
-        for bucket_index in self.pre_gen_bucket_saturation_indexes :
-            bucket_seed = self.get_bucket_seed(bucket_index)
-            data["buckets"][bucket_index] = {}
-            for repeat_counter in range(0, self.pre_gen_bucket_saturation_rounds) :
-                data["buckets"][bucket_index][repeat_counter] = []
-
-                random_rep = self.nano_rpc.nl_genesis.get_account_data(self.nano_rpc.nl_genesis.generate_seed(), 0)["account"] #generate a random account and set is as new rep
-                for account_index in range(self.pre_gen_start_index, self.pre_gen_accounts):
-                    data["buckets"][bucket_index][repeat_counter].append(self.nano_rpc.nl_genesis.create_change_block(bucket_seed, account_index, random_rep, broadcast=False)["req_process"])
-
-        ConfigReadWrite().write_json(f"./testcases/pregenerated_blocks/bucket_saturation_{self.pre_gen_start_index}_{len(self.pre_gen_bucket_saturation_indexes) * (self.pre_gen_accounts-self.pre_gen_start_index) * self.pre_gen_bucket_saturation_rounds}_blocks.json", data)
-
+  
     def publish_bucket_saturation(self, data):
         #Fetch and publish pre-generated blocks for bucket saturation. (10rounds of 5000blocks for bucket 1,2,3 and 4)
         for bucket_id, rounds in data["buckets"].items() :
@@ -307,16 +247,17 @@ class PreGenLedger():
         #split each account into 2 by sending half of the account funds to 2 other accounts.
         # at the end of teh split, each account will have 1 nano               
         splitting_depth = ceil(log10(number_of_accounts + 2) / log10(2)) -1        
-        if current_depth > splitting_depth : return [] #end of recursion is reached
-         
-        if source_seed is None:  #find a seed with enough funding             
-            for node_conf in self.conf.get_nodes_config():
-                #find one representative that holds enough funds to cover all sends
-                if int(self.nano_rpc.nl_genesis.check_balance(node_conf.account)["balance_raw"]) > (number_of_accounts * final_account_balance_raw) : #raw
-                    source_account_data = node_conf.account_data                    
-                    break
-        elif current_depth == 1 : 
-            source_account_data = self.nano_rpc.nl_genesis.generate_account(source_seed, source_index) 
+        if current_depth > splitting_depth : return [] #end of recursion is reached         
+             
+        if current_depth == 1 : 
+            if source_seed is None:  #find a seed with enough funding             
+                for node_conf in self.conf.get_nodes_config():
+                    #find one representative that holds enough funds to cover all sends
+                    if int(self.nano_rpc.nl_genesis.check_balance(node_conf.account)["balance_raw"]) > (number_of_accounts * final_account_balance_raw) : #raw
+                        source_account_data = node_conf.account_data                    
+                        break 
+            else:
+                source_account_data = self.nano_rpc.nl_genesis.generate_account(source_seed, source_index) 
             #source balance must be greater than            
             tc.assertGreater(int(self.nano_rpc.nl_genesis.check_balance(source_account_data["account"])["balance_raw"]), int(self.nano_tools.raw_mul(number_of_accounts, final_account_balance_raw)))
             representative = self.nano_rpc[self.conf.get_nodes_name()[0]].account_info(source_account_data["account"]) #keep the same representative for all opened accounts   
@@ -337,9 +278,16 @@ class PreGenLedger():
         return all_publish_commands[:2 * (number_of_accounts)]
 
     def assert_all_blocks_cemented(self):
-        for node_name in self.conf.get_nodes_name() :
-            block_count = self.nano_rpc[node_name].block_count()
-            tc.assertEqual(block_count["count"], block_count["cemented"])
+        try:
+            with timeout(30) :
+                for node_name in self.conf.get_nodes_name() :
+                    block_count = self.nano_rpc[node_name].block_count()
+                    if block_count["count"] != block_count["cemented"] :
+                        time.sleep(1)
+                    # else :
+                    #     tc.assertEqual(block_count["count"], block_count["cemented"])
+        except RuntimeError as e :
+            tc.fail(e)
     
     def write_blocks_to_disk(self, rpc_block_list, path):
        
@@ -402,17 +350,16 @@ class PreGenLedger():
     
     def blocks_confirmed_account_split(self):
         block_hashes = self.read_blocks_from_disk(self.pre_gen_file_names.account_split, hashes = True)
-        self.assert_blocks_confirmed(block_hashes, sync = False)
+        self.assert_blocks_confirmed(block_hashes)
     
     def blocks_confirmed_bucket_rounds(self):
         block_hashes = self.read_blocks_from_disk(self.pre_gen_file_names.bucket_rounds, hashes = True)
-        self.assert_blocks_confirmed(block_hashes, sync = False)
+        self.assert_blocks_confirmed(block_hashes)
     
     def blocks_confirmed_bucket_funding(self):
         block_hashes = self.read_blocks_from_disk(self.pre_gen_file_names.bucket_funding, hashes = True)
-        self.assert_blocks_confirmed(block_hashes, sync = False)
+        self.assert_blocks_confirmed(block_hashes)
     
-
     def pre_gen_bucket_funding(self):
         #create 1 send block from each account of test_pregenerate_depth_12 to FADE0000000000....1 , ...2 , ...3
 
@@ -444,14 +391,16 @@ class PreGenLedger():
         block_list_of_list = []
         block_list = []
 
-        for bucket_index in self.pre_gen_bucket_saturation_indexes :
-            bucket_seed = self.get_bucket_seed(bucket_index)            
+        for round in range(0,self.pre_gen_bucket_saturation_rounds):
+            random_rep = self.nano_rpc.nl_genesis.get_account_data(self.nano_rpc.nl_genesis.generate_seed(), 0)["account"] #generate a random account and set is as new rep
             if block_list != [] : block_list_of_list.append(block_list)
-            for repeat_counter in range(0, self.pre_gen_bucket_saturation_rounds + 1) :               
-                random_rep = self.nano_rpc.nl_genesis.get_account_data(self.nano_rpc.nl_genesis.generate_seed(), 0)["account"] #generate a random account and set is as new rep
-                block_list = []
+            block_list = []
+            for bucket_index in self.pre_gen_bucket_saturation_indexes :
+                bucket_seed = self.get_bucket_seed(bucket_index)
                 for account_index in range(self.pre_gen_start_index, self.pre_gen_accounts):
                     block_list.append(self.nano_rpc.nl_genesis.create_change_block(bucket_seed, account_index, random_rep, broadcast=False))
+        if block_list != [] : block_list_of_list.append(block_list)
+       
         self.write_blocks_to_disk(block_list_of_list,self.pre_gen_file_names.bucket_rounds )
 
 
