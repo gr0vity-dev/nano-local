@@ -20,35 +20,39 @@ class PreGenLedger():
 
     def __init__(self):
         self.nano_rpc = Api("undefined") #used to hint at availabe functions whiel coding
-        self.nano_rpc = self.set_rpcs() #access all avilable rpcs at nano_rpc.node_name
+        self.nano_rpc = self.set_rpcs() #access all avilable rpcs at nano_rpc.node_name                
         self.nano_tools = NanoTools()
         self.conf = ConfigParser()
         self.open_counter = 0
         self.set_class_params()
 
     def set_class_params(self):
-        self.pre_gen_folder = "./testcases/pre_gen/3_nodes_equal_weight__genesis_0_weight/"
+        self.pre_gen_path = "./testcases/pre_gen/3_nodes_equal_weight__genesis_0_weight/"
+        self.pre_gen_file_names = DotDict({"account_split" : f"{self.pre_gen_path}/1_accounts_split.json" , 
+                                           "bucket_funding" : f"{self.pre_gen_path}/2_bucket_funding.json",
+                                           "bucket_rounds" : f"{self.pre_gen_path}/3_change_blocks_rounds.json", })
         self.online_splitting_depth = 9
         self.pre_gen_bucket_seed_prefix = "FACE" # {prefix}000.000{bucket_id} (example bucket_17_seed : FACE000000000000000000000000000000000000000000000000000000000017)
         self.pre_gen_splitting_depth = 12
         self.pre_gen_account_end_balance = 100 * 10**30
-        self.pre_gen_max_bucket = 105 #used to prefill buckets from 0 to 105 (at 105 you'll need at least pre_gen_account_end_balance=2**106 (~81.113) )
+        self.pre_gen_max_bucket = 5 #used to prefill buckets from 0 to 105 (at 105 you'll need at least pre_gen_account_end_balance=2**106 (~81.113) )
         self.pre_gen_start_index = 0 #skip # seeds and pre_generation at index # (should be 0 except for testing purposes)
-        self.pre_gen_accounts = 5000 #(must be smaller than (2**(pre_gen_splitting_depth+1) -2))
-        self.pre_gen_bucket_saturation_main_index = 102
-        self.pre_gen_bucket_saturation_indexes = [1,2,3,4]
-        self.pre_gen_bucket_saturation_rounds = 10 # (pre_gen_bucket_saturation_rounds * pre_gen_accounts will be crated per index.  Example: 10*5000 * 4 = 200'000 )
+        self.pre_gen_accounts = 15 #(must be smaller than (2**(pre_gen_splitting_depth+1) -2))
+        self.pre_gen_bucket_saturation_main_index = 5
+        self.pre_gen_bucket_saturation_indexes = [1,2,3]
+        self.pre_gen_bucket_saturation_rounds = 3 # (pre_gen_bucket_saturation_rounds * pre_gen_accounts will be crated per index.  Example: 10*5000 * 4 = 200'000 )
         self.validate()
     
     def validate(self):        
-        system(f"mkdir -p {self.pre_gen_folder}")
+        system(f"mkdir -p {self.pre_gen_path}")
         tc.assertGreater((2**(self.pre_gen_splitting_depth+1) -2), self.pre_gen_accounts)
         tc.assertGreater((2**(self.pre_gen_splitting_depth+1) -2), self.pre_gen_accounts + self.pre_gen_start_index )
         tc.assertGreater(self.pre_gen_account_end_balance, 2 ** (self.pre_gen_max_bucket+1))
-        tc.assertGreater(self.pre_gen_max_bucket, self.pre_gen_bucket_saturation_main_index)
+        tc.assertGreater(self.pre_gen_max_bucket+1, self.pre_gen_bucket_saturation_main_index)
         for bucket_index in self.pre_gen_bucket_saturation_indexes :
             tc.assertGreater(self.pre_gen_max_bucket,bucket_index)
-
+    
+    
     def set_rpcs(self) -> dict[str, object]:
         api = {}
         conf = ConfigParser()
@@ -57,31 +61,25 @@ class PreGenLedger():
             api[node_conf["name"]] = Api(node_conf["rpc_url"])
         return DotDict(api)
 
-    def open_account(self, representative, send_key, destination_seed, send_amount, final_account_balance_raw, number_of_accounts):        
-        if self.open_counter >= number_of_accounts : return []
+    def open_account(self, representative, send_key, destination_seed, send_amount, final_account_balance_raw, number_of_accounts, destination_index = 0):        
+        if number_of_accounts is not None and self.open_counter >= number_of_accounts : return []
         self.open_counter = self.open_counter + 1
-        destination = self.nano_rpc.nl_genesis.generate_account(destination_seed, 0)
+        destination = self.nano_rpc.nl_genesis.generate_account(destination_seed, destination_index)
         send_block = self.nano_rpc.nl_genesis.create_send_block_pkey(send_key,
                                                                      destination["account"],
                                                                      send_amount * final_account_balance_raw ,
                                                                      broadcast=False)
-        
-        if send_block["success"] : 
-            send_block["block"]["hash"] = send_block["hash"]
-            send_block["block"]["subtype"] = send_block["subtype"]
-
+               
         open_block = self.nano_rpc.nl_genesis.create_open_block(destination["account"],
                                                                 destination["private"],
                                                                 send_amount * final_account_balance_raw,
                                                                 representative,
                                                                 send_block["hash"],
                                                                 broadcast=False)
-        if open_block["success"] : 
-            open_block["block"]["hash"] = send_block["hash"]
-            open_block["block"]["seed"] = destination_seed
-            open_block["block"]["subtype"] = open_block["subtype"]
+       
+        open_block["account_data"]["source_seed"] = destination_seed
 
-        res = [ send_block["block"], open_block["block"] ]
+        res = [ send_block, open_block ]
         print("accounts opened:  {:>6}".format(self.open_counter), end='\r')
         return res
 
@@ -94,27 +92,14 @@ class PreGenLedger():
             return self.get_prefixed_suffixed_seed(bucket_prefix, bucket_id)
 
     def fund_bucket(self, bucket, source_seed, destination_index):
+
         destination_seed = self.get_bucket_seed(bucket)
         source = self.nano_rpc.nl_genesis.generate_account(source_seed, 0)
         destination = self.nano_rpc.nl_genesis.generate_account(destination_seed, destination_index)
+        return self.open_account(destination["account"], source["private"],destination_seed, 1 , 2**bucket, None, destination_index=destination_index )
+        
 
-        #print(send_seed, source["account"], destination["account"] )
-        send_block = self.nano_rpc.nl_genesis.create_send_block_pkey(source["private"],
-                                                          destination["account"],
-                                                          2**bucket ,
-                                                          broadcast=False,
-                                                          in_memory=True)
-
-        open_block = self.nano_rpc.nl_genesis.create_open_block(destination["account"],
-                                                     destination["private"],
-                                                     2**bucket,
-                                                     destination["account"],
-                                                     send_block["hash"],
-                                                     broadcast=False)
-        open_block["req_process"]["seed"] = destination_seed
-        res = {"publish_send" : send_block["req_process"], "publish_open" : open_block["req_process"] }
-
-        return res
+    
 
 
     def recursive_split(self,seed_prefix, representative, source_account, number_of_accounts, splitting_depth, current_depth, final_account_balance_raw):
@@ -123,39 +108,29 @@ class PreGenLedger():
         blocks_ab = self.account_splitting(seed_prefix, number_of_accounts, current_depth=current_depth+1, representative=representative, source_seed=seed, final_account_balance_raw=final_account_balance_raw )
         return blocks + blocks_ab
 
-    def publish_blocks(self, publish_commands, json_data = False, sync = True, is_running = Value('i', False)):
-        blocks_to_publish_count = len(publish_commands)
+    def assert_blocks_published(self, blocks, sync = True, is_running = Value('i', False)):
+        blocks_to_publish_count = len(blocks)
         rpc_block_count_start = int(self.nano_rpc.nl_genesis.block_count()["count"])
         print(rpc_block_count_start)
         is_running.value = True
-        self.nano_rpc.nl_genesis.publish_blocks(publish_commands, json_data=json_data) #we don't care about the result
+        self.nano_rpc.nl_genesis.publish_blocks(blocks, json_data=True) #we don't care about the result
         rpc_block_count_end = int(self.nano_rpc.nl_genesis.block_count()["count"])
         print(rpc_block_count_end)
         is_running.value = False
         tc.assertGreaterEqual(rpc_block_count_end - rpc_block_count_start, blocks_to_publish_count ) #if other blocks arrive in the meantime
 
 
-    def blocks_confirmed(self, file_name = None, min_timeout_s = 30, acceptable_tps = None, sleep_duration_s = 2, publish_commands = None, percentage = 100):
-        tc.assertLessEqual(percentage, 100)
-        tc.assertGreaterEqual(percentage, 0)
-        no_new_confirmations_timeout_s = 30
+    def assert_blocks_confirmed(self, block_hashes, max_stall_duration_s = 3*60):       
 
-        if publish_commands is None :
-            if file_name is not None :publish_commands = ConfigReadWrite().read_file(file_name)
-            else : raise Exception("file_name and publish_commands must not both be None" )
-
-        # block_hashes = list(map(lambda x: x.replace("\n", ""), ConfigReadWrite().read_file("./testcases/hashes.txt")))
-        blocks = list(map(lambda x: x["block"], publish_commands))
-        block_hashes = list(map(lambda x: x["hash"], self.nano_rpc.nl_pr1.block_hash_aio(blocks)  ))
+        #block_hashes = list(map(lambda x: x["hash"], blocks))
         block_count = len(block_hashes)
+        sleep_on_stall_s = 5
+        timeout_inc = 0
+        timeout_max = 10 * max_stall_duration_s #stalled for 30 minutes
 
-        if acceptable_tps is not None :
-            min_timeout_s = max(ceil(block_count / acceptable_tps), min_timeout_s)
-
-        try:
-            timeout_inc = 0
+        try:           
             confirmed_count = 0
-            while confirmed_count < (percentage / 100) * block_count:
+            while confirmed_count < block_count:
                 last_confirmed_count = confirmed_count
                 confirmed_hashes = self.nano_rpc.nl_pr1.block_confirmed_aio(block_hashes)
                 block_hashes = list(set(block_hashes) - confirmed_hashes)
@@ -163,22 +138,21 @@ class PreGenLedger():
                 if confirmed_count != block_count  :
                     print(f"{confirmed_count}/{block_count} blocks confirmed....", end="\r")
                 if confirmed_count == last_confirmed_count :
-                    time.sleep(sleep_duration_s)
-                    timeout_inc = timeout_inc + sleep_duration_s
-                    if timeout_inc >= no_new_confirmations_timeout_s :
-                        raise ValueError(f"No new confirmations for {no_new_confirmations_timeout_s}s... Fail blocks_confirmed") #break if no new confirmatiosn for 30 seconds
-                else : #reset break timer
+                    timeout_max = timeout_max - sleep_on_stall_s                
+                    timeout_inc = timeout_inc + sleep_on_stall_s
+                    time.sleep(sleep_on_stall_s)
+                    if timeout_inc >= max_stall_duration_s :
+                        raise ValueError(f"No new confirmations for {max_stall_duration_s}s... Fail blocks_confirmed") #break if no new confirmatiosn for 3 minutes (default)                    
+                else : #reset stall timer
                     timeout_inc = 0
-
+                if timeout_max <= 0 : 
+                    tc.fail(f"Max timeout of {timeout_max} seconds reached")
             print(f"{confirmed_count}/{block_count} blocks confirmed")
-        except Exception as ex: #when timeout hits
-            print(str(ex))
-            self.fail(str(ex))
-        print("")
-        if percentage == 100 :
-            tc.assertEqual(confirmed_count, block_count)
-        else :
-            tc.assertGreaterEqual(confirmed_count, (percentage / 100) * block_count)
+        except Exception as ex: #when timeout hits           
+            tc.fail(str(ex))
+        print("")       
+        tc.assertEqual(confirmed_count, block_count)
+        
 
     def test_1_params_integrity(self):
         tc.assertGreater((2**(self.pre_gen_splitting_depth+1) -2), self.pre_gen_accounts)
@@ -194,17 +168,14 @@ class PreGenLedger():
         all_publish_commands = self.account_splitting('A0',self.online_splitting_depth, write_to_disk=True)
         tc.assertEqual(len(all_publish_commands), 2*1022 )
 
-
     def test_account_splitting_1022_step2(self):
         print("publish blocks")
         blocks = ConfigReadWrite().read_file(f"./testcases/storage/test_account_splitting_depth_{self.online_splitting_depth}.txt")
         self.publish_blocks(blocks)
 
-
     def test_account_splitting_1022_step3(self) :
         print("test if blocks are confirmed")
         self.blocks_confirmed(file_name = f"./testcases/storage/test_account_splitting_depth_{self.online_splitting_depth}.txt", acceptable_tps = 50)
-
 
     def test_4_pregenerate_depth_12(self):
         #with a splitting_depth of 9, accountsplitting creates 2+ 4+ 8 +16 + 32 + 64 + 128 + 256 + 512  = 1022 accounts
@@ -217,39 +188,6 @@ class PreGenLedger():
         splitting_depth = self.pre_gen_splitting_depth
         blocks = ConfigReadWrite().read_file(f"./testcases/pregenerated_blocks/test_account_splitting_depth_{splitting_depth}.txt")
         self.publish_blocks(blocks)
-
-
-    def test_6_distribute_to_buckets(self):
-        #create 1 send block from each account of test_pregenerate_depth_12 to FADE0000000000....1 , ...2 , ...3
-        splitting_depth = self.pre_gen_splitting_depth
-        publish_commands = ConfigReadWrite().read_file(f"./testcases/pregenerated_blocks/test_account_splitting_depth_{splitting_depth}.txt")
-        seeds = []
-        for command in publish_commands :
-            try: seeds.append(json.loads(command)["seed"])
-            except : pass
-
-        data = {"buckets" : {}}
-        for bucket_index in range(0,105+1) : # bucket 0 ==1 raw bucket 105 =~ 40.565 Nano
-            start_index = self.pre_gen_start_index
-            break_count = self.pre_gen_accounts
-
-            destination_index = 0
-            publish_commands_send = []
-            publish_commands_open = []
-            for source_seed in seeds : #publish send and open blocks separately
-                #create 5000 send blocks to each bucket FACE00000...1 ; FACE00000...2 ; ... ; FACE0000...125 from index 0 to 5000
-                if destination_index < start_index :
-                    #chose start_account to send from (for testing purposes, start_index default = 0)
-                    destination_index = destination_index + 1
-                    continue
-                if destination_index > break_count : break
-                res = self.fund_bucket(bucket_index, source_seed, destination_index )
-                publish_commands_send.append(res["publish_send"])
-                publish_commands_open.append(res["publish_open"])
-                destination_index = destination_index + 1
-            data["buckets"][bucket_index] = {"send_commands" : publish_commands_send , "open_commands" : publish_commands_open}
-        ConfigReadWrite().write_json(f"./testcases/pregenerated_blocks/start_{start_index}_{bucket_index}x{break_count-start_index}x2.json", data)
-            #ConfigReadWrite().write_list(f"./testcases/pregenerated_blocks/open_bucket_{bucket_id}.txt", [str(line).replace("'", '"') for line in publish_commands_open])
 
 
     def test_7_publish_buckets(self):
@@ -365,24 +303,25 @@ class PreGenLedger():
                })
 
 
-
-
-    def account_splitting(self, seed_prefix, number_of_accounts, current_depth = 1, representative = None, source_seed = None, write_to_disk = False, folder = "storage", final_account_balance_raw = 10 **30 ):
+    def account_splitting(self, seed_prefix, number_of_accounts, current_depth = 1, representative = None, source_seed = None, source_index = 0, write_to_disk = False, folder = "storage", final_account_balance_raw = 10 **30 ):
         #split each account into 2 by sending half of the account funds to 2 other accounts.
         # at the end of teh split, each account will have 1 nano               
-        splitting_depth = ceil(log10(number_of_accounts + 2) / log10(2)) -1
-        
+        splitting_depth = ceil(log10(number_of_accounts + 2) / log10(2)) -1        
         if current_depth > splitting_depth : return [] #end of recursion is reached
-        if current_depth == 1 :
-            lst_expected_length = 2**(splitting_depth +1) -2
+         
+        if source_seed is None:  #find a seed with enough funding             
             for node_conf in self.conf.get_nodes_config():
                 #find one representative that holds enough funds to cover all sends
-                if int(self.nano_rpc.nl_genesis.check_balance(node_conf.account)["balance_raw"]) > (lst_expected_length * final_account_balance_raw) : #raw
-                    source_account_data = node_conf.account_data
-                    representative = source_account_data.account #keep the same representative for all opened accounts
+                if int(self.nano_rpc.nl_genesis.check_balance(node_conf.account)["balance_raw"]) > (number_of_accounts * final_account_balance_raw) : #raw
+                    source_account_data = node_conf.account_data                    
                     break
+        elif current_depth == 1 : 
+            source_account_data = self.nano_rpc.nl_genesis.generate_account(source_seed, source_index) 
+            #source balance must be greater than            
+            tc.assertGreater(int(self.nano_rpc.nl_genesis.check_balance(source_account_data["account"])["balance_raw"]), int(self.nano_tools.raw_mul(number_of_accounts, final_account_balance_raw)))
+            representative = self.nano_rpc[self.conf.get_nodes_name()[0]].account_info(source_account_data["account"]) #keep the same representative for all opened accounts   
         else :
-            source_account_data = self.nano_rpc.nl_genesis.generate_account(source_seed, 0)           
+            source_account_data = self.nano_rpc.nl_genesis.generate_account(source_seed, 0)       
 
         seed_prefix_A = f'{seed_prefix}A'  #Seed _A ... _AA / _BA...
         seed_prefix_B = f'{seed_prefix}B'  #Seed _B ... _AB / _BB...       
@@ -397,20 +336,132 @@ class PreGenLedger():
                 ConfigReadWrite().write_list(f"./testcases/{folder}/test_account_splitting_depth_{splitting_depth}.txt", [str(line).replace("'", '"') for line in all_publish_commands])
         return all_publish_commands[:2 * (number_of_accounts)]
 
-    def test_all_cemented(self):
+    def assert_all_blocks_cemented(self):
         for node_name in self.conf.get_nodes_name() :
             block_count = self.nano_rpc[node_name].block_count()
-            tc.assertEqual(block_count["count"], block_count["cemented"])            
+            tc.assertEqual(block_count["count"], block_count["cemented"])
+    
+    def write_blocks_to_disk(self, rpc_block_list, path):
+       
 
-    def pre_gen_account_split(self, number_of_accounts, final_account_balance_raw, source_seed = None, source_private_key = None):       
-        tc.assertFalse(source_seed == source_private_key == None)
-        self.test_all_cemented()
-        #starts with 1 account and doubles the number of accounts with each increasing splitting_depth. first account needs enough funding  
-              
-        res = self.account_splitting("C0C0", number_of_accounts, source_seed= source_seed, final_account_balance_raw=final_account_balance_raw)
-        self.publish_blocks(res, json_data=True)
+        hash_list = []
+        seed_list = []
+        block_list = []
+
+        if any(isinstance(i, list) for i in rpc_block_list[:2]) : #nested list :
+            for block_list_i in rpc_block_list :
+                tc.assertEqual(len(list(filter(lambda x: x["success"] , block_list_i))), len(block_list_i))
+                block_list.append(list(map(lambda x: x["block"] , block_list_i)))
+                seed_list.extend(list(set([x["account_data"]["source_seed"] for x in block_list_i if x["account_data"]["source_seed"] is not None])))
+                hash_list.extend(list(map(lambda x: x["hash"] , block_list_i)))            
+
+        else :
+            tc.assertEqual(len(list(filter(lambda x: x["success"] , rpc_block_list))), len(rpc_block_list))
+            hash_list = list(map(lambda x: x["hash"], rpc_block_list))
+            seed_list = list(set([x["account_data"]["source_seed"] for x in rpc_block_list if x["account_data"]["source_seed"] is not None])) #remove duplicate seeds with set
+            block_list = list(map(lambda x: x["block"], rpc_block_list))
+        
+        res = {"h" : hash_list, "s" : seed_list, "b" : block_list}
+
+        ConfigReadWrite().write_json(path, res)
+       
+    
+    def read_blocks_from_disk(self, path , seeds = False, hashes = False, blocks = False ) :
+        res = ConfigReadWrite().read_json(path)        
+        if seeds : return res["s"]
+        if hashes : return res["h"]
+        if blocks : return res["b"]
+        return res
+
+
+    def pre_gen_account_split(self, source_seed = None, source_private_key = None):       
+        #tc.assertFalse(source_seed == source_private_key == None) #if seed and key is none, account_splitting will use an account from config with enough available balance
+        self.assert_all_blocks_cemented()
+        #starts with 1 account and doubles the number of accounts with each increasing splitting_depth. first account needs enough funding                
+        res = self.account_splitting("C0C0", self. pre_gen_accounts, source_seed= source_seed, final_account_balance_raw=self.pre_gen_account_end_balance)
+        self.write_blocks_to_disk(res, self.pre_gen_file_names.account_split)
+
+    def publish_account_split(self) :
+        blocks = self.read_blocks_from_disk(self.pre_gen_file_names.account_split, blocks = True)
+        self.assert_blocks_published(blocks)
+    
+    def publish_bucket_funding(self) :
+        block_list_of_list = self.read_blocks_from_disk(self.pre_gen_file_names.bucket_funding, blocks = True)
+        for blocks in block_list_of_list :
+            self.assert_blocks_published(blocks)
+    
+    def publish_bucket_funding(self) :
+        block_list_of_list = self.read_blocks_from_disk(self.pre_gen_file_names.bucket_funding, blocks = True)
+        for blocks in block_list_of_list :
+            self.assert_blocks_published(blocks)
+    
+    def publish_bucket_rounds(self) :
+        block_list_of_list = self.read_blocks_from_disk(self.pre_gen_file_names.bucket_rounds, blocks = True)
+        for blocks in block_list_of_list :
+            self.assert_blocks_published(blocks)
+    
+    def blocks_confirmed_account_split(self):
+        block_hashes = self.read_blocks_from_disk(self.pre_gen_file_names.account_split, hashes = True)
+        self.assert_blocks_confirmed(block_hashes, sync = False)
+    
+    def blocks_confirmed_bucket_rounds(self):
+        block_hashes = self.read_blocks_from_disk(self.pre_gen_file_names.bucket_rounds, hashes = True)
+        self.assert_blocks_confirmed(block_hashes, sync = False)
+    
+    def blocks_confirmed_bucket_funding(self):
+        block_hashes = self.read_blocks_from_disk(self.pre_gen_file_names.bucket_funding, hashes = True)
+        self.assert_blocks_confirmed(block_hashes, sync = False)
+    
+
+    def pre_gen_bucket_funding(self):
+        #create 1 send block from each account of test_pregenerate_depth_12 to FADE0000000000....1 , ...2 , ...3
+
+        self.assert_all_blocks_cemented()        
+        seeds = self.read_blocks_from_disk(self.pre_gen_file_names.account_split, seeds=True)
+
+        block_list_of_list = []
+        for bucket_index in range(0,self.pre_gen_max_bucket+1) : # bucket 0 ==1 raw bucket 105 =~ 40.565 Nano
+            start_index = self.pre_gen_start_index
+            break_count = self.pre_gen_accounts
+
+            destination_index = 0
+            bucket_blocks = []
+            for source_seed in seeds : #publish send and open blocks separately
+                #create 5000 send blocks to each bucket FACE00000...1 ; FACE00000...2 ; ... ; FACE0000...125 from index 0 to 5000
+                if destination_index < start_index :
+                    #chose start_account to send from (for testing purposes, start_index default = 0)
+                    destination_index = destination_index + 1
+                    continue
+                if destination_index > break_count : break
+                res = self.fund_bucket(bucket_index, source_seed, destination_index )
+                bucket_blocks.extend(res)
+                destination_index = destination_index + 1
+            block_list_of_list.append(bucket_blocks)
+        self.write_blocks_to_disk(block_list_of_list, self.pre_gen_file_names.bucket_funding)
+        
+    def pre_gen_bucket_rounds(self):  
+        self.assert_all_blocks_cemented()          
+        block_list_of_list = []
+        block_list = []
+
+        for bucket_index in self.pre_gen_bucket_saturation_indexes :
+            bucket_seed = self.get_bucket_seed(bucket_index)            
+            if block_list != [] : block_list_of_list.append(block_list)
+            for repeat_counter in range(0, self.pre_gen_bucket_saturation_rounds + 1) :               
+                random_rep = self.nano_rpc.nl_genesis.get_account_data(self.nano_rpc.nl_genesis.generate_seed(), 0)["account"] #generate a random account and set is as new rep
+                block_list = []
+                for account_index in range(self.pre_gen_start_index, self.pre_gen_accounts):
+                    block_list.append(self.nano_rpc.nl_genesis.create_change_block(bucket_seed, account_index, random_rep, broadcast=False))
+        self.write_blocks_to_disk(block_list_of_list,self.pre_gen_file_names.bucket_rounds )
+
 
 
 if __name__ == "__main__":
     pre_gen = PreGenLedger()
-    pre_gen.pre_gen_account_split(1000,1, source_seed=pre_gen.get_prefixed_suffixed_seed("ACDC", "27"))
+    pre_gen.pre_gen_account_split() #,source_seed=pre_gen.get_prefixed_suffixed_seed("ACDC", "27"))
+    pre_gen.publish_account_split()
+    pre_gen.blocks_confirmed_account_split()
+    pre_gen.pre_gen_bucket_funding()
+    pre_gen.publish_bucket_funding()
+    pre_gen.pre_gen_bucket_rounds()
+    pre_gen.publish_bucket_rounds()
