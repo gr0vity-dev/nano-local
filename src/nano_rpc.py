@@ -162,7 +162,7 @@ class Api:
         self.loop.run_until_complete(self.aio_post(lst, sync=sync, json_data=True, aio_results=res))
         return res
 
-    def block_info_aio(self, block_hashes, sync = True) : 
+    def block_info_aio(self, block_hashes, sync = False) : 
         lst = []
         res = []
         for block_hash in block_hashes :
@@ -442,7 +442,7 @@ class Api:
             elif source_seed is not None and source_index is not None :
                 source_account_data = self.generate_account(source_seed, source_index)  
             
-            print(source_private_key, source_account_data["account"], sub_type, destination_account  )
+            #print(source_private_key, source_account_data["account"], sub_type, destination_account  )
             if destination_account == "nano_3774eerz4t8hhmgz5om13nwfrht46fnpebezmrk433fyxmuzben91b1yk1xx":
                 debug = ""
         
@@ -538,7 +538,7 @@ class Api:
                                    in_memory = not broadcast)
         published = False
         if broadcast :
-            publish = self.publish_block(block["block"], subtype="open")
+            publish = self.publish_block(block["block"], subtype=block["subtype"])
             if "hash" in publish: published = True 
         
         return self.get_block_result(block, published)
@@ -560,7 +560,7 @@ class Api:
                                    in_memory = not broadcast)
         published = False
         if broadcast :
-            publish = self.publish_block(block["block"], subtype="send")
+            publish = self.publish_block(block["block"], subtype=block["subtype"])
             if "hash" in publish: published = True 
         
         return self.get_block_result(block, published, source_seed=source_seed, source_index=source_index)
@@ -581,7 +581,7 @@ class Api:
                                    representative=new_rep, in_memory = not broadcast)
         published = False
         if broadcast :
-            publish = self.publish_block(block["block"], subtype="change")
+            publish = self.publish_block(block["block"], subtype=block["subtype"])
             if "hash" in publish: published = True 
         
         return self.get_block_result(block, published, source_seed=source_seed, source_index=source_index)
@@ -601,7 +601,7 @@ class Api:
                                       in_memory= not broadcast)
             published = False
             if broadcast :
-                publish = self.publish_block(block["block"], subtype="send")
+                publish = self.publish_block(block["block"], subtype=block["subtype"])
                 if "hash" in publish: published = True 
             
             return self.get_block_result(block, published)
