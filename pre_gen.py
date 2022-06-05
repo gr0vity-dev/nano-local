@@ -52,7 +52,7 @@ class PreGenLedger():
             tc.assertGreater(self.pre_gen_max_bucket,bucket_index)
     
     
-    def set_rpcs(self) -> dict[str, object]:
+    def set_rpcs(self):
         api = {}
         conf = ConfigParser()
         for node_name in conf.get_nodes_name() :
