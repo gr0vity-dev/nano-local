@@ -5,3 +5,4 @@ docker-compose.yml
 venv_nano_local/
 nano_nodes/
 reps/
+testcases/pre_gen/3_nodes_equal_weight__genesis_0_weight
