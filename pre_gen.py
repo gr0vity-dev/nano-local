@@ -146,8 +146,7 @@ class PreGenLedger():
                 if confirmed_count != block_count  :
                     time.sleep(sleep_on_stall_s)
                     print(f"{confirmed_count}/{block_count} blocks confirmed....", end="\r")
-                if confirmed_count == last_confirmed_count : # stalling block_count
-                    print(block_hashes)
+                if confirmed_count == last_confirmed_count : # stalling block_count                    
                     if exit_on_first_stall : return {"total_block_count" : block_count, 
                                                      "confirmed_count" : confirmed_count, 
                                                      "unconfirmed_count" : block_count - confirmed_count }
@@ -403,7 +402,6 @@ class PreGenLedger():
             first_round_blocks = blocks["b"][0][:10]
             first_round_block_hashes = blocks["h"][0][:10]   
             spam_round_blocks = [x[:10] for x in blocks["b"][1:len(blocks["b"])]]  
-            print(first_round_block_hashes)
         else:
             first_round_blocks = blocks["b"][0]
             first_round_block_hashes = blocks["h"][0]  
