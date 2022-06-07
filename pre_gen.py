@@ -1,5 +1,5 @@
 #!./venv_nano_local/bin/python
-from os import system
+from os import system, popen
 from math import ceil, log10
 from time import time
 from src.nano_rpc import Api, NanoTools
@@ -15,6 +15,7 @@ from multiprocessing import Process, Queue, Value
 import unittest
 import pandas as pd
 from tabulate import tabulate
+import traceback
 
 tc = unittest.TestCase()   
 
@@ -55,12 +56,12 @@ class PreGenLedger():
             tc.assertGreater(self.pre_gen_max_bucket,bucket_index)
         
     def set_rpcs(self):
-        api = {}
+        api = [] 
         conf = ConfigParser()
         for node_name in conf.get_nodes_name() :
             node_conf = conf.get_node_config(node_name)
-            api[node_conf["name"]] = Api(node_conf["rpc_url"])
-        return DotDict(api)
+            api.append(Api(node_conf["rpc_url"]))
+        return api
     
     def get_node_name(self, index = 0) :
         node_names = self.conf.get_nodes_name()
@@ -73,13 +74,13 @@ class PreGenLedger():
     def open_account(self, representative, source_key, destination_seed, send_amount, final_account_balance_raw, number_of_accounts, destination_index = 0):        
         if number_of_accounts is not None and self.open_counter >= number_of_accounts : return []
         self.open_counter = self.open_counter + 1
-        destination = self.nano_rpc[self.get_node_name(0)].generate_account(destination_seed, destination_index)
-        send_block = self.nano_rpc[self.get_node_name(0)].create_send_block_pkey(source_key,
+        destination = self.nano_rpc[1].generate_account(destination_seed, destination_index)
+        send_block = self.nano_rpc[1].create_send_block_pkey(source_key,
                                                                      destination["account"],
                                                                      send_amount * final_account_balance_raw ,
                                                                      broadcast=False)
                
-        open_block = self.nano_rpc[self.get_node_name(0)].create_open_block(destination["account"],
+        open_block = self.nano_rpc[1].create_open_block(destination["account"],
                                                                 destination["private"],
                                                                 send_amount * final_account_balance_raw,
                                                                 representative,
@@ -103,8 +104,8 @@ class PreGenLedger():
     def fund_bucket(self, bucket, source_seed, destination_index):
 
         destination_seed = self.get_bucket_seed(bucket)
-        source = self.nano_rpc[self.get_node_name(0)].generate_account(source_seed, 0)
-        destination = self.nano_rpc[self.get_node_name(0)].generate_account(destination_seed, destination_index)
+        source = self.nano_rpc[1].generate_account(source_seed, 0)
+        destination = self.nano_rpc[1].generate_account(destination_seed, destination_index)
         return self.open_account(destination["account"], source["private"],destination_seed, 1 , 2**bucket, None, destination_index=destination_index )
 
     def recursive_split(self,seed_prefix, representative, source_account, number_of_accounts, splitting_depth, current_depth, final_account_balance_raw):
@@ -120,10 +121,10 @@ class PreGenLedger():
 
     def assert_blocks_published(self, blocks, sync = True):
         blocks_to_publish_count = len(blocks)
-        rpc_block_count_start = int(self.nano_rpc[self.get_node_name(0)].block_count()["count"])
+        rpc_block_count_start = int(self.nano_rpc[1].block_count()["count"])
         #print("start block_count" , rpc_block_count_start)        
-        self.nano_rpc[self.get_node_name(0)].publish_blocks(blocks, json_data=True, sync=sync) #we don't care about the result
-        rpc_block_count_end = int(self.nano_rpc[self.get_node_name(0)].block_count()["count"])
+        self.nano_rpc[1].publish_blocks(blocks, json_data=True, sync=sync) #we don't care about the result
+        rpc_block_count_end = int(self.nano_rpc[1].block_count()["count"])
         #print("end block_count", rpc_block_count_end)
         tc.assertGreaterEqual(rpc_block_count_end - rpc_block_count_start, blocks_to_publish_count ) #if other blocks arrive in the meantime
 
@@ -139,13 +140,14 @@ class PreGenLedger():
             confirmed_count = 0
             while confirmed_count < block_count:
                 last_confirmed_count = confirmed_count
-                confirmed_hashes = self.nano_rpc[self.get_node_name(1)].block_confirmed_aio(block_hashes, ignore_errors = ["Block not found"],)
+                confirmed_hashes = self.nano_rpc[3].block_confirmed_aio(block_hashes, ignore_errors = ["Block not found"],)
                 block_hashes = list(set(block_hashes) - confirmed_hashes)
                 confirmed_count = confirmed_count + len(confirmed_hashes)
                 if confirmed_count != block_count  :
                     time.sleep(sleep_on_stall_s)
                     print(f"{confirmed_count}/{block_count} blocks confirmed....", end="\r")
                 if confirmed_count == last_confirmed_count : # stalling block_count
+                    print(block_hashes)
                     if exit_on_first_stall : return {"total_block_count" : block_count, 
                                                      "confirmed_count" : confirmed_count, 
                                                      "unconfirmed_count" : block_count - confirmed_count }
@@ -159,7 +161,7 @@ class PreGenLedger():
                 if timeout_max <= 0 : 
                     tc.fail(f"Max timeout of {timeout_max} seconds reached")
             print(f"{confirmed_count}/{block_count} blocks confirmed")
-        except Exception as ex: #when timeout hits
+        except Exception as ex: #when timeout hits            
             tc.fail(str(ex))
         tc.assertEqual(confirmed_count, block_count)
 
@@ -173,16 +175,16 @@ class PreGenLedger():
             if source_seed is None:  #find a seed with enough funding             
                 for node_conf in self.conf.get_nodes_config():
                     #find one representative that holds enough funds to cover all sends
-                    if int(self.nano_rpc[self.get_node_name(0)].check_balance(node_conf.account)["balance_raw"]) > (number_of_accounts * final_account_balance_raw) : #raw
+                    if int(self.nano_rpc[1].check_balance(node_conf.account)["balance_raw"]) > (number_of_accounts * final_account_balance_raw) : #raw
                         source_account_data = node_conf.account_data                    
                         break 
             else:
-                source_account_data = self.nano_rpc[self.get_node_name(0)].generate_account(source_seed, source_index) 
+                source_account_data = self.nano_rpc[1].generate_account(source_seed, source_index) 
             #source balance must be greater than            
-            tc.assertGreater(int(self.nano_rpc[self.get_node_name(0)].check_balance(source_account_data["account"])["balance_raw"]), int(self.nano_tools.raw_mul(number_of_accounts, final_account_balance_raw)))
+            tc.assertGreater(int(self.nano_rpc[1].check_balance(source_account_data["account"])["balance_raw"]), int(self.nano_tools.raw_mul(number_of_accounts, final_account_balance_raw)))
             representative = self.nano_rpc[self.conf.get_nodes_name()[0]].account_info(source_account_data["account"]) #keep the same representative for all opened accounts   
         else :
-            source_account_data = self.nano_rpc[self.get_node_name(0)].generate_account(source_seed, 0)       
+            source_account_data = self.nano_rpc[1].generate_account(source_seed, 0)       
 
         seed_prefix_A = f'{seed_prefix}A'  #Seed _A ... _AA / _BA...
         seed_prefix_B = f'{seed_prefix}B'  #Seed _B ... _AB / _BB...       
@@ -197,17 +199,23 @@ class PreGenLedger():
                 ConfigReadWrite().write_list(f"./testcases/{folder}/test_account_splitting_depth_{splitting_depth}.txt", [str(line).replace("'", '"') for line in all_publish_commands])
         return all_publish_commands[:2 * (number_of_accounts)]
 
-    def assert_all_blocks_cemented(self):
-        try:
-            with timeout(30) :
-                for node_name in self.conf.get_nodes_name() :
-                    block_count = self.nano_rpc[node_name].block_count()
-                    if block_count["count"] != block_count["cemented"] :
-                        time.sleep(1)
-                    # else :
-                    #     tc.assertEqual(block_count["count"], block_count["cemented"])
-        except RuntimeError as e :
-            tc.fail(e)
+    # def assert_all_blocks_cemented(self):
+    #     try:
+    #         with timeout(30) :
+    #             for nano_rpc in self.nano_rpc :
+    #                 block_count = nano_rpc.block_count()
+    #                 if block_count["count"] != block_count["cemented"] :
+    #                     time.sleep(1)
+    #                 # else :
+    #                 #     tc.assertEqual(block_count["count"], block_count["cemented"])
+    #     except RuntimeError as e :            
+    #         tc.fail(e)
+    
+    def assert_all_blocks_cemented(self):                
+        for nano_rpc in self.nano_rpc :
+            block_count = nano_rpc.block_count()                    
+            tc.assertEqual(block_count["count"], block_count["cemented"])
+       
     
     def write_blocks_to_disk(self, rpc_block_list, path):  
         hash_list = []
@@ -284,13 +292,13 @@ class PreGenLedger():
         block_list = []
 
         for round in range(0,self.pre_gen_bucket_saturation_rounds):
-            random_rep = self.nano_rpc[self.get_node_name(0)].get_account_data(self.nano_rpc[self.get_node_name(0)].generate_seed(), 0)["account"] #generate a random account and set is as new rep
+            random_rep = self.nano_rpc[1].get_account_data(self.nano_rpc[1].generate_seed(), 0)["account"] #generate a random account and set is as new rep
             if block_list != [] : block_list_of_list.append(block_list)
             block_list = []
             for bucket_index in self.pre_gen_bucket_saturation_indexes :
                 bucket_seed = self.get_bucket_seed(bucket_index)
                 for account_index in range(self.pre_gen_start_index, self.pre_gen_accounts):
-                    block_list.append(self.nano_rpc[self.get_node_name(0)].create_change_block(bucket_seed, account_index, random_rep, broadcast=False))
+                    block_list.append(self.nano_rpc[1].create_change_block(bucket_seed, account_index, random_rep, broadcast=False))
         if block_list != [] : block_list_of_list.append(block_list)
        
         self.write_blocks_to_disk(block_list_of_list,self.pre_gen_file_names.bucket_rounds.json_file )
@@ -332,16 +340,25 @@ class PreGenLedger():
         #create online change blocks for 1 bucket and measure confirmation_times
         timeout_per_conf = 120
         main_bucket_seed = self.get_bucket_seed(self.pre_gen_bucket_saturation_main_index)
-        random_rep = self.nano_rpc[self.get_node_name(1)].get_account_data(self.nano_rpc[self.get_node_name(1)].generate_seed(), 0)["account"] #generate a random account and set is as new rep
+        random_rep = self.nano_rpc[3].get_account_data(self.nano_rpc[3].generate_seed(), 0)["account"] #generate a random account and set is as new rep
 
         for i in range(0,self.pre_gen_accounts) :
-            if spam_running.value == False : return #publish while spam blocks are being published
-            change_response = self.nano_rpc[self.get_node_name(1)].create_change_block(main_bucket_seed, i,random_rep,broadcast=True)            
+            if spam_running.value == False : return #will wait for the last confirmation before quitting function even when spam has already finished.       
+            change_response = self.nano_rpc[3].create_change_block(main_bucket_seed, i,random_rep,broadcast=True)            
             t1 = time.time()
             try:
                 with timeout(timeout_per_conf, exception=RuntimeError):
-                    while (not self.nano_rpc[self.get_node_name(1)].block_confirmed(block_hash = change_response["hash"])):
-                        time.sleep(0.2)
+                    while True : 
+                        #if spam_running.value == False : return #will quit                          
+                        is_confirmed = False
+                        for nano_rpc in self.nano_rpc :
+                            #if any of our nodes has seen this block as confirmed. 
+                            # Sometimes not all nodes see the blocks confirmed at the same time.
+                            is_confirmed = nano_rpc.block_confirmed(block_hash = change_response["hash"])
+                            if is_confirmed : break
+                        if is_confirmed : break 
+                        print("unconfirmed" , change_response["hash"], end="\r" )                               
+                        time.sleep(0.1)                        
             except RuntimeError:
                 print (f"no confirmation after {timeout_per_conf} seconds")
             conf_time = time.time() -t1
@@ -358,92 +375,89 @@ class PreGenLedger():
            
         
         for command in commands :
-            print(command)
-            system(command)
+            shell_output = popen(command).read()
+            if shell_output.strip() != "" : raise Exception(shell_output)
                   
         self.assert_all_blocks_cemented()
 
-        if use_nanoticker : #wait 2 minutes for Nanoticker to properly get new data.ldb
-            system("docker restart nl_nanoticker")       
-            time.sleep(60*2) 
-
+        if use_nanoticker : #wait 3 minutes for Nanoticker to properly get new data.ldb     
+            time.sleep(60*3) 
 
         
+    def mp_start_join(self, mp_procs):       
+        for proc in mp_procs:
+            proc.start()
+        
+        for proc in mp_procs:
+            proc.join()
 
-
-
-    def test_9_publish_bucket_saturation(self):      
-
-        self.setup_ledger(self.pre_gen_file_names.bucket_funding.ledger_file, use_nanoticker = True)        
+    def test_9_publish_bucket_saturation(self, debug = False):   
+        
+        self.setup_ledger(self.pre_gen_file_names.bucket_funding.ledger_file, use_nanoticker = not debug)        
         blocks = self.read_blocks_from_disk(self.pre_gen_file_names.bucket_rounds.json_file)
-        first_round_blocks = blocks["b"][0]
-        first_round_block_hashes = blocks["h"][0]
-        
-        
-        
-
-        spam_round_blocks = [] 
-        for i in range(1, len(blocks["b"])):             
-            spam_round_blocks.append(blocks["b"][i])
-        
-        spam_block_count = sum( [ len(b) for b in spam_round_blocks])
-        
-       
-        #tc.assertListEqual(first_round_blocks, spam_round_blocks[0]) 
-        #return       
-        #spam_round_blocks = blocks["b"][1:self.pre_gen_bucket_saturation_rounds]
-        #print(len(spam_round_blocks), len(spam_round_blocks[0]), spam_round_blocks[0][0])
-
-        #These could in theory be started without mp. But this somehow makes aio_post get stuck.
-        p0 = Process(target=self.assert_blocks_published, args=(first_round_blocks,), kwargs={"sync" : True})
-        #p01 = Process(target=self.assert_blocks_confirmed, args=(first_round_block_hashes,))
-
-        p0.start()
-        #p01.start()
-        p0.join()
-        #p01.join()
-
-        #Every spam account broadcasts a recent change block, so priority should be reduced over older blocks      
-        #self.assert_blocks_published(first_round_blocks, sync=True)
-        #self.assert_blocks_confirmed(first_round_block_hashes)
-
-        #Start multiple processes.
-        #Start spam with pre_generated blocks. All spam accounts have a recent ransaction from blocks published in previous setp
-        #Broadcast 1 genuine block from different accounts. Monitor confirmation duration for each block and move to next account.
-        t1 = time.time()
+        mp_procs = []
         mp_q = Queue()
-        spam_running = Value('i', True)          
+        h = Helpers()     
+        
+        if debug :
+            first_round_blocks = blocks["b"][0][:10]
+            first_round_block_hashes = blocks["h"][0][:10]   
+            spam_round_blocks = [x[:10] for x in blocks["b"][1:len(blocks["b"])]]  
+            print(first_round_block_hashes)
+        else:
+            first_round_blocks = blocks["b"][0]
+            first_round_block_hashes = blocks["h"][0]  
+            spam_round_blocks = [x for x in blocks["b"][1:len(blocks["b"])]]  
+        
+        spam_block_count = sum( [ len(b) for b in spam_round_blocks])        
 
-        p1 = Process(target=self.assert_list_of_blocks_published, args=(spam_round_blocks,), kwargs={"sync" : False, "is_running" : spam_running})
-        p2 = Process(target=self.online_bucket_main, args=(mp_q,spam_running,))  
+        t1 = time.time()
+        #Every spam account broadcasts a recent change block, so priority should be reduced over older blocks      
+        #   aio_http gets stuck if mp_ process follows non-mp_ process. Run everything in multiprocessing mode.
+        mp_procs.append(Process(target=self.assert_blocks_published, args=(first_round_blocks,), kwargs={"sync" : True}))
+        mp_procs.append(Process(target=self.assert_blocks_confirmed, args=(first_round_block_hashes,))) #not important for this test
+        self.mp_start_join(mp_procs)
+        first_round_duration = time.time() - t1
+              
+      
+        #Start multiple processes in parallel.
+        #1)Start spam with pre_generated blocks. All spam accounts have a recent transaction from blocks published in previous setp
+        #2)Broadcast 1 genuine block from different accounts. Monitor confirmation duration for each block and move to next account.
+        t2 = time.time()
+        mp_spam_running = Value('i', True)
+        spam_proc = Process(target=self.assert_list_of_blocks_published, args=(spam_round_blocks,), kwargs={"sync" : False, "is_running" : mp_spam_running})
+        legit_proc = Process(target=self.online_bucket_main, args=(mp_q,mp_spam_running,))
+        
+        spam_proc.start()
+        legit_proc.start()
+        
+        spam_proc.join()
+        spam_duration = time.time() - t2 #measure time when spam has ended
+        legit_proc.join() #wait for last confirmation after spam has ended
 
-        p1.start()
-        p2.start()        
-
-        p1.join()
-        p2.join()
        
         #Convert result of online_bucket_main() from mp_q to list.
         mp_q.put(None)
-        conf_duration = list(iter(mp_q.get, None))
+        conf_duration = list(iter(mp_q.get, None))       
+        test_duration = time.time() - t1
 
-        h = Helpers()
-        duration = time.time() - t1
-
-        res = { "conf_count":len(conf_duration),
-                "test_duration": duration,
-                "bps" : spam_block_count / duration,
-                "main_cps" : len(conf_duration) / duration,
+        res = { "confs":len(conf_duration),                
+                "spam_s": spam_duration,
+                "bps" : spam_block_count / spam_duration,
+                "main_cps" : len(conf_duration) / test_duration,
                 "min" :min(conf_duration),
-                "max": max(conf_duration), 
+                "max" : max(conf_duration),
+                "timeouts": len(list(filter(lambda x: x >= 120, conf_duration))) ,  
                 "perc_50":h.percentile(conf_duration,50),
                 "perc_75":h.percentile(conf_duration,75),
                 "perc_90":h.percentile(conf_duration,90),
-                "perc_99":h.percentile(conf_duration,99),  
-                "spam_block_count" : spam_block_count }  
+                "perc_99":h.percentile(conf_duration,99),                  
+                "spam_block_count" : spam_block_count,
+                "round1_s" : first_round_duration,
+                "test_s" : test_duration }    
        
-        print( pd.DataFrame([res]))
         return res
+       
 
 def main():
     pre_gen = PreGenLedger()
@@ -465,22 +479,23 @@ def main():
 
 
 def to_fwf(path, df):
-    content = tabulate(df.values.tolist(), list(df.columns), tablefmt="plain")
+    content = tabulate(df.values.tolist(), list(df.columns), tablefmt="plain", floatfmt=".2f")
     open(path, "w").write(content)
 
 if __name__ == "__main__":    
     res = []
     pre_gen = PreGenLedger("3_nodes_equal_weight__genesis_0_weight")  
-    for i in range (0,10) :
+    for i in range (0,11) :
         try:            
-            res.append(pre_gen.test_9_publish_bucket_saturation())            
+            res.append(pre_gen.test_9_publish_bucket_saturation(debug=False))             
+            print(pd.DataFrame(res))  
         except Exception as e:
-            print(str(e))
-            pass    
+            traceback.print_exc()
+            pass  
+
     ConfigReadWrite().write_list("./test0.txt", res)
     df = pd.DataFrame(res)
-    print(df)    
-    
+    print(df)   
     to_fwf("./test1.txt", df)
 
 
