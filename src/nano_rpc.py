@@ -22,38 +22,44 @@ class Api:
         self.RPC_URL = url
         self.aio_conn = None #aiohttp.TCPConnector(limit_per_host=100, limit=0, ttl_dns_cache=300)
         self.aio_results = []
-        self.loop = asyncio.get_event_loop()
+        #self.loop = asyncio.get_event_loop()
 
     async def set_aio_connection(self):
         # 0.1s for 1million connections
         if self.aio_conn is None :
-            self.aio_conn = aiohttp.TCPConnector(limit_per_host=500, limit=0, verify_ssl=False , force_close=True)
+            self.aio_conn = aiohttp.TCPConnector(limit_per_host=500, limit=0, verify_ssl=False)
 
-    async def aio_post(self,data, sync = True, json_data = False, include_request = False, aio_results = []):
+    async def aio_post(self,data, sync = True, json_data = False, include_request = False, aio_results = [], ignore_errors = []):       
         parallel_requests = 1 if sync else 5
         semaphore = asyncio.Semaphore(parallel_requests)
-        session = aiohttp.ClientSession(connector=self.aio_conn)
-
-        async def post(el):
-            async with semaphore:
-                async with session.post(url=self.RPC_URL, json=el if json_data else json.loads(el), ssl=False) as response:
-                    obj = json.loads(await response.read())
+        session = aiohttp.ClientSession(connector=self.aio_conn)  
+        async def do_req(el, aio_errors): 
+            async with semaphore:          
+                async with session.post(url=self.RPC_URL, json=el if json_data else json.loads(el), ssl=False) as response:  
+                    obj = json.loads(await response.read())                    
                     if include_request : obj["request"] = el if json_data else json.loads(el)
                     if obj is None :
                         print("Request failed", el)
-                    if "error" in obj :
-                        print("Request failed", "request", el, "response", obj)
-                    aio_results.append(obj)
+                    if "error" in obj : 
+                        if not obj["error"] in ignore_errors :                       
+                            aio_errors["error_count"] = aio_errors["error_count"] + 1
+                            aio_errors["last_error"] = obj["error"]
+                            aio_errors["last_request"] = el
+                    aio_results.append(obj)                    
+                    #print(f"aio_post_count : {len(aio_results)}", end="\r")
 
-        await asyncio.gather(*(post(el) for el in data))
+        aio_errors = {"error_count" : 0 , "last_request" : "" , "last_error" : ""}
+        await asyncio.gather(*(do_req(el, aio_errors) for el in data))
+        if aio_errors["error_count"] > 0 : print(json.dumps(aio_errors, indent=4))
         await session.close()
  
     def post_with_auth(self, content, max_retry=2, timeout = 3, silent = True):
         try :
             url = self.RPC_URL 
-            headers = {"Content-type": "application/json", "Accept": "text/plain"}
-            r = requests.post(url, json=content, headers=headers, timeout=timeout)
+            headers = {"Content-type": "application/json", "Accept": "text/plain"}            
+            r = requests.post(url, json=content, headers=headers, timeout=timeout)            
             r_json = json.loads(r.text)
+            
             # print("request: {} \rrepsonse: {}".format(content["action"], r.text ))
             if "error" in r_json:
                 msg = "error in post_with_auth |\n request: \n{}\nresponse:\n{}".format(content, r.text)
@@ -109,6 +115,10 @@ class Api:
     def get_active_difficulty(self):
         req_active_difficulty = {"action" : "active_difficulty"}
         return self.post_with_auth(req_active_difficulty)
+    
+    # def get_block_count(self):
+    #     req_active_difficulty = {"action" : "block_count"}
+    #     return self.post_with_auth(req_active_difficulty)
 
     def get_account_data(self, seed):
         payload = self.generate_account(seed, 0)
@@ -117,9 +127,9 @@ class Api:
 
         return DotDict(payload)
     
-    def publish_blocks(self, blocks, json_data=True):
+    def publish_blocks(self, blocks, json_data=True, sync=True):        
         publish_commands = [{"action": "process","json_block": "true", "subtype" : block["subtype"] ,"block": (block if json_data else json.loads(block.replace("'", '"')))  } for block in blocks]
-        return self.__publish(payload_array = publish_commands, json_data=True)
+        return self.__publish(payload_array = publish_commands, json_data=True, sync=sync)
     
     def publish_block(self, block, subtype=None):
         return self.__publish(json_block = block, subtype=subtype if subtype is not None else block["subtype"] if "subtype" in block else None)  
@@ -146,7 +156,7 @@ class Api:
         if payload_array is not None : 
             res = []
             #loop = asyncio.get_event_loop()
-            self.loop.run_until_complete(self.aio_post(payload_array, sync=sync, json_data=json_data, aio_results=res))
+            asyncio.get_event_loop().run_until_complete(self.aio_post(payload_array, sync=sync, json_data=json_data, aio_results=res))
             return res
 
     def block_hash_aio(self, json_blocks, sync = False):
@@ -159,10 +169,10 @@ class Api:
                 "block": json_block
                 })
         #loop = asyncio.get_event_loop()
-        self.loop.run_until_complete(self.aio_post(lst, sync=sync, json_data=True, aio_results=res))
+        asyncio.get_event_loop().run_until_complete(self.aio_post(lst, sync=sync, json_data=True, aio_results=res))
         return res
 
-    def block_info_aio(self, block_hashes, sync = False) : 
+    def block_info_aio(self, block_hashes, sync = False, ignore_errors= []) : 
         lst = []
         res = []
         for block_hash in block_hashes :
@@ -172,11 +182,11 @@ class Api:
                 "hash": block_hash
                 })
         #loop = asyncio.get_event_loop()
-        self.loop.run_until_complete(self.aio_post(lst,sync=sync, json_data=True, include_request=True, aio_results=res))
+        asyncio.get_event_loop().run_until_complete(self.aio_post(lst,sync=sync, json_data=True, include_request=True, aio_results=res, ignore_errors=ignore_errors))
         return res
 
-    def block_confirmed_aio(self, block_hashes) :
-        res = self.block_info_aio(block_hashes)
+    def block_confirmed_aio(self, block_hashes, ignore_errors = []) :
+        res = self.block_info_aio(block_hashes, ignore_errors=ignore_errors)
         confirmed_blocks = list(filter(lambda x: x is not None and "confirmed" in x and x["confirmed"] == "true", res))
         return set(map(lambda x: x["request"]["hash"], confirmed_blocks))   #confirmed hashes
 
@@ -217,10 +227,9 @@ class Api:
         return DotDict(payload)
 
     def block_count(self, max_retry = 2):
-        req_block_count = {
-            "action": "block_count"
-        } 
-        return DotDict(self.post_with_auth(req_block_count, max_retry=max_retry))
+        req_active_difficulty = {"action" : "block_count"}
+        return self.post_with_auth(req_active_difficulty, max_retry = max_retry)       
+
 
     def generate_account(self, seed, index):
         req_deterministic_key = {
@@ -626,8 +635,6 @@ class Api:
                 "account" : genesis_account,
                 "hash": epoch_block["hash"]
                 }
-
-
 
 class NanoTools:
     import gmpy2
