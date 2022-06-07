@@ -9,3 +9,5 @@ interruptingcow
 aiohttp
 pytest 
 pytest-html
+pandas 
+tabulate
