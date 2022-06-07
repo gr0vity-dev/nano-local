@@ -1,6 +1,6 @@
 genesis_key = "12C91837C846F875F56F67CD83040A832CFC0F131AF3DFF9E502C0D43F5D2D15" #initial_balance = 340282366920938463463374607431768211455
 canary_key = "FB4E458CB13508353C5B2574B82F1D1D61367F61E88707F773F068FF90050BEE"
-epoch_count = 2 
+epoch_count = 2
 burn_amount = "140282366920938463463374607431768211454" #sent to xrb_1111111111111111111111111111111111111111111111111111hifc8npp
 
 ##### NANO NODE ENV VARIABLES ####
@@ -12,9 +12,9 @@ NANO_TEST_MAGIC_NUMBER="LC" #optional overrides dc_nano_local_env
 #enables nanolooker block explorer at port 42000.
 #creates mongodb docker container with default port 27017
 nanolooker_enable = true
-remote_address = '127.0.0.1' #if you run this on another machine in your network. default 127.0.0.1 
+remote_address = '127.0.0.1' #if you run this on another machine in your network. default 127.0.0.1
 #Enable monitor on port 46000 for genesis, 46001 for first representative.node , ...
-nanomonitor_enable = false 
+nanomonitor_enable = false
 #Enable live stats localhost:42002
 nanoticker_enable = false #nanomonitor_enable must be true for this to properly work
 #Enable nano-vote-visualizer for genesis account on port 42001
@@ -26,20 +26,21 @@ nanovotevisu_enable = false
     config_node_path = "./config/default_config-node.toml" #optional if you want to modify parameters
     config_rpc_path = "./config/default_config-rpc.toml" #optional if you want to modify parameters
 
-    ### Choose between --docker_tag (existing tag  --nano_node_path    
-    docker_tag = "nanocurrency/nano-beta:latest" #shared between all nodes 
-    #nano_node_path = "/path/to/nano_node"   #path to nano_node executable  
+    ### Choose between --docker_tag (existing tag  --nano_node_path
+    #docker_tag = "nanocurrency/nano:V23.1" #shared between all nodes
+    docker_tag = "nanocurrency/nano-beta:latest" #shared between all nodes
+    #nano_node_path = "/path/to/nano_node"   #path to nano_node executable
 
 #### individual node settings
-[[representatives.nodes]] 
+[[representatives.nodes]]
     name = "nl_pr1"
     seed = "1110000000000000000000000000000000000000000000000000000000000001"
 
     ### Chose between -balance or -vote_weight_percent
     # balance = "50000000000000000000000000000000000000"   #final node balance
-    vote_weight_percent = 25  
-    #vote_weight_percent = 35   
-   
+    vote_weight_percent = 33.33
+    #vote_weight_percent = 35
+
     ### Choose between --docker_tag (existing tag  --nano_node_path
     #docker_tag = "V22.1"  #overrides shared property representatives.docker_tag
     #nano_node_path = "/path/to/nano_node"   #path to executable
@@ -47,23 +48,39 @@ nanovotevisu_enable = false
     #config_node_path = "./default_config-node.toml" #overrides shared property representatives.config_node_path
     #config_rpc_path = "./default_config-rpc.toml"  #overrides shared property representatives.config_rpc_path
 
-[[representatives.nodes]] 
+[[representatives.nodes]]
     name = "nl_pr2"
-    seed = "1110000000000000000000000000000000000000000000000000000000000002" 
-    vote_weight_percent = 25  
+    seed = "1110000000000000000000000000000000000000000000000000000000000002"
+    vote_weight_percent = 33.33
 
-[[representatives.nodes]] 
+[[representatives.nodes]]
     name = "nl_node3"
-    seed = "1110000000000000000000000000000000000000000000000000000000000003"   
-    vote_weight_percent = 25   
+    seed = "1110000000000000000000000000000000000000000000000000000000000003"
+    vote_weight_percent = 33.33
 
 
-[testcases]        
-    [testcases.basic.NetworkChecks]   #Run all NetworkChecks except test_equal_block_count   
+[testcases]
+    [testcases.basic.NetworkChecks]   #Run all NetworkChecks except test_equal_block_count
+        #skip_all = true
+        test_rpc_online = true
+        test_peer_count = true
         test_equal_block_count = true
+        test_equal_online_stake_total = true
+        #test_equal_confirmation_quorum = true
+        #test_equal_peers_stake_total = true
+        #test_equal_representatives_online = true
+
 
     [testcases.basic.BlockPropagation]
         skip_all = true
-        # test_account_splitting_1022_step1 = false
-        # test_account_splitting_1022_step2 = false
-        # test_account_splitting_1022_step3 = true
+        test_1_params_integrity = true
+        test_account_splitting_1022_step1 = false
+        test_account_splitting_1022_step2 = false
+        test_account_splitting_1022_step3 = false
+        test_4_pregenerate_depth_12 = true
+        test_5_publish_depth_12 = true
+        test_6_distribute_to_buckets = true
+        test_7_publish_buckets = true
+        test_8_pre_gen_bucket_saturation = true
+        test_9_publish_bucket_saturation = true
+        
