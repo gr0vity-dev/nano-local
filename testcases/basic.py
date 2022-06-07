@@ -26,7 +26,7 @@ class NetworkChecks(unittest.TestCase):
         "test_rpc_online"), "according to nano_local_config.toml")
     def test_rpc_online(self):
 
-        for node_name in self.config_parse.get_node_names() :
+        for node_name in self.config_parse.get_nodes_name() :
             node_rpc = self.config_parse.get_node_config(node_name)["rpc_url"]
             is_online = Api(node_rpc).is_online()
 
@@ -36,28 +36,28 @@ class NetworkChecks(unittest.TestCase):
         "test_peer_count"), "according to nano_local_config.toml")
     def test_peer_count(self):
         # check if all nodes are all connected to each_other.
-        for node_name in self.config_parse.get_node_names() :
+        for node_name in self.config_parse.get_nodes_name() :
             node_rpc = self.config_parse.get_node_config(node_name)["rpc_url"]
             peer_count = len(Api(node_rpc).peers()["peers"])
-            self.assertEqual(peer_count, len(self.config_parse.get_node_names()) -1)
+            self.assertEqual(peer_count, len(self.config_parse.get_nodes_name()) -1)
 
     @unittest.skipIf(is_not_in_config(__module__, __qualname__,
         "test_equal_block_count"), "according to nano_local_config.toml")
     def test_equal_block_count(self):
         # compare "block_count" for each node to the "block_count" of the first node.
         first_node_block_count = None
-        for node_name in self.config_parse.get_node_names() :
-            node_rpc = self.config_parse.get_node_config(node_name)["rpc_url"]
-            block_count = Api(node_rpc).block_count()
-            if first_node_block_count is None : first_node_block_count = copy.deepcopy(block_count)
-            self.assertDictEqual(block_count,first_node_block_count)
+        for node_conf in self.config_parse.get_nodes_config():               
+            b_count = Api(node_conf.rpc_url).block_count()          
+            if first_node_block_count is None : first_node_block_count = copy.deepcopy(b_count)
+            self.assertDictEqual(b_count,first_node_block_count)
+       
 
     @unittest.skipIf(is_not_in_config(__module__, __qualname__,
         "test_equal_online_stake_total"), "according to nano_local_config.toml")
     def test_equal_online_stake_total(self):
         # compare "confirmation_quorum" for each node to the "confirmation_quorum" of the first node.
         first_node_online_stake_total = None
-        for node_name in self.config_parse.get_node_names() :
+        for node_name in self.config_parse.get_nodes_name() :
             node_rpc = self.config_parse.get_node_config(node_name)["rpc_url"]
             online_stake_total = Api(node_rpc).confirmation_quorum()["online_stake_total"]
             if first_node_online_stake_total is None : first_node_online_stake_total = copy.deepcopy(online_stake_total)
@@ -68,7 +68,7 @@ class NetworkChecks(unittest.TestCase):
     def test_equal_confirmation_quorum(self):
         # compare "confirmation_quorum" for each node to the "confirmation_quorum" of the first node. (excludes "peers_stake_total")
         first_node_confirmation_quorum = None
-        for node_name in self.config_parse.get_node_names() :
+        for node_name in self.config_parse.get_nodes_name() :
             node_config = self.config_parse.get_node_config(node_name)
 
             confirmation_quorum = Api(node_config["rpc_url"]).confirmation_quorum()
@@ -81,7 +81,7 @@ class NetworkChecks(unittest.TestCase):
     def test_equal_peers_stake_total(self):
         # Adds node vote weight to "peers_stake_total" and compares the value to all other nodes
         first_node_response = None
-        for node_name in self.config_parse.get_node_names() :
+        for node_name in self.config_parse.get_nodes_name() :
             node_config = self.config_parse.get_node_config(node_name)
             response = Api(node_config["rpc_url"]).confirmation_quorum()
             #if node is an online representative, add its own vote weight to peers_stake_total
@@ -98,7 +98,7 @@ class NetworkChecks(unittest.TestCase):
     def test_equal_representatives_online(self):
         # Compares online representatives among all nodes
         first_node_response = None
-        for node_name in self.config_parse.get_node_names() :
+        for node_name in self.config_parse.get_nodes_name() :
             node_rpc = self.config_parse.get_node_config(node_name)["rpc_url"]
             response = Api(node_rpc).representatives_online(weight=True)
             if first_node_response is None : first_node_response = copy.deepcopy(response)
@@ -117,7 +117,7 @@ class BlockPropagation(unittest.TestCase):
 
     def set_rpcs(self) :
         conf = ConfigParser()        
-        for node_name in conf.get_node_names() :
+        for node_name in conf.get_nodes_name() :
             node_conf = conf.get_node_config(node_name)
             self.nano_rpc[node_conf["name"]] = Api(node_conf["rpc_url"])
 
@@ -418,7 +418,7 @@ class BlockPropagation(unittest.TestCase):
         for i in range(0,self.pre_gen_accounts) :
             if spam_running.value == False : return #publish while spam blocks are being published
             change_response = self.nano_rpc["nl_pr1"].create_change_block(main_bucket_seed, i,random_rep,broadcast=True)
-            print(change_response["hash"])
+           # print(change_response["hash"])
             t1 = time.time()
 
             try:
