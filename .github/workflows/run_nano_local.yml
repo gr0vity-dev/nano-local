@@ -1,0 +1,30 @@
+name: Python application
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v3
+      with:
+        python-version: "3.10"
+    - name: setup venv
+      run: ./venv_nano_local.sh
+    - name: create, start, init, test
+      run: |
+        ./run_nano_local.py create
+        ./run_nano_local.py start
+        ./run_nano_local.py init
+        ./run_nano_local.py pytest
