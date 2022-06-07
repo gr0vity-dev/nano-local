@@ -262,7 +262,7 @@ def parse_args():
                         help='create a report under ./testcases/reports in the specified format for each module')
     parser.add_argument('--loglevel', choices={"DEBUG", "INFO", "WARNING", "ERROR"}, default = "INFO",
                         help='set log level. defaults to INFO')
-    parser.add_argument('--args', default = "-v",
+    parser.add_argument('--args', default = "-v -rpf",
                         help='will be added after pytest. example -rfE')
     parser.add_argument('--compose_version', type=int, default = 2, choices={1,2},
                         help='run $ docker-compose --version to identify the version. Defaults to 2')
@@ -330,12 +330,13 @@ def main():
             output = ""
             if(args.output)  == "html" : output = f"--html=./testcases/reports/report_latest_{module}.html --self-contained-html"
             elif(args.output)  == "xml" : output = f"--junitxml=./testcases/reports/report_latest_{module}.xml"
+            print(f"venv_nano_local/bin/pytest {args.args} {module_path} {output}")
             subprocess.run([f"venv_nano_local/bin/pytest {args.args} {module_path} {output}"], shell=True)
 
     elif args.command == 'test' :
         modules = ConfigParser().get_testcases()["test_modules"]
         for module in modules :
-            subprocess.run([f"venv_nano_local/bin/python -m unittest testcases.{module}"], shell=True)
+            subprocess.run([f"venv_nano_local/bin/python -m unittest -v testcases.{module}"], shell=True)
 
 
     else:
