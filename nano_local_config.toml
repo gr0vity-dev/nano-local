@@ -5,8 +5,8 @@ burn_amount = "140282366920938463463374607431768211454" #sent to xrb_11111111111
 
 ##### NANO NODE ENV VARIABLES ####
 NANO_TEST_EPOCH_1="0xfff0000000000000" #this is fixed to 0x000000000000000f
-NANO_TEST_EPOCH_2="0xf000000000000000" #optional overrides dc_nano_local_env
-NANO_TEST_EPOCH_2_RECV="0xf000000000000000" #optional overrides dc_nano_local_env
+NANO_TEST_EPOCH_2="0x000000000000000f" #optional overrides dc_nano_local_env
+NANO_TEST_EPOCH_2_RECV="0x000000000000000f" #optional overrides dc_nano_local_env
 NANO_TEST_MAGIC_NUMBER="LC" #optional overrides dc_nano_local_env
 
 #enables nanolooker block explorer at port 42000.
