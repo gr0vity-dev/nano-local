@@ -126,18 +126,18 @@ def generate_genesis_open(genesis_key):
     try :
         docker_run =       "docker run -d --name ln_get_genesis nanocurrency/nano-test:latest" 
         docker_exec =     f"docker exec -it ln_get_genesis /usr/bin/nano_node --network=dev --debug_bootstrap_generate --key={genesis_key}""" #dev net to speed up things
-        #docker_stop_rm = """docker stop ln_get_genesis && docker rm ln_get_genesis"""  
+        docker_stop_rm = """docker stop ln_get_genesis && docker rm ln_get_genesis"""  
         
         logging.info("run temporary docker conatiner for genesis generation")
         os.system(docker_run)
         blocks = ''.join(os.popen(docker_exec).readlines()[102:110])       
         logging.info("stop and remove docker container")
-        #os.system(docker_stop_rm)
+        os.system(docker_stop_rm)
         return json.loads(str(blocks))
 
     except Exception as e:
          logging.error(str(e))        
-         #os.system(docker_stop_rm)
+         os.system(docker_stop_rm)
 
 def is_rpc_available(node_names):    
     while len(node_names) > 0 :
