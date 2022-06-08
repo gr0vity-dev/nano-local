@@ -61,18 +61,18 @@ nanovotevisu_enable = false
 
 [testcases]
     [testcases.basic.NetworkChecks]   #Run all NetworkChecks except test_equal_block_count
-        skip_all = true
-        test_rpc_online = true
-        test_peer_count = true
-        test_equal_block_count = true
-        test_equal_online_stake_total = true
-        test_equal_confirmation_quorum = true
-        test_equal_peers_stake_total = true
-        test_equal_representatives_online = true
+        #skip_all = true
+        #test_rpc_online = true
+        #test_peer_count = true
+        #test_equal_block_count = true
+        #test_equal_online_stake_total = true
+        #test_equal_confirmation_quorum = true
+        #test_equal_peers_stake_total = true
+        #test_equal_representatives_online = true
 
 
     [testcases.basic.BlockPropagation]
-        #skip_all = true
+        skip_all = true
         test_1_params_integrity = true
         test_account_splitting_1022_step1 = false
         test_account_splitting_1022_step2 = false

@@ -40,11 +40,11 @@ class PreGenLedger():
         
         self.pre_gen_bucket_seed_prefix = "FACE" # {prefix}000.000{bucket_id} (example bucket_17_seed : FACE000000000000000000000000000000000000000000000000000000000017)
         self.pre_gen_account_min_end_balance = 100 * 10**30
-        self.pre_gen_max_bucket = 105 #used to prefill buckets from 0 to 105 (at 105 you'll need at least pre_gen_account_min_end_balance=2**106 (~81.113) )
+        self.pre_gen_max_bucket = 6 #used to prefill buckets from 0 to 105 (at 105 you'll need at least pre_gen_account_min_end_balance=2**106 (~81.113) )
         self.pre_gen_start_index = 0 #skip # seeds and pre_generation at index # (should be 0 except for testing purposes)
-        self.pre_gen_accounts = 5000 #(must be smaller than (2**(pre_gen_splitting_depth+1) -2))
-        self.pre_gen_bucket_saturation_main_index = 100
-        self.pre_gen_bucket_saturation_indexes = [1,2,3,4,5]
+        self.pre_gen_accounts = 10 #(must be smaller than (2**(pre_gen_splitting_depth+1) -2))
+        self.pre_gen_bucket_saturation_main_index = 6
+        self.pre_gen_bucket_saturation_indexes = [1,2,3]
         self.pre_gen_bucket_saturation_rounds = 10 # (pre_gen_bucket_saturation_rounds * pre_gen_accounts will be crated per index.  Example: 10*5000 * 4 = 200'000 )
         self.validate()
     
@@ -181,7 +181,7 @@ class PreGenLedger():
                 source_account_data = self.nano_rpc[1].generate_account(source_seed, source_index) 
             #source balance must be greater than            
             tc.assertGreater(int(self.nano_rpc[1].check_balance(source_account_data["account"])["balance_raw"]), int(self.nano_tools.raw_mul(number_of_accounts, final_account_balance_raw)))
-            representative = self.nano_rpc[self.conf.get_nodes_name()[0]].account_info(source_account_data["account"]) #keep the same representative for all opened accounts   
+            representative = self.nano_rpc[1].account_info(source_account_data["account"]) #keep the same representative for all opened accounts   
         else :
             source_account_data = self.nano_rpc[1].generate_account(source_seed, 0)       
 
@@ -240,8 +240,9 @@ class PreGenLedger():
 
     def write_ledger_to_disk(self, ledger_destinations):
         self.assert_all_blocks_cemented()
-        ledger_source = self.conf.get_nodes_name[0]
+        ledger_source = f"./nano_nodes/{self.conf.get_nodes_name()[0]}/NanoTest/data.ldb"
         command = f"cp -p {ledger_source} {ledger_destinations}"
+        print(f"cp -p {ledger_source} {ledger_destinations}")
         system(command)
 
     def read_blocks_from_disk(self, path , seeds = False, hashes = False, blocks = False ) :
@@ -329,11 +330,8 @@ class PreGenLedger():
     def blocks_confirmed_bucket_rounds(self):
         block_hashes = self.read_blocks_from_disk(self.pre_gen_file_names.bucket_rounds.json_file, hashes = True)
         self.assert_blocks_confirmed(block_hashes)
-    
-    
 
-
-#TESTCASE    
+ #TESTCASE    
 
     def online_bucket_main(self, queue, spam_running):
         #create online change blocks for 1 bucket and measure confirmation_times
@@ -454,38 +452,40 @@ class PreGenLedger():
                 "round1_s" : first_round_duration,
                 "test_s" : test_duration }    
        
-        return res
-       
-
-def main():
-    pre_gen = PreGenLedger()
-
-    pre_gen.pre_gen_account_split() #,source_seed=pre_gen.get_prefixed_suffixed_seed("ACDC", "27"))
-    pre_gen.publish_account_split()    
-    pre_gen.blocks_confirmed_account_split()
-    pre_gen.write_ledger_to_disk(pre_gen.pre_gen_file_names.account_split.ledger_file)
-
-    pre_gen.pre_gen_bucket_funding()
-    pre_gen.publish_bucket_funding()
-    pre_gen.blocks_confirmed_bucket_funding()
-    pre_gen.write_ledger_to_disk(pre_gen.pre_gen_file_names.bucket_funding.ledger_file)
-
-    pre_gen.pre_gen_bucket_rounds()
-    pre_gen.publish_bucket_rounds()
-    pre_gen.blocks_confirmed_bucket_rounds()
-    pre_gen.write_ledger_to_disk(pre_gen.pre_gen_file_names.bucket_rounds.ledger_file)
-
-
+        return res   
+    
 def to_fwf(path, df):
     content = tabulate(df.values.tolist(), list(df.columns), tablefmt="plain", floatfmt=".2f")
-    open(path, "w").write(content)
+    open(path, "w").write(content)     
 
-if __name__ == "__main__":    
+def main():
+    pre_gen = PreGenLedger("3_nodes_10_accounts")
+
+    #pre_gen.pre_gen_account_split() #,source_seed=pre_gen.get_prefixed_suffixed_seed("ACDC", "27"))
+    #pre_gen.publish_account_split()    
+    #pre_gen.blocks_confirmed_account_split()
+    #pre_gen.write_ledger_to_disk(pre_gen.pre_gen_file_names.account_split.ledger_file)
+
+    #pre_gen.pre_gen_bucket_funding()
+    #pre_gen.publish_bucket_funding()
+    #pre_gen.blocks_confirmed_bucket_funding()
+    #pre_gen.write_ledger_to_disk(pre_gen.pre_gen_file_names.bucket_funding.ledger_file)
+
+    #pre_gen.pre_gen_bucket_rounds()
+    # pre_gen.publish_bucket_rounds()
+    # pre_gen.blocks_confirmed_bucket_rounds()
+    # pre_gen.write_ledger_to_disk(pre_gen.pre_gen_file_names.bucket_rounds.ledger_file)
+
+
+
+
+if __name__ == "__main__":     
+    #main()
     res = []
-    pre_gen = PreGenLedger("3_nodes_equal_weight__genesis_0_weight")  
+    pre_gen = PreGenLedger("3_nodes_10_accounts")  
     for i in range (0,11) :
         try:            
-            res.append(pre_gen.test_9_publish_bucket_saturation(debug=False))             
+            res.append(pre_gen.test_9_publish_bucket_saturation(debug=True))             
             print(pd.DataFrame(res))  
         except Exception as e:
             traceback.print_exc()
