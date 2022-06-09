@@ -225,7 +225,7 @@ class BlockPropagation(unittest.TestCase):
         return res
     
     @unittest.skipIf(is_not_in_config(__module__, __qualname__,
-       "test_10_publish_bucket_saturation"), "according to nano_local_config.toml")
+       "test_10_loop_t9_10x"), "according to nano_local_config.toml")
     def test_10_loop_t9_10x(self): 
         import pandas as pd
         import traceback
