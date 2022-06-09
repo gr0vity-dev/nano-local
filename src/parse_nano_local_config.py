@@ -14,6 +14,7 @@ import string
 from pyblake2 import blake2b
 from math import ceil
 
+
 _app_dir = os.path.dirname(__file__).replace("/src", "") #<-- absolute dir the script is in
 _config_dir = os.path.join(_app_dir, "./config")
 _config_path = os.path.join(_app_dir, "./nano_local_config.toml") 
@@ -123,17 +124,10 @@ class Helpers:
         else:
             return sorted(data)[int(ceil(p)) - 1]
     
-class DotDict(dict):     
-    """dot.notation access to dictionary attributes"""
-    def __getattr__(*args):
-        val = dict.get(*args)
-        return DotDict(val) if type(val) is dict else val
-    __setattr__ = dict.__setitem__ 
-    __delattr__ = dict.__delitem__ 
-
 class ConfigParser :
 
     preconfigured_peers = []
+    nt = NanoTools()
 
     def __init__(self, genesis_node_name = "nl_genesis"):   
         self.h = Helpers()
@@ -145,12 +139,14 @@ class ConfigParser :
         self.__config_dict_add_genesis_to_nodes(genesis_node_name)
         self.__set_preconfigured_peers()    
         self.__set_node_accounts()
+        self.__set_balance_from_vote_weight()  
         self.__set_special_account_data()
-        self.__set_docker_compose(genesis_node_name) #also sets rpc_url in config_dict.representative.nodes.node_name.rpc_url     
+        self.__set_docker_compose(genesis_node_name) #also sets rpc_url in config_dict.representative.nodes.node_name.rpc_url   
+        
         
 
     def __set_node_accounts(self):   
-       
+        available_supply = 340282366920938463463374607431768211455 - int(self.config_dict.get("burn_amount", 0)) - 1        
         for node in self.config_dict["representatives"]["nodes"]:          
 
             if "key" in node :
@@ -159,7 +155,10 @@ class ConfigParser :
                 account_data = self.account_from_seed(node["seed"]) #index 0           
             
             node["account"] = account_data["account"]
-            node["account_data"] = account_data
+            node["account_data"] = account_data 
+            if "vote_weight_percent" in node:
+                node["balance"] = self.nt.raw_mul(available_supply, node["vote_weight_percent"]) 
+       
     
     def __set_special_account_data(self):
         self.config_dict["burn_account_data"] = {"account" : "nano_1111111111111111111111111111111111111111111111111111hifc8npp"}
@@ -209,7 +208,14 @@ class ConfigParser :
         for node in self.config_dict["representatives"]["nodes"]:            
             if node["name"] not in self.preconfigured_peers :
                 self.preconfigured_peers.append(node["name"])    
-        return self.preconfigured_peers      
+        return self.preconfigured_peers
+    
+    
+    def __set_balance_from_vote_weight(self):
+        available_supply = 340282366920938463463374607431768211455 - int(self.config_dict.get("burn_amount", 0)) - 1
+        for node_conf in self.get_nodes_config():
+            if "vote_weight" in node_conf :
+                node_conf["balance"] = self.nt.raw_mul(available_supply * node_conf["vote_weight"])
 
     def account_from_seed(self, seed):  
         seed_u =  unhexlify(seed)
@@ -223,6 +229,15 @@ class ConfigParser :
         expanded_key = self.key_expand(hexlify(private_key))
         expanded_key["seed"] = seed
         return expanded_key
+
+    def get_rpc_endpoints(self):
+        api = [] 
+        conf = ConfigParser()
+        for node_name in conf.get_nodes_name() :
+            node_conf = conf.get_node_config(node_name)
+            api.append(node_conf["rpc_url"])
+        return api  
+ 
 
     def key_expand(self,private_key): 
 
@@ -252,12 +267,17 @@ class ConfigParser :
         return self.config_dict["genesis_account_data"] 
     
     def get_burn_account_data(self):
-        return self.config_dict["burn_account_data"] 
-        
+        return self.config_dict["burn_account_data"]         
     
     def get_canary_account_data(self):
         return self.config_dict["canary_account_data"] 
-    
+
+    def get_max_balance_key(self):
+        #returns the privatekey for the node with the highest defined balance.  
+        nodes_conf = self.get_nodes_config()
+        max_balance = max(int(x["balance"]) if "balance" in x else 0 for x in self.get_nodes_config())
+        node_conf = list(filter(lambda x: int(x.get("balance", 0)) == max_balance, self.get_nodes_config())) 
+        return node_conf[0]["account_data"]["private"]    
 
     def get_nodes_name(self) :
         response = []
@@ -269,7 +289,7 @@ class ConfigParser :
         res = []
         for node_name in self.get_nodes_name():
             #res[node_name] = self.get_node_config(node_name)
-            res.append(DotDict(self.get_node_config(node_name)))
+            res.append(self.get_node_config(node_name))
         return res
     
     def set_node_balance(self,node_name, balance) :
