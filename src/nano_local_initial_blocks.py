@@ -1,4 +1,4 @@
-from src.nano_rpc import Api, NanoTools
+from src.nano_rpc import NanoRpc, NanoTools
 from src.parse_nano_local_config import ConfigParser
 import logging
 import time
@@ -8,7 +8,7 @@ import time
 class InitialBlocks :
 
     def __init__(self, rpc_url="http://localhost:45000"):
-        self.api = Api(rpc_url)
+        self.api = NanoRpc(rpc_url)
         self.nano_tools = NanoTools()
         self.config = ConfigParser()        
 
@@ -95,7 +95,7 @@ class InitialBlocks :
             if genesis_remaing < node_conf["balance"]:
                 logging.warning(f'Genesis remaining balance is too small! Send {genesis_remaing} instead of {node_conf["balance"]}.')
 
-            self.config.set_node_balance(node_conf.name, min(node_conf["balance"], genesis_remaing))
+            self.config.set_node_balance(node_conf["name"], min(node_conf["balance"], genesis_remaing))
             genesis_remaing = max(0, genesis_remaing - node_conf["balance"])             
 
     def __send_vote_weigh(self):
@@ -109,9 +109,9 @@ class InitialBlocks :
 
             send_block = self.api.create_send_block_pkey(self.config.get_genesis_account_data()["private"],
                                                             node_account_data["account"],
-                                                            node_conf["balance"])            
+                                                            node_conf["balance"])           
             
-            print(send_block)
+            
             logging.info("SENT {:>40} FROM {} To {} : HASH {}".format(send_block["amount_raw"],
                                                                     self.config.get_genesis_account_data()["account"],
                                                                     node_account_data["account"],
@@ -123,13 +123,12 @@ class InitialBlocks :
                                 node_account_data["account"],
                                 send_block["hash"]
                                 )
-
-            print(open_block)
+           
             logging.info("OPENED PR ACCOUNT {} : HASH {}".format(node_account_data["account"],open_block["hash"] ))
 
 
     def create_node_wallet(self, rpc_url, node_name, private_key = None, seed = None):
-        api = Api(rpc_url)
+        api = NanoRpc(rpc_url)
 
         if private_key != None:
             wallet = api.wallet_create(None)["wallet"]

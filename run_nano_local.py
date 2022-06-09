@@ -6,7 +6,7 @@ import os
 from src.parse_nano_local_config import ConfigParser
 from src.parse_nano_local_config import ConfigReadWrite
 from src.nano_local_initial_blocks import InitialBlocks
-from src.nano_rpc import Api
+from src.nano_rpc import NanoRpc
 import argparse
 import copy
 import subprocess
@@ -145,7 +145,7 @@ def is_rpc_available(node_names):
         for container in containers:
             cmd_rpc_url = f"docker port {container} | grep 17076/tcp | awk '{{print $3}}'"
             rpc_url = "http://" + str(os.popen(cmd_rpc_url).readlines()[0:1][0]).strip()
-            if Api(rpc_url).is_online(timeout=3) :               
+            if NanoRpc(rpc_url).is_online(timeout=3) :               
                 node_names.remove(container)
             else :
                 logging.warning(f"RPC {rpc_url} not yet reachable for node {container} ")   

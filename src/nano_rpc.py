@@ -8,11 +8,10 @@ import logging
 import asyncio
 import aiohttp
 
-from src.parse_nano_local_config import DotDict
 
 _account_info = {}
 
-class Api:
+class NanoRpc:
 
     # api_config = None
     # debug = False
@@ -90,9 +89,9 @@ class Api:
         return secrets.token_hex(32)
 
     def generate_new_seed(self):
-        return DotDict({'success': True,
+        return {'success': True,
                 'seed': self.generate_seed(),
-                'error_message': ''})
+                'error_message': ''}
 
     def validate_seed(self, seed):
         result = {
@@ -110,7 +109,7 @@ class Api:
         else:
             result['error_message'] = 'Wrong seed length'
 
-        return DotDict(result)
+        return result
 
     def get_active_difficulty(self):
         req_active_difficulty = {"action" : "active_difficulty"}
@@ -125,7 +124,7 @@ class Api:
         payload["success"] = True
         payload["error_message"] = ''
 
-        return DotDict(payload)
+        return payload
     
     def publish_blocks(self, blocks, json_data=True, sync=True):        
         publish_commands = [{"action": "process","json_block": "true", "subtype" : block["subtype"] ,"block": (block if json_data else json.loads(block.replace("'", '"')))  } for block in blocks]
@@ -151,7 +150,7 @@ class Api:
                     "block": json_block,
                 }
         if payload is not None:
-            return DotDict(self.post_with_auth(json.loads(str(payload).replace("'", '"')), timeout=timeout))
+            return self.post_with_auth(json.loads(str(payload).replace("'", '"')), timeout=timeout)
 
         if payload_array is not None : 
             res = []
@@ -197,7 +196,7 @@ class Api:
             "json_block": "true", 
             "block": json_block
             }
-        return DotDict(self.post_with_auth(req))
+        return self.post_with_auth(req)
 
     def block_info(self, block_hash) :
         req = {
@@ -205,7 +204,7 @@ class Api:
             "json_block": "true",
             "hash": block_hash
             }
-        return DotDict(self.post_with_auth(req))
+        return self.post_with_auth(req)
 
     def block_confirmed(self, json_block = None , block_hash = None) :
         if json_block is not None :
@@ -224,7 +223,7 @@ class Api:
         payload["success"] = True
         payload["error_message"] = ''
 
-        return DotDict(payload)
+        return payload
 
     def block_count(self, max_retry = 2):
         req_active_difficulty = {"action" : "block_count"}
@@ -511,11 +510,21 @@ class Api:
             block = {"success" : False,  "block" : {}, "hash" : None, "subtype" : sub_type, "error" : str(e)}
         return block
 
-    
-    def get_block_result(self, block, published, source_seed=None, source_index = None) :    
+    def get_published_state(self, block, broadcast):
+        published = False
+        if broadcast :
+            publish = self.publish_block(block["block"], subtype=block["subtype"])
+            if "hash" in publish: published = True 
+
+
+    def get_block_result(self, block, broadcast, source_seed=None, source_index = None) :    
         if not block["success"] : logging.warn(block["error"])  
+        if broadcast :
+            publish = self.publish_block(block["block"], subtype=block["subtype"])
+            broadcast = True if "hash" in publish else False       
+
         result = {"success" : block["success"],
-                    "published" : published,
+                    "published" : broadcast,
                     "balance_raw": block["block"]["balance"] if "balance" in block["block"] else "",
                     "amount_raw" : block["amount_raw"] if "amount_raw" in block else "0" ,
                     "hash": block["hash"],
@@ -527,7 +536,8 @@ class Api:
                                      "source_index" : source_index},
                     "error" : block["error"]
                     } 
-        return result          
+        return result  
+            
         
     def create_open_block(
         self,
@@ -545,12 +555,9 @@ class Api:
                                    amount_raw=amount_per_chunk_raw,
                                    link=send_block_hash,
                                    in_memory = not broadcast)
-        published = False
-        if broadcast :
-            publish = self.publish_block(block["block"], subtype=block["subtype"])
-            if "hash" in publish: published = True 
         
-        return self.get_block_result(block, published)
+        
+        return self.get_block_result(block, broadcast)
         
 
     def create_send_block(
@@ -566,13 +573,8 @@ class Api:
                                    source_index=source_index, 
                                    destination_account=destination_account,
                                    amount_raw=amount_per_chunk_raw,
-                                   in_memory = not broadcast)
-        published = False
-        if broadcast :
-            publish = self.publish_block(block["block"], subtype=block["subtype"])
-            if "hash" in publish: published = True 
-        
-        return self.get_block_result(block, published, source_seed=source_seed, source_index=source_index)
+                                   in_memory = not broadcast)  
+        return self.get_block_result(block, broadcast, source_seed=source_seed, source_index=source_index)
                  
 
     def create_change_block(
@@ -581,39 +583,41 @@ class Api:
         source_index,
         new_rep,
         broadcast = True
-
     ):
         block = self.create_block("change", 
                                    source_seed=source_seed, 
                                    source_index=source_index, 
                                    link = "0"*64, 
                                    representative=new_rep, in_memory = not broadcast)
-        published = False
-        if broadcast :
-            publish = self.publish_block(block["block"], subtype=block["subtype"])
-            if "hash" in publish: published = True 
-        
-        return self.get_block_result(block, published, source_seed=source_seed, source_index=source_index)
+        return self.get_block_result(block, broadcast, source_seed=source_seed, source_index=source_index)
+    
+    def create_change_block_pkey(
+        self,
+        source_private_key,
+        new_rep,
+        broadcast = True
+    ):
+        block = self.create_block("change", 
+                                   source_private_key=source_private_key, 
+                                   link = "0"*64, 
+                                   representative=new_rep, in_memory = not broadcast)  
+        return self.get_block_result(block, broadcast)    
+
  
     def create_send_block_pkey(
-            self,
-            private_key,
-            destination_account,
-            amount_per_chunk_raw,
-            broadcast = True
-        ):
+        self,
+        private_key,
+        destination_account,
+        amount_per_chunk_raw,
+        broadcast = True
+    ):
 
-            block = self.create_block("send",
-                                      source_private_key=private_key, 
-                                      destination_account=destination_account, 
-                                      amount_raw= amount_per_chunk_raw,
-                                      in_memory= not broadcast)
-            published = False
-            if broadcast :
-                publish = self.publish_block(block["block"], subtype=block["subtype"])
-                if "hash" in publish: published = True 
-            
-            return self.get_block_result(block, published)
+        block = self.create_block("send",
+                                    source_private_key=private_key, 
+                                    destination_account=destination_account, 
+                                    amount_raw= amount_per_chunk_raw,
+                                    in_memory= not broadcast)    
+        return self.get_block_result(block, broadcast)
 
 
     def create_epoch_block(
