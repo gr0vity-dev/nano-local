@@ -30,7 +30,7 @@ class ReplayLedgers(unittest.TestCase):
         first_round_blocks = blocks["b"][0][:10]
         first_round_block_hashes = blocks["h"][0][:10]
         self.ba.assert_blocks_published(first_round_blocks)
-        self.ba.assert_blocks_confirmed(first_round_block_hashes, log_to_console=True)
+        self.ba.assert_blocks_confirmed(first_round_block_hashes, sleep_on_stall_s=0.5, log_to_console=True)
 
 
     @unittest.skipIf(is_not_in_config(__module__, __qualname__,
