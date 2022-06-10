@@ -1,8 +1,6 @@
 from src.nano_rpc import NanoRpc, NanoTools
 from src.parse_nano_local_config import ConfigParser
 import logging
-import time
-
 
 
 class InitialBlocks :
@@ -10,7 +8,7 @@ class InitialBlocks :
     def __init__(self, rpc_url="http://localhost:45000"):
         self.api = NanoRpc(rpc_url)
         self.nano_tools = NanoTools()
-        self.config = ConfigParser()        
+        self.config = ConfigParser()
 
 
     def __epoch_link(self, epoch: int):
@@ -81,12 +79,12 @@ class InitialBlocks :
         genesis_balance = int(self.api.check_balance(self.config.get_genesis_account_data()["account"], include_only_confirmed = False)["balance_raw"])
         genesis_remaing = genesis_balance
         for node_conf in self.config.get_nodes_config():
-            
+
             if "vote_weight_percent" not in node_conf and  "balance" not in node_conf : continue #skip genesis that was added as node
             if "vote_weight_percent" in node_conf :
                 node_conf["balance"] = self.nano_tools.raw_percent(genesis_balance, node_conf["vote_weight_percent"])
             node_conf["balance"] = int(node_conf["balance"])
-            
+
 
             if genesis_remaing <= 0 :
                 logging.warning(f'No Genesis funds remaining! Account [{node_conf["account_data"]["account"]}] will not be opened!')
@@ -96,22 +94,22 @@ class InitialBlocks :
                 logging.warning(f'Genesis remaining balance is too small! Send {genesis_remaing} instead of {node_conf["balance"]}.')
 
             self.config.set_node_balance(node_conf["name"], min(node_conf["balance"], genesis_remaing))
-            genesis_remaing = max(0, genesis_remaing - node_conf["balance"])             
+            genesis_remaing = max(0, genesis_remaing - node_conf["balance"])
 
     def __send_vote_weigh(self):
 
-        for node_conf in self.config.get_nodes_config():          
-            
-            if "balance" not in node_conf : 
-               
+        for node_conf in self.config.get_nodes_config():
+
+            if "balance" not in node_conf :
+
                 continue #skip genesis that was added as node
             node_account_data = node_conf["account_data"]
 
             send_block = self.api.create_send_block_pkey(self.config.get_genesis_account_data()["private"],
                                                             node_account_data["account"],
-                                                            node_conf["balance"])           
-            
-            
+                                                            node_conf["balance"])
+
+
             logging.info("SENT {:>40} FROM {} To {} : HASH {}".format(send_block["amount_raw"],
                                                                     self.config.get_genesis_account_data()["account"],
                                                                     node_account_data["account"],
@@ -123,7 +121,7 @@ class InitialBlocks :
                                 node_account_data["account"],
                                 send_block["hash"]
                                 )
-           
+
             logging.info("OPENED PR ACCOUNT {} : HASH {}".format(node_account_data["account"],open_block["hash"] ))
 
 

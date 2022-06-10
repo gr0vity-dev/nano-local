@@ -5,3 +5,4 @@ docker-compose.yml
 venv_nano_local/
 nano_nodes/
 reps/
+pregen_ledgers/_*

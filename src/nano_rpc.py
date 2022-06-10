@@ -15,7 +15,7 @@ class NanoRpc:
 
     # api_config = None
     # debug = False
- 
+
     def __init__(self, url):
         self.debug = True
         self.RPC_URL = url
@@ -28,37 +28,37 @@ class NanoRpc:
         if self.aio_conn is None :
             self.aio_conn = aiohttp.TCPConnector(limit_per_host=500, limit=0, verify_ssl=False)
 
-    async def aio_post(self,data, sync = True, json_data = False, include_request = False, aio_results = [], ignore_errors = []):       
+    async def aio_post(self,data, sync = True, json_data = False, include_request = False, aio_results = [], ignore_errors = []):
         parallel_requests = 1 if sync else 5
         semaphore = asyncio.Semaphore(parallel_requests)
-        session = aiohttp.ClientSession(connector=self.aio_conn)  
-        async def do_req(el, aio_errors): 
-            async with semaphore:          
-                async with session.post(url=self.RPC_URL, json=el if json_data else json.loads(el), ssl=False) as response:  
-                    obj = json.loads(await response.read())                    
+        session = aiohttp.ClientSession(connector=self.aio_conn)
+        async def do_req(el, aio_errors):
+            async with semaphore:
+                async with session.post(url=self.RPC_URL, json=el if json_data else json.loads(el), ssl=False) as response:
+                    obj = json.loads(await response.read())
                     if include_request : obj["request"] = el if json_data else json.loads(el)
                     if obj is None :
                         print("Request failed", el)
-                    if "error" in obj : 
-                        if not obj["error"] in ignore_errors :                       
+                    if "error" in obj :
+                        if not obj["error"] in ignore_errors :
                             aio_errors["error_count"] = aio_errors["error_count"] + 1
                             aio_errors["last_error"] = obj["error"]
                             aio_errors["last_request"] = el
-                    aio_results.append(obj)                    
+                    aio_results.append(obj)
                     #print(f"aio_post_count : {len(aio_results)}", end="\r")
 
         aio_errors = {"error_count" : 0 , "last_request" : "" , "last_error" : ""}
         await asyncio.gather(*(do_req(el, aio_errors) for el in data))
         if aio_errors["error_count"] > 0 : print(json.dumps(aio_errors, indent=4))
         await session.close()
- 
+
     def post_with_auth(self, content, max_retry=2, timeout = 3, silent = True):
         try :
-            url = self.RPC_URL 
-            headers = {"Content-type": "application/json", "Accept": "text/plain"}            
-            r = requests.post(url, json=content, headers=headers, timeout=timeout)            
+            url = self.RPC_URL
+            headers = {"Content-type": "application/json", "Accept": "text/plain"}
+            r = requests.post(url, json=content, headers=headers, timeout=timeout)
             r_json = json.loads(r.text)
-            
+
             # print("request: {} \rrepsonse: {}".format(content["action"], r.text ))
             if "error" in r_json:
                 msg = "error in post_with_auth |\n request: \n{}\nresponse:\n{}".format(content, r.text)
@@ -71,13 +71,13 @@ class NanoRpc:
         except Exception as e:
             if self.debug : logging.debug(f'Error str{e} ... {max_retry} Retrys left for post_with_auth : {content["action"]}')
             max_retry = max_retry - 1
-            if max_retry >= 0 : 
+            if max_retry >= 0 :
                 time.sleep(0.5)  #100ms
                 self.post_with_auth(content,max_retry,timeout=timeout)
 
     def is_online(self, timeout = 1):
         while timeout > 0 :
-            try : 
+            try :
                 logging.debug("block_count: " + self.block_count(max_retry=0)["count"])
                 return True
             except :
@@ -114,7 +114,7 @@ class NanoRpc:
     def get_active_difficulty(self):
         req_active_difficulty = {"action" : "active_difficulty"}
         return self.post_with_auth(req_active_difficulty)
-    
+
     # def get_block_count(self):
     #     req_active_difficulty = {"action" : "block_count"}
     #     return self.post_with_auth(req_active_difficulty)
@@ -125,13 +125,13 @@ class NanoRpc:
         payload["error_message"] = ''
 
         return payload
-    
-    def publish_blocks(self, blocks, json_data=True, sync=True):        
+
+    def publish_blocks(self, blocks, json_data=True, sync=True):
         publish_commands = [{"action": "process","json_block": "true", "subtype" : block["subtype"] ,"block": (block if json_data else json.loads(block.replace("'", '"')))  } for block in blocks]
         return self.__publish(payload_array = publish_commands, json_data=True, sync=sync)
-    
+
     def publish_block(self, block, subtype=None):
-        return self.__publish(json_block = block, subtype=subtype if subtype is not None else block["subtype"] if "subtype" in block else None)  
+        return self.__publish(json_block = block, subtype=subtype if subtype is not None else block["subtype"] if "subtype" in block else None)
 
     def __publish(self, payload = None , payload_array = None, json_block = None, subtype = None, timeout = 3, sync = True, json_data = False) :
         if json_block is not None:
@@ -152,7 +152,7 @@ class NanoRpc:
         if payload is not None:
             return self.post_with_auth(json.loads(str(payload).replace("'", '"')), timeout=timeout)
 
-        if payload_array is not None : 
+        if payload_array is not None :
             res = []
             #loop = asyncio.get_event_loop()
             asyncio.get_event_loop().run_until_complete(self.aio_post(payload_array, sync=sync, json_data=json_data, aio_results=res))
@@ -164,14 +164,14 @@ class NanoRpc:
         for json_block in json_blocks :
             lst.append({
                 "action": "block_hash",
-                "json_block": "true", 
+                "json_block": "true",
                 "block": json_block
                 })
         #loop = asyncio.get_event_loop()
         asyncio.get_event_loop().run_until_complete(self.aio_post(lst, sync=sync, json_data=True, aio_results=res))
         return res
 
-    def block_info_aio(self, block_hashes, sync = False, ignore_errors= []) : 
+    def block_info_aio(self, block_hashes, sync = False, ignore_errors= []) :
         lst = []
         res = []
         for block_hash in block_hashes :
@@ -193,7 +193,7 @@ class NanoRpc:
     def block_hash(self, json_block):
         req = {
             "action": "block_hash",
-            "json_block": "true", 
+            "json_block": "true",
             "block": json_block
             }
         return self.post_with_auth(req)
@@ -209,14 +209,14 @@ class NanoRpc:
     def block_confirmed(self, json_block = None , block_hash = None) :
         if json_block is not None :
             block_hash = self.block_hash(json_block)["hash"]
-        if block_hash is None : 
+        if block_hash is None :
             return False
         response = self.block_info(block_hash)
         if response is None :
             return False
-        if "error" in response : 
+        if "error" in response :
             return False
-        return True if response["confirmed"] == "true" else False 
+        return True if response["confirmed"] == "true" else False
 
     def get_account_data(self, seed, index):
         payload = self.generate_account(seed, index)
@@ -227,7 +227,8 @@ class NanoRpc:
 
     def block_count(self, max_retry = 2):
         req_active_difficulty = {"action" : "block_count"}
-        return self.post_with_auth(req_active_difficulty, max_retry = max_retry)       
+        resp = self.post_with_auth(req_active_difficulty, max_retry = max_retry)
+        return resp
 
 
     def generate_account(self, seed, index):
@@ -325,8 +326,8 @@ class NanoRpc:
             "action": "confirmation_quorum"
         }
         data = self.post_with_auth(req_confirmation_quorum)
-        return data 
-    
+        return data
+
     def account_info(self, account):
         req = {
             "action": "account_info",
@@ -337,7 +338,7 @@ class NanoRpc:
         }
         data = self.post_with_auth(req)
         return data
-    
+
     def block_create(self,balance, account, key, representative, link, previous) :
         req_block_create = {
             "action": "block_create",
@@ -360,7 +361,7 @@ class NanoRpc:
             "weight" :  str(weight).lower()
         }
         data = self.post_with_auth(req_representatives_online)
-        return data 
+        return data
 
     def check_balance(self, account, include_only_confirmed = True):
 
@@ -372,10 +373,10 @@ class NanoRpc:
         }
         data = self.post_with_auth(req_account_balance)
 
-        return {"account": account, 
-                "balance_raw" : int(data["balance"]), 
-                "balance": self.truncate(int(data["balance"]) / multiplier), 
-                "pending": self.truncate(int(data["pending"]) / multiplier), 
+        return {"account": account,
+                "balance_raw" : int(data["balance"]),
+                "balance": self.truncate(int(data["balance"]) / multiplier),
+                "pending": self.truncate(int(data["pending"]) / multiplier),
                 "total": self.truncate((int(data["balance"]) + int(data["pending"])) / multiplier)}
 
     def check_balances(self, seed):
@@ -391,7 +392,7 @@ class NanoRpc:
             return str('{:8f}'.format(number))
         else :
             return "0.00"
-    
+
     def account_key(self, account) :
         req_destination_key = {"action": "account_key",
                                "account": account}
@@ -430,45 +431,45 @@ class NanoRpc:
 
         return response
 
-  
 
-  
-    def create_block(self, 
-                     sub_type,                    
+
+
+    def create_block(self,
+                     sub_type,
                      link=None,
                      destination_account = None,
                      representative = None,
                      source_seed = None ,
-                     source_index = None, 
+                     source_index = None,
                      source_private_key = None,
                      amount_raw = None,
-                     in_memory = False                     
+                     in_memory = False
                      ) :
-        try: 
+        try:
             if source_private_key is not None :
-                source_account_data = self.key_expand(source_private_key) 
+                source_account_data = self.key_expand(source_private_key)
             elif source_seed is not None and source_index is not None :
-                source_account_data = self.generate_account(source_seed, source_index)  
-            
+                source_account_data = self.generate_account(source_seed, source_index)
+
             #print(source_private_key, source_account_data["account"], sub_type, destination_account  )
             if destination_account == "nano_3774eerz4t8hhmgz5om13nwfrht46fnpebezmrk433fyxmuzben91b1yk1xx":
                 debug = ""
-        
+
             if in_memory:
                 if source_account_data["account"] in _account_info :
                     source_account_info = _account_info[source_account_data["account"]]
-                else : 
+                else :
                     source_account_info = self.account_info(source_account_data["account"])
             else :
                 source_account_info = self.account_info(source_account_data["account"])
-        
+
             if representative is None : representative = source_account_info["representative"]
-            if "balance" in source_account_info : balance = source_account_info["balance"]        
+            if "balance" in source_account_info : balance = source_account_info["balance"]
             if "frontier" in source_account_info : previous = source_account_info["frontier"]
-        
+
 
             if sub_type == "open" or sub_type == "receive" :
-                #destination_account = source_account_data["account"]            
+                #destination_account = source_account_data["account"]
                 if "error" in source_account_info:
                     sub_type = "open"
                     previous = "0000000000000000000000000000000000000000000000000000000000000000"
@@ -479,12 +480,12 @@ class NanoRpc:
                     previous = source_account_info["frontier"]
                     balance = str(int(source_account_info["balance"]) + int(amount_raw))
                     link = link
-            
+
             elif sub_type == "send" :
                 link = self.account_key(destination_account)["key"]
                 balance = str(int(source_account_info["balance"]) - int(amount_raw))
                 previous = source_account_info["frontier"]
-            
+
             elif sub_type == "change" :
                 amount_raw = "0"
                 destination_account = source_account_data["account"]
@@ -497,11 +498,11 @@ class NanoRpc:
 
             if "error" in block :
                 block["success"] = False
-                block["block"] = {}, 
+                block["block"] = {},
                 block["hash"] = None,
             else:
-                block["success"] = True      
-                block["error"] = None    
+                block["success"] = True
+                block["error"] = None
                 if in_memory :
                     _account_info[source_account_data["account"]] = {"frontier" : block["hash"] , "balance" :  balance,  "representative" : representative}
             block["block"]["subtype"] = sub_type
@@ -514,14 +515,14 @@ class NanoRpc:
         published = False
         if broadcast :
             publish = self.publish_block(block["block"], subtype=block["subtype"])
-            if "hash" in publish: published = True 
+            if "hash" in publish: published = True
 
 
-    def get_block_result(self, block, broadcast, source_seed=None, source_index = None) :    
-        if not block["success"] : logging.warn(block["error"])  
+    def get_block_result(self, block, broadcast, source_seed=None, source_index = None) :
+        if not block["success"] : logging.warn(block["error"])
         if broadcast :
             publish = self.publish_block(block["block"], subtype=block["subtype"])
-            broadcast = True if "hash" in publish else False       
+            broadcast = True if "hash" in publish else False
 
         result = {"success" : block["success"],
                     "published" : broadcast,
@@ -530,15 +531,15 @@ class NanoRpc:
                     "hash": block["hash"],
                     "block": block["block"],
                     "subtype" : block["subtype"],
-                    "account_data" : {"account" : block["block"]["account"] if "account" in block["block"] else "" , 
+                    "account_data" : {"account" : block["block"]["account"] if "account" in block["block"] else "" ,
                                      "private" : block["private"] if "private" in block else "",
                                      "source_seed" : source_seed,
                                      "source_index" : source_index},
                     "error" : block["error"]
-                    } 
-        return result  
-            
-        
+                    }
+        return result
+
+
     def create_open_block(
         self,
         destination_account,
@@ -548,17 +549,17 @@ class NanoRpc:
         send_block_hash,
         broadcast = True
     ):
-        block = self.create_block("receive", 
-                                   source_private_key=open_private_key, 
+        block = self.create_block("receive",
+                                   source_private_key=open_private_key,
                                    destination_account=destination_account,
-                                   representative=rep_account, 
+                                   representative=rep_account,
                                    amount_raw=amount_per_chunk_raw,
                                    link=send_block_hash,
                                    in_memory = not broadcast)
-        
-        
+
+
         return self.get_block_result(block, broadcast)
-        
+
 
     def create_send_block(
         self,
@@ -568,14 +569,14 @@ class NanoRpc:
         amount_per_chunk_raw,
         broadcast = True
     ):
-        block = self.create_block("send", 
-                                   source_seed=source_seed, 
-                                   source_index=source_index, 
+        block = self.create_block("send",
+                                   source_seed=source_seed,
+                                   source_index=source_index,
                                    destination_account=destination_account,
                                    amount_raw=amount_per_chunk_raw,
-                                   in_memory = not broadcast)  
+                                   in_memory = not broadcast)
         return self.get_block_result(block, broadcast, source_seed=source_seed, source_index=source_index)
-                 
+
 
     def create_change_block(
         self,
@@ -584,26 +585,26 @@ class NanoRpc:
         new_rep,
         broadcast = True
     ):
-        block = self.create_block("change", 
-                                   source_seed=source_seed, 
-                                   source_index=source_index, 
-                                   link = "0"*64, 
+        block = self.create_block("change",
+                                   source_seed=source_seed,
+                                   source_index=source_index,
+                                   link = "0"*64,
                                    representative=new_rep, in_memory = not broadcast)
         return self.get_block_result(block, broadcast, source_seed=source_seed, source_index=source_index)
-    
+
     def create_change_block_pkey(
         self,
         source_private_key,
         new_rep,
         broadcast = True
     ):
-        block = self.create_block("change", 
-                                   source_private_key=source_private_key, 
-                                   link = "0"*64, 
-                                   representative=new_rep, in_memory = not broadcast)  
-        return self.get_block_result(block, broadcast)    
+        block = self.create_block("change",
+                                   source_private_key=source_private_key,
+                                   link = "0"*64,
+                                   representative=new_rep, in_memory = not broadcast)
+        return self.get_block_result(block, broadcast)
 
- 
+
     def create_send_block_pkey(
         self,
         private_key,
@@ -613,10 +614,10 @@ class NanoRpc:
     ):
 
         block = self.create_block("send",
-                                    source_private_key=private_key, 
-                                    destination_account=destination_account, 
+                                    source_private_key=private_key,
+                                    destination_account=destination_account,
                                     amount_raw= amount_per_chunk_raw,
-                                    in_memory= not broadcast)    
+                                    in_memory= not broadcast)
         return self.get_block_result(block, broadcast)
 
 
@@ -626,15 +627,15 @@ class NanoRpc:
         genesis_private_key,
         genesis_account,
         broadcast = True
-    ):       
+    ):
 
-        account_info = self.account_info(genesis_account)   
+        account_info = self.account_info(genesis_account)
         epoch_block = self.block_create(account_info["balance"],genesis_account, genesis_private_key, account_info["representative"],epoch_link,account_info["frontier"] )
         logging.debug(epoch_block["hash"])
-       
+
         if broadcast:
-            publish = self.publish_block(epoch_block["block"], subtype="epoch")           
-            
+            publish = self.publish_block(epoch_block["block"], subtype="epoch")
+
         return {"success" : True,
                 "account" : genesis_account,
                 "hash": epoch_block["hash"]
@@ -649,25 +650,25 @@ class NanoTools:
 
     def raw_percent(self, raw, percent) :
         return self.mpz(self.mpz(str(raw)) * self.mpfr(str(percent)) / self.mpz('100'))
-    
+
     def raw_mul(self, val1, val2) :
-        mul = str(self.mpz(self.mpz(str(val1)) * self.mpfr(str(val2))))        
+        mul = str(self.mpz(self.mpz(str(val1)) * self.mpfr(str(val2))))
         return mul
 
     def raw_add(self, val1, val2) :
         #val1 + val2
-        return str(self.mpz(self.mpz(str(val1)) + self.mpz(str(val2)))) 
+        return str(self.mpz(self.mpz(str(val1)) + self.mpz(str(val2))))
 
-    def raw_sub(self, val1, val2) : 
+    def raw_sub(self, val1, val2) :
         #val1 - val2
         return str(self.mpz(self.mpz(str(val1)) - self.mpz(str(val2))))
 
     #For reference
     def where(self, array, value) :
-        return list(filter(lambda x: value in x, array)) 
+        return list(filter(lambda x: value in x, array))
 
     def where_not(self, array, value) :
-        return list(filter(lambda x: value not in x, array)) 
+        return list(filter(lambda x: value not in x, array))
 
     def skip_take(self, list, skip_n, take_n):
         return list(self.islice(list, skip_n, take_n)) #skip(skip_n).take(take_n)
