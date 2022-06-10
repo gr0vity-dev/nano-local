@@ -240,6 +240,22 @@ def destroy_all():
     for command in commands:
         system(command)
 
+def run_pytest(output, args):
+    modules = ConfigParser().get_testcases()["test_modules"]
+    for module in modules :
+        module_path = f'{dirname(__file__)}/testcases/{module}.py'
+        output = ""
+        if(output)  == "html" : output = f"--html=./testcases/reports/report_latest_{module}.html --self-contained-html"
+        elif(output)  == "xml" : output = f"--junitxml=./testcases/reports/report_latest_{module}.xml"
+        print(f"venv_nano_local/bin/pytest {args} {module_path} {output}")
+        subprocess.run([f"venv_nano_local/bin/pytest {args} {module_path} {output}"], shell=True)
+
+def run_test():
+    modules = ConfigParser().get_testcases()["test_modules"]
+    for module in modules :
+        subprocess.run([f"venv_nano_local/bin/python -m unittest -v testcases.{module}"], shell=True)
+
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -286,8 +302,7 @@ def main():
         start_all(True)
         init_nodes()
         restart_nodes()
-
-    if args.command == 'create':
+    elif args.command == 'create':
         create_nodes(args.compose_version)
         logging.info("./nano_nodes folder was created")
 
@@ -314,23 +329,12 @@ def main():
         destroy_all()
 
     elif args.command == 'pytest' :
-        modules = ConfigParser().get_testcases()["test_modules"]
-        for module in modules :
-            module_path = f'{dirname(__file__)}/testcases/{module}.py'
-            output = ""
-            if(args.output)  == "html" : output = f"--html=./testcases/reports/report_latest_{module}.html --self-contained-html"
-            elif(args.output)  == "xml" : output = f"--junitxml=./testcases/reports/report_latest_{module}.xml"
-            print(f"venv_nano_local/bin/pytest {args.args} {module_path} {output}")
-            subprocess.run([f"venv_nano_local/bin/pytest {args.args} {module_path} {output}"], shell=True)
+       run_pytest(args.output, args.args)
 
     elif args.command == 'test' :
-        modules = ConfigParser().get_testcases()["test_modules"]
-        for module in modules :
-            subprocess.run([f"venv_nano_local/bin/python -m unittest -v testcases.{module}"], shell=True)
-
-
+        run_test()        
     else:
-        print('Unknown command %s', args.command)
+        print(f'Unknown command {args.command}')
 
 
 if __name__=="__main__":
