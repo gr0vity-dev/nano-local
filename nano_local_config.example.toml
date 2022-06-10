@@ -75,7 +75,11 @@ nanovotevisu_enable = false
     [testcases.basic.BlockPropagation]
         skip_all = true
         test_1_account_split_10 = true
-        test_1_account_split_1000 = false        
-        test_9_publish_bucket_saturation = false
-        test_10_loop_t9_10x = false
+        test_1_account_split_1000 = false
+
+
+    [testcases.advanced.ReplayLedgers]
+        test_N1_1_publish_10_change_blocks = true 
+        test_N1_2_publish_bucket_saturation = false
+        test_N1_3_loop_2_10x = false
         
