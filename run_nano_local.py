@@ -153,14 +153,14 @@ def is_rpc_available(node_names):
                 node_names.remove(container)
             else :
                 logging.warning(f"RPC {rpc_url} not yet reachable for node {container} ")
-    logging.info(f"Nodes {ConfigParser().get_nodes_name()} started successfully")
+    logging.info(f"Nodes {_conf.get_nodes_name()} started successfully")
 
 
 
 def prepare_nodes(genesis_node_name):
     #prepare genesis
     prepare_node_env(genesis_node_name)
-    for node_name in ConfigParser().get_nodes_name():
+    for node_name in _conf.get_nodes_name():
         prepare_node_env(node_name)
 
 
@@ -243,7 +243,7 @@ def destroy_all():
         system(command)
 
 def run_pytest(output, args):
-    modules = ConfigParser().get_testcases()["test_modules"]
+    modules = _conf.get_testcases()["test_modules"]
     for module in modules :
         module_path = f'{dirname(__file__)}/testcases/{module}.py'
         output = ""
@@ -253,7 +253,7 @@ def run_pytest(output, args):
         run([f"venv_nano_local/bin/pytest {args} {module_path} {output}"], shell=True)
 
 def run_test():
-    modules = ConfigParser().get_testcases()["test_modules"]
+    modules = _conf.get_testcases()["test_modules"]
     for module in modules :
         run([f"venv_nano_local/bin/python -m unittest -v testcases.{module}"], shell=True)
 
@@ -276,13 +276,13 @@ def parse_args():
     return parser.parse_args()
 
 
-#DEBUG : put def parse_args() into comment and set the command you wish to run
-def parse_args() :
-    return argClass
-class argClass :
-    command = "create"
-    compose_version = 2
-    loglevel = "INFO"
+# #DEBUG : put def parse_args() into comment and set the command you wish to run
+# def parse_args() :
+#     return argClass
+# class argClass :
+#     command = "create"
+#     compose_version = 2
+#     loglevel = "INFO"
 
 def set_log_level(loglevel) :   
     if loglevel == "DEBUG" :
