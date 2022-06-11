@@ -3,7 +3,7 @@
 import json
 import logging
 from os import popen, system
-from os.path import dirname
+from os.path import dirname, exists
 from subprocess import call, run
 from src.parse_nano_local_config import ConfigParser
 from src.parse_nano_local_config import ConfigReadWrite
@@ -127,18 +127,11 @@ def write_docker_compose_env(compose_version):
 def generate_genesis_open(genesis_key):
     #TODO find a less intrusive way to create a legacy open block.
     try :
-<<<<<<< HEAD
-        docker_run =       "docker run -d --name ln_get_genesis nanocurrency/nano-test:latest" 
-        docker_exec =     f"docker exec -it ln_get_genesis /usr/bin/nano_node --network=dev --debug_bootstrap_generate --key={genesis_key}""" #dev net to speed up things
-        docker_stop_rm = """docker stop ln_get_genesis && docker rm ln_get_genesis"""  
-        
-=======
         docker_run =       "docker run -d --name ln_get_genesis nanocurrency/nano-beta:latest 1>/dev/null"
         docker_exec =     f"docker exec -it ln_get_genesis /usr/bin/nano_node --network=dev --debug_bootstrap_generate --key={genesis_key} """ #dev net to speed up things
         docker_stop_rm = """docker stop ln_get_genesis 1>/dev/null &&
                             docker rm ln_get_genesis 1>/dev/null &"""
 
->>>>>>> feature_pre_gen
         logging.info("run temporary docker conatiner for genesis generation")
         call(docker_run, shell=True)        
         blocks = ''.join(popen(docker_exec).readlines()[102:110])
@@ -177,8 +170,6 @@ def prepare_node_env(node_name):
     write_config_node(node_name)
     write_config_rpc(node_name)
     write_nanomonitor_config(node_name)
-
-
 
 def init_nodes(genesis_node_name = "nl_genesis"):
 
@@ -313,6 +304,7 @@ def main():
    
     args = parse_args()
     set_log_level(args.loglevel)
+    
 
     if args.command == 'csi' : #c(reate) s(tart) i(nit)
         create_nodes(args.compose_version)
@@ -354,23 +346,7 @@ def main():
         logging.getLogger().success("all destroyed")
 
     elif args.command == 'pytest' :
-<<<<<<< HEAD
-        modules = ConfigParser().get_testcases()["test_modules"]
-        for module in modules :
-            module_path = f'{os.path.dirname(__file__)}/testcases/{module}.py'
-            test_output = ""
-            if(args.test_output)  == "html" : test_output = f"--html=./testcases/reports/report_latest_{module}.html --self-contained-html"
-            elif(args.test_output)  == "junitxml" : test_output = f"--junitxml=./testcases/reports/report_latest_{module}.xml"
-            subprocess.run([f"venv_nano_local/bin/pytest {args.pytest_args} {module_path} {test_output}"], shell=True)
-    
-    elif args.command == 'test' :
-        modules = ConfigParser().get_testcases()["test_modules"]
-        for module in modules :          
-            subprocess.run([f"venv_nano_local/bin/python -m unittest -v testcases.{module}"], shell=True)
-            
-=======
        run_pytest(args.output, args.args)
->>>>>>> feature_pre_gen
 
     elif args.command == 'test' :
         run_test()        
