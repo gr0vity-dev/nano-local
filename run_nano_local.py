@@ -201,6 +201,8 @@ def start_all(build_f):
         command =  f'cd {dir_nano_nodes} && docker-compose up -d --build'
     system(command)
     is_rpc_available(_conf.get_nodes_name())
+                 
+                 
 
 def start_nodes():
     dir_nano_nodes = _node_path["container"]
@@ -293,11 +295,17 @@ def set_log_level(loglevel) :
         logging.basicConfig(level=logging.WARNING )
     elif loglevel == "ERROR" :
         logging.basicConfig(level=logging.ERROR )
+    
+    # set success level
+    logging.SUCCESS = 25  # between WARNING and INFO
+    logging.addLevelName(logging.SUCCESS, 'SUCCESS')
+    setattr(logging.getLogger(), 'success', lambda message, *args: logging.getLogger()._log(logging.SUCCESS, message, args))
+   
 
 def main():
-    logging.basicConfig(level=logging.INFO )
+   
     args = parse_args()
-    #set_log_level(args.loglevel)
+    set_log_level(args.loglevel)
 
     if args.command == 'csi' : #c(reate) s(tart) i(nit)
         create_nodes(args.compose_version)
@@ -306,29 +314,37 @@ def main():
         restart_nodes()
     elif args.command == 'create':
         create_nodes(args.compose_version)
-        logging.info("./nano_nodes folder was created")
+        logging.getLogger().success("./nano_nodes directory was created")
+        
 
     elif args.command == 'start':
         start_all(args.build)
+        logging.getLogger().success("all containers started")
 
     elif args.command == 'init':
         init_nodes()
         restart_nodes()
+        logging.getLogger().success("ledger initialized")
 
     elif args.command == 'stop':
         stop_all()
+        logging.getLogger().success("all containers stopped")
 
     elif args.command == 'stop_nodes':
         stop_nodes()
+        logging.getLogger().success("nodes stopped")
 
     elif args.command == 'restart':
         restart_nodes()
+        logging.getLogger().success("nodes restarted")
 
     elif args.command == 'reset':
         reset_nodes()
+        logging.getLogger().success("data.ldb deleted")
 
     elif args.command == 'destroy':
         destroy_all()
+        logging.getLogger().success("all destroyed")
 
     elif args.command == 'pytest' :
        run_pytest(args.output, args.args)
