@@ -232,9 +232,8 @@ class ConfigParser :
 
     def get_rpc_endpoints(self):
         api = []
-        conf = ConfigParser()
-        for node_name in conf.get_nodes_name() :
-            node_conf = conf.get_node_config(node_name)
+        for node_name in self.get_nodes_name() :
+            node_conf = self.get_node_config(node_name)
             api.append(node_conf["rpc_url"])
         return api
 
