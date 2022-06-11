@@ -6,9 +6,15 @@
 
 action=$1
 
+if [ "$action" = "reinstall" ];
+then
+    pip3 install -U --force-reinstall virtualenv
+    action=""
+fi
+
 if [ "$action" = "" ]; 
 then
-    pip3 install virtualenv --quiet
+    pip3 install virtualenv
     python3 -m venv venv_nano_local
     . venv_nano_local/bin/activate
 

@@ -5,3 +5,5 @@ docker-compose.yml
 venv_nano_local/
 nano_nodes/
 reps/
+pregen_ledgers/_*
+nano_local_config.toml
