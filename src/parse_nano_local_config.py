@@ -1,5 +1,6 @@
 import logging
 import os
+import subprocess
 import tomli
 import tomli_w
 import oyaml as yaml
@@ -27,6 +28,11 @@ _nano_nodes_path = os.path.join(_app_dir,  "./nano_nodes")
 #compose output file : nano-local/nano_nodes/docker-compose.yml
 
 class ConfigReadWrite:
+    
+    def __init__(self):
+        if not os.path.exists("nano_local_config.toml") :
+            logging.warning("No config file exists. creating 'nano_local_config.toml'")         
+            subprocess.call("cp -p nano_local_config.example.toml nano_local_config.toml", shell=True)
 
     def write_json(self,path,json_dict):
          with open(path, "w") as f:
@@ -127,7 +133,7 @@ class Helpers:
 class ConfigParser :
     from src.nano_rpc import NanoTools
     preconfigured_peers = []
-    nt = NanoTools()
+    nt = NanoTools()       
 
     def __init__(self, genesis_node_name = "nl_genesis"):
         self.h = Helpers()
