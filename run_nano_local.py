@@ -3,7 +3,7 @@
 import json
 import logging
 from os import popen, system
-from os.path import dirname, exists
+from os.path import dirname
 from subprocess import call, run
 from src.parse_nano_local_config import ConfigParser
 from src.parse_nano_local_config import ConfigReadWrite

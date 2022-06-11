@@ -60,8 +60,11 @@ nanovotevisu_enable = false
 
 
 [testcases]
-    [testcases.basic.NetworkChecks]   #Run all NetworkChecks except test_equal_block_count
-        #skip_all = true
+    [testcases.basic]
+         #ignore_module = "" #optional
+
+    [testcases.basic.NetworkChecks] 
+        skip_all = false
         test_rpc_online = true
         test_peer_count = true
         test_equal_block_count = true
@@ -69,17 +72,19 @@ nanovotevisu_enable = false
         test_equal_confirmation_quorum = true
         test_equal_peers_stake_total = true
         test_equal_representatives_online = true
+        test_equal_representatives_count = true
         test_all_blocks_confirmed = true
 
 
     [testcases.basic.BlockPropagation]
-        skip_all = true
-        test_1_account_split_10 = true
+        skip_all = true #testcases will be shown as "Skipped"
+        test_1_account_split_10 = false
         test_1_account_split_1000 = false
 
+    [testcases.advanced]
+         ignore_module = "" #ignore entire module
 
-    [testcases.advanced.ReplayLedgers]
-        test_N1_1_publish_10_change_blocks = true 
+    [testcases.advanced.ReplayLedgers]           
+        test_N1_1_publish_10_change_blocks = true
         test_N1_2_publish_bucket_saturation = false
         test_N1_3_loop_2_10x = false
-        

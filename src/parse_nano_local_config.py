@@ -334,23 +334,33 @@ class ConfigParser :
 
 
     def get_testcases(self):
+        #"skip_all" will display the testcases as being "skipped"
+        #"ignore" will remove the testcases and tehy will not be displayed at all when running test or pytest
 
         run = {"test_methods" : {},
                "test_classes" : {},
                "test_modules" : {} }
-        for test_module in self.config_dict["testcases"]:
+        for test_module in self.config_dict["testcases"]:  
+            if "ignore_module" in self.config_dict["testcases"][test_module]:
+                logging.info(f"Module 'testcases.{test_module}' is ignored")
+                # dont add module even some tests are defined               
+                continue
 
             if "skip_all" in self.config_dict["testcases"][test_module] :
-                run["test_modules"][test_module] = False
-                continue
+                if self.config_dict["testcases"][test_module]["skip_all"] :
+                    logging.info(f"all tests from 'testcases.{test_module}' are skipped")
+                    run["test_modules"][test_module] = False
+                    continue
             else:
                  run["test_modules"][test_module] = True
 
-            for test_class in self.config_dict["testcases"][test_module] :
-
+            for test_class in self.config_dict["testcases"][test_module] :  
                 if "skip_all" in self.config_dict["testcases"][test_module][test_class] :
-                    run["test_classes"][f"{test_module}.{test_class}"] = False
-                    continue
+                     # list tests as skipped
+                    if self.config_dict["testcases"][test_module][test_class]["skip_all"] :
+                        logging.info(f"all tests from 'testcases.{test_module}.{test_class}' are skipped")
+                        run["test_classes"][f"{test_module}.{test_class}"] = False
+                        continue
                 else :
                     run["test_classes"][f"{test_module}.{test_class}"] = True
 

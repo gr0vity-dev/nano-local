@@ -106,6 +106,19 @@ class NetworkChecks(unittest.TestCase):
             response = NanoRpc(node_rpc).representatives_online(weight=True)
             if first_node_response is None : first_node_response = copy.deepcopy(response)
             self.assertDictEqual(response,first_node_response)
+    
+    @unittest.skipIf(is_not_in_config(__module__, __qualname__,
+        "test_equal_representatives_count"), "according to nano_local_config.toml")
+    def test_equal_representatives_count(self):
+        # Compares online representatives among all nodes
+        first_node_response = None
+        for node_name in self.config_parse.get_nodes_name() :
+            node_rpc = self.config_parse.get_node_config(node_name)["rpc_url"]
+            response = len(NanoRpc(node_rpc).representatives_online()["representatives"])
+            if first_node_response is None : first_node_response = response
+            self.assertEqual(response,first_node_response)
+
+    
 
 class BlockPropagation(unittest.TestCase):
 
