@@ -133,7 +133,8 @@ class Helpers:
 class ConfigParser :
     from src.nano_rpc import NanoTools
     preconfigured_peers = []
-    nt = NanoTools()       
+    nt = NanoTools()
+    enabled_services = []
 
     def __init__(self, genesis_node_name = "nl_genesis"):
         self.h = Helpers()
@@ -399,13 +400,14 @@ class ConfigParser :
         self.compose_dict["services"]["nl_nanovotevisu"] = nanoticker_compose["services"]["nl_nanovotevisu"]
         self.compose_dict["services"]["nl_nanovotevisu"]["build"]["args"][0] = f'REMOTE_ADDRESS={self.get_config_value("remote_address")}'
         self.compose_dict["services"]["nl_nanovotevisu"]["build"]["args"][1] = f'HOST_ACCOUNT={self.get_node_config(genesis_node_name)["account"]}'
-        logging.info(f'nano-vote-visualizer enabled at {self.get_config_value("remote_address")}:42001')
+        self.enabled_services.append(f'nano-vote-visualizer enabled at {self.get_config_value("remote_address")}:42001')
+        
 
     def set_nanoticker_compose(self):
         nanoticker_compose = self.conf_rw.read_yaml ( f'{_config_dir}/nanoticker/default_docker-compose.yml')
         self.compose_dict["services"]["nl_nanoticker"] = nanoticker_compose["services"]["nl_nanoticker"]
         self.compose_dict["services"]["nl_nanoticker"]["build"]["args"][0] = f'REMOTE_ADDRESS={self.get_config_value("remote_address")}'
-        logging.info(f'nanoticker enabled at {self.get_config_value("remote_address")}:42002')
+        self.enabled_services.append(f'nanoticker enabled at {self.get_config_value("remote_address")}:42002')
 
     def set_nanolooker_compose(self):
         nanolooker_compose = self.conf_rw.read_yaml ( f'{_config_dir}/nanolooker/default_docker-compose.yml')
@@ -414,7 +416,7 @@ class ConfigParser :
         #in webbrowser: access websocket of the remote machine instead of localhost
         self.compose_dict["services"]["nl_nanolooker"]["build"]["args"][0] = f'REMOTE_ADDRESS={self.get_config_value("remote_address")}'
         #self.compose_dict["services"]["nl_nanolooker"]["environment"][3] = f'WEBSOCKET_DOMAIN=ws://{self.get_config_value("remote_address")}:47000'
-        logging.info(f'nanolooker enabled at {self.get_config_value("remote_address")}:42000')
+        self.enabled_services.append(f'nanolooker enabled at {self.get_config_value("remote_address")}:42000')
 
     def set_nanomonitor_compose(self):
         host_port_inc = 0
@@ -427,9 +429,12 @@ class ConfigParser :
                 self.compose_dict["services"][container_name]["volumes"][0] =  self.compose_dict["services"][container_name]["volumes"][0].replace("default_monitor", node["name"])
                 self.compose_set_nanomonitor_ports(container_name, host_port_inc)
                 host_port_monitor = 46000 + host_port_inc
-                logging.info(f'nano-node-monitor enabled at {self.get_config_value("remote_address")}:{host_port_monitor}')
+                self.enabled_services.append(f'nano-node-monitor enabled at {self.get_config_value("remote_address")}:{host_port_monitor}')
                 host_port_inc = host_port_inc + 1
 
+    def print_enabled_services(self):
+        for service in self.enabled_services :
+            logging.info(service)
 
     def get_config_value(self, key) :
         if key not in self.config_dict : return None
