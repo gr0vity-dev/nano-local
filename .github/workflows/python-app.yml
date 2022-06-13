@@ -1,5 +1,7 @@
 name: Run nano-local tests
 
+runs-on: self-hosted
+
 on:
    push:
      branches: [ "work_flow_test" ]
