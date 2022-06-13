@@ -22,10 +22,14 @@ jobs:
          python-version: "3.8.10"
      - name: setup venv
        run: ./venv_nano_local.sh
-     - name: create, start, init, test
+     - name: setup nano-local network
        run: |
          ./run_nano_local.py create 
          ./run_nano_local.py start
          ./run_nano_local.py init
-         ./run_nano_local.py restart
+      - name: wait for nodes to sync
+       run: |
+         ./run_nano_local.py restart_wait_sync
+      - name: run testcases
+       run: |
          ./run_nano_local.py pytest
