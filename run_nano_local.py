@@ -132,10 +132,12 @@ def generate_genesis_open(genesis_key):
         docker_stop_rm = """docker stop ln_get_genesis 1>/dev/null &&
                             docker rm ln_get_genesis 1>/dev/null &"""
 
+
         logging.info("run temporary docker conatiner for genesis generation")
         call(docker_run, shell=True)        
+        logging.debug(popen("docker ps -a").read())
         blocks = ''.join(popen(docker_exec).readlines()[102:110])
-        logging.info("stop and remove docker container")
+        logging.info("stop and remove docker container")        
         call(docker_stop_rm, shell=True)
         return json.loads(str(blocks))
 
