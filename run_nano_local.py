@@ -4,7 +4,7 @@ import json
 import logging
 from os import system
 from os.path import dirname
-from subprocess import call, run, check_output, CalledProcessError
+from subprocess import call, run, check_output, CalledProcessError,STDOUT
 from src.parse_nano_local_config import ConfigParser
 from src.parse_nano_local_config import ConfigReadWrite
 from src.nano_local_initial_blocks import InitialBlocks
@@ -125,7 +125,8 @@ def write_docker_compose_env(compose_version):
 
 def subprocess_read_lines(command):
     try:
-        res = check_output(command, shell=True, encoding='UTF-8')
+        res = check_output(command, shell=True, stderr=STDOUT, encoding='UTF-8')
+        print(len(res))
     except CalledProcessError as e:
         raise RuntimeError(f"command '{e.cmd}' return with error (code {e.returncode}): {e.output}")  
     return res.splitlines()
