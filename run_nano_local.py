@@ -140,8 +140,7 @@ def generate_genesis_open(genesis_key):
 
 
         logging.info("run temporary docker conatiner for genesis generation")       
-        blocks = ''.join(subprocess_read_lines(docker_exec)[104:112])     
-        print(blocks)     
+        blocks = ''.join(subprocess_read_lines(docker_exec)[104:112])   
         logging.info("stop and remove docker container")        
         call(docker_stop_rm, shell=True)
         return json.loads(str(blocks))
