@@ -59,7 +59,8 @@ nanovotevisu_enable = false
     vote_weight_percent = 33.33
 
 
-[testcases]
+[testcases]    
+    
     [testcases.basic]
          #ignore_module = "" #optional
 
@@ -77,14 +78,17 @@ nanovotevisu_enable = false
 
 
     [testcases.basic.BlockPropagation]
-        skip_all = true #testcases will be shown as "Skipped"
-        test_1_account_split_10 = false
-        test_1_account_split_1000 = false
+        #skip_all = true #testcases will be shown as "Skipped"
+        test_1_account_split_10 = true
+        test_1_account_split_1000 = true
 
     [testcases.advanced]
          ignore_module = "" #ignore entire module
 
-    [testcases.advanced.ReplayLedgers]           
+    [testcases.advanced.ReplayLedgers]                   
         test_N1_1_publish_10_change_blocks = true
         test_N1_2_publish_bucket_saturation = false
         test_N1_3_loop_2_10x = false
+    
+    [testcases.spam]
+         ignore_module = "" #ignore entire module
