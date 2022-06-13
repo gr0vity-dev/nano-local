@@ -2,9 +2,9 @@
 
 import json
 import logging
-from os import popen, system
+from os import system
 from os.path import dirname
-from subprocess import call, run
+from subprocess import call, run, check_output
 from src.parse_nano_local_config import ConfigParser
 from src.parse_nano_local_config import ConfigReadWrite
 from src.nano_local_initial_blocks import InitialBlocks
@@ -123,6 +123,10 @@ def write_docker_compose_env(compose_version):
 
     _conf_rw.write_list(f'{_node_path["container"]}/dc_nano_local_env', env_variables)
 
+def subprocess_read_lines(command):
+    res = check_output(command, shell=True, encoding='UTF-8')
+    print("subprocess_read_lines:" , len(res))
+    return res.splitlines()
 
 def generate_genesis_open(genesis_key):
     #TODO find a less intrusive way to create a legacy open block.
@@ -134,9 +138,9 @@ def generate_genesis_open(genesis_key):
 
 
         logging.info("run temporary docker conatiner for genesis generation")
-        call(docker_run, shell=True)        
-        logging.debug(popen("docker ps -a").read())
-        blocks = ''.join(popen(docker_exec).readlines()[102:110])
+        call(docker_run, shell=True) 
+        #logging.debug(subprocess_read_lines("docker ps -a | grep ln_get_genesis"))
+        blocks = ''.join(subprocess_read_lines(docker_exec)[102:110])          
         logging.info("stop and remove docker container")        
         call(docker_stop_rm, shell=True)
         return json.loads(str(blocks))
@@ -150,7 +154,7 @@ def is_rpc_available(node_names):
         containers = copy.deepcopy(node_names)
         for container in containers:
             cmd_rpc_url = f"docker port {container} | grep 17076/tcp | awk '{{print $3}}'"
-            rpc_url = "http://" + str(popen(cmd_rpc_url).readlines()[0:1][0]).strip()
+            rpc_url = "http://" + str(subprocess_read_lines(cmd_rpc_url)[0:1][0]).strip()
             if NanoRpc(rpc_url).is_online(timeout=3) :
                 node_names.remove(container)
             else :
