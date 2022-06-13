@@ -104,11 +104,11 @@ def write_nanomonitor_config(node_name):
     if _conf.get_config_value("nanomonitor_enable"):
          _conf.write_nanomonitor_config(node_name)
 
-def write_docker_compose_env(compose_version, remote_build = False):
+def write_docker_compose_env(compose_version):
     #Read default env file
     conf_variables = _conf.config_dict
     env_variables = []
-    genesis_block = generate_genesis_open(conf_variables['genesis_key'], remote_build)
+    genesis_block = generate_genesis_open(conf_variables['genesis_key'])
     s_genesis_block = str(genesis_block).replace("'", '"')
 
     if compose_version == 1 :
@@ -125,27 +125,23 @@ def write_docker_compose_env(compose_version, remote_build = False):
 
 def subprocess_read_lines(command):
     try:
-        res, err = check_output(command, shell=True, stderr=STDOUT, encoding='UTF-8')
-        print(err)
+        res = check_output(command, shell=True, stderr=STDOUT, encoding='UTF-8')       
         print(len(res))
     except CalledProcessError as e:
         raise RuntimeError(f"command '{e.cmd}' return with error (code {e.returncode}): {e.output}")  
     return res.splitlines()
 
-def generate_genesis_open(genesis_key, remote_build):
-    #TODO find a less intrusive way to create a legacy open block.
-    docker_exec = "--tty" if remote_build else "-it"
+def generate_genesis_open(genesis_key):
+    #TODO find a less intrusive way to create a legacy open block.   
     try :
-        docker_run =       "docker run -d --name ln_get_genesis nanocurrency/nano-beta:latest 1>/dev/null"
-        docker_exec =     f"docker exec {docker_exec} ln_get_genesis /usr/bin/nano_node --network=dev --debug_bootstrap_generate --key={genesis_key} """ #dev net to speed up things
+        docker_exec =     f"docker run --name ln_get_genesis nanocurrency/nano-beta:latest nano_node --network=dev --debug_bootstrap_generate --key={genesis_key} "
         docker_stop_rm = """docker stop ln_get_genesis 1>/dev/null &&
                             docker rm ln_get_genesis 1>/dev/null &"""
 
 
-        logging.info("run temporary docker conatiner for genesis generation")
-        call(docker_run, shell=True) 
-        #logging.debug(subprocess_read_lines("docker ps -a | grep ln_get_genesis"))
-        blocks = ''.join(subprocess_read_lines(docker_exec)[102:110])          
+        logging.info("run temporary docker conatiner for genesis generation")       
+        blocks = ''.join(subprocess_read_lines(docker_exec)[104:112])     
+        print(blocks)     
         logging.info("stop and remove docker container")        
         call(docker_stop_rm, shell=True)
         return json.loads(str(blocks))
@@ -200,7 +196,7 @@ def init_nodes(genesis_node_name = "nl_genesis"):
 
 def create_nodes(compose_version, genesis_node_name = "nl_genesis"):
     prepare_nodes(genesis_node_name = genesis_node_name)
-    write_docker_compose_env(compose_version, True)
+    write_docker_compose_env(compose_version)
     _conf.write_docker_compose()
 
 def start_all(build_f):
