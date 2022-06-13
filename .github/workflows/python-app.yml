@@ -12,7 +12,7 @@ permissions:
 jobs:
    build:
 
-     runs-on: self-hosted
+     runs-on: ubuntu-latest
 
      steps:
      - uses: actions/checkout@v3
@@ -27,9 +27,7 @@ jobs:
          ./run_nano_local.py create 
          ./run_nano_local.py start
          ./run_nano_local.py init
-      - name: wait for nodes to sync
-       run: |
-         ./run_nano_local.py restart_wait_sync
-      - name: run testcases
-       run: |
-         ./run_nano_local.py pytest
+     - name: wait for nodes to sync
+       run: ./run_nano_local.py restart_wait_sync
+     - name: run testcases
+       run: ./run_nano_local.py pytest
