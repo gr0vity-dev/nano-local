@@ -136,7 +136,7 @@ def generate_genesis_open(genesis_key):
     #TODO find a less intrusive way to create a legacy open block.
     try :
         docker_run =       "docker run -d --name ln_get_genesis nanocurrency/nano-beta:latest 1>/dev/null"
-        docker_exec =     f"docker exec -it ln_get_genesis /usr/bin/nano_node --network=dev --debug_bootstrap_generate --key={genesis_key} """ #dev net to speed up things
+        docker_exec =     f"docker exec -i ln_get_genesis /usr/bin/nano_node --network=dev --debug_bootstrap_generate --key={genesis_key} """ #dev net to speed up things
         docker_stop_rm = """docker stop ln_get_genesis 1>/dev/null &&
                             docker rm ln_get_genesis 1>/dev/null &"""
 
