@@ -125,7 +125,8 @@ def write_docker_compose_env(compose_version):
 
 def subprocess_read_lines(command):
     try:
-        res = check_output(command, shell=True, stderr=STDOUT, encoding='UTF-8')
+        res, err = check_output(command, shell=True, stderr=STDOUT, encoding='UTF-8')
+        print(err)
         print(len(res))
     except CalledProcessError as e:
         raise RuntimeError(f"command '{e.cmd}' return with error (code {e.returncode}): {e.output}")  
