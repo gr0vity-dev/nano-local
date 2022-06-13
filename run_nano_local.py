@@ -104,11 +104,11 @@ def write_nanomonitor_config(node_name):
     if _conf.get_config_value("nanomonitor_enable"):
          _conf.write_nanomonitor_config(node_name)
 
-def write_docker_compose_env(compose_version):
+def write_docker_compose_env(compose_version, remote_build = False):
     #Read default env file
     conf_variables = _conf.config_dict
     env_variables = []
-    genesis_block = generate_genesis_open(conf_variables['genesis_key'])
+    genesis_block = generate_genesis_open(conf_variables['genesis_key'], remote_build)
     s_genesis_block = str(genesis_block).replace("'", '"')
 
     if compose_version == 1 :
@@ -132,11 +132,12 @@ def subprocess_read_lines(command):
         raise RuntimeError(f"command '{e.cmd}' return with error (code {e.returncode}): {e.output}")  
     return res.splitlines()
 
-def generate_genesis_open(genesis_key):
+def generate_genesis_open(genesis_key, remote_build):
     #TODO find a less intrusive way to create a legacy open block.
+    docker_exec = "--tty" if remote_build else "-it"
     try :
         docker_run =       "docker run -d --name ln_get_genesis nanocurrency/nano-beta:latest 1>/dev/null"
-        docker_exec =     f"docker exec -i ln_get_genesis /usr/bin/nano_node --network=dev --debug_bootstrap_generate --key={genesis_key} """ #dev net to speed up things
+        docker_exec =     f"docker exec {docker_exec} ln_get_genesis /usr/bin/nano_node --network=dev --debug_bootstrap_generate --key={genesis_key} """ #dev net to speed up things
         docker_stop_rm = """docker stop ln_get_genesis 1>/dev/null &&
                             docker rm ln_get_genesis 1>/dev/null &"""
 
@@ -199,7 +200,7 @@ def init_nodes(genesis_node_name = "nl_genesis"):
 
 def create_nodes(compose_version, genesis_node_name = "nl_genesis"):
     prepare_nodes(genesis_node_name = genesis_node_name)
-    write_docker_compose_env(compose_version)
+    write_docker_compose_env(compose_version, True)
     _conf.write_docker_compose()
 
 def start_all(build_f):
