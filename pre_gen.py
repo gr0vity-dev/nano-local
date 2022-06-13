@@ -32,7 +32,7 @@ class PreGenLedger():
         self.brw = BlockReadWrite()
         self.nano_rpc_all = self.bg.get_rpc_all() #access all avilable rpcs at nano_rpc_all.node_name
         self.set_class_params(pre_gen_folder_name)
-        self.validate(pregen)
+        if pregen : self.validate()
 
     def set_class_params(self,pre_gen_folder_name ):
         self.pre_gen_path = f"./pregen_ledgers/{pre_gen_folder_name}"
@@ -44,23 +44,21 @@ class PreGenLedger():
         self.pre_gen_account_min_end_balance = 100 * 10**30
         self.pre_gen_max_bucket = 6 #used to prefill buckets from 0 to 105 (at 105 you'll need at least pre_gen_account_min_end_balance=2**106 (~81.113) )
         self.pre_gen_start_index = 0 #skip # seeds and pre_generation at index # (should be 0 except for testing purposes)
-        self.pre_gen_accounts = 10 #(must be smaller than (2**(pre_gen_splitting_depth+1) -2))
-        self.pre_gen_bucket_saturation_main_index = 6
-        self.pre_gen_bucket_saturation_indexes = [1,2,5]
+        self.pre_gen_accounts = 5000 #(must be smaller than (2**(pre_gen_splitting_depth+1) -2))
+        self.pre_gen_bucket_saturation_main_index = 100
+        self.pre_gen_bucket_saturation_indexes = [1,2,3,4]
         self.pre_gen_bucket_saturation_rounds = 10 # (pre_gen_bucket_saturation_rounds * pre_gen_accounts will be crated per index.  Example: 10*5000 * 4 = 200'000 )
 
 
-    def validate(self, pregen):
+    def validate(self):
         system(f"mkdir -p {self.pre_gen_path}")
         tc = unittest.TestCase()
         tc.assertGreater(self.pre_gen_account_min_end_balance, 2 ** (self.pre_gen_max_bucket+1))
         tc.assertGreater(self.pre_gen_max_bucket+1, self.pre_gen_bucket_saturation_main_index)
         for bucket_index in self.pre_gen_bucket_saturation_indexes :
-            tc.assertGreater(self.pre_gen_max_bucket,bucket_index)
-        if pregen : #folder must be empty when pregenerating new blocks
-            tc.assertFalse(listdir(self.pre_gen_path))
-        else : #folder must contain files from self.pre_gen_file_names
-            tc.assertGreater(len(listdir(self.pre_gen_path)), 0)
+            tc.assertGreater(self.pre_gen_max_bucket,bucket_index)         
+        tc.assertFalse(listdir(self.pre_gen_path)) #folder must be empty when pregenerating new blocks
+        
 
     def get_pre_gen_files(self):
         response = copy.deepcopy(self.pre_gen_file_names)

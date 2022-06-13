@@ -1,12 +1,15 @@
 FROM ubuntu:20.04
 
 ARG DEBIAN_FRONTEND=noninteractive
+RUN apt update && apt install -y --no-install-recommends \
+    qt5-default
 
 RUN groupadd --gid 1000 nanocurrency && \
 useradd --uid 1000 --gid nanocurrency --shell /bin/bash --create-home nanocurrency
 
 WORKDIR /
-COPY nano_node /usr/bin/nano_node
+COPY package.deb /package.deb
+RUN if [ -f package.deb ]; dpkg -i package.deb
 
 USER nanocurrency
 WORKDIR /home/nanocurrency

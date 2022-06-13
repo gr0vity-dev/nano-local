@@ -1,4 +1,5 @@
 from collections.abc import Mapping
+from socket import timeout
 import requests
 import json
 import secrets
@@ -7,6 +8,7 @@ import time
 import logging
 import asyncio
 import aiohttp
+from interruptingcow import timeout
 
 
 _account_info = {}
@@ -57,7 +59,7 @@ class NanoRpc:
             url = self.RPC_URL
             headers = {"Content-type": "application/json", "Accept": "text/plain"}
             r = requests.post(url, json=content, headers=headers, timeout=timeout)
-            r_json = json.loads(r.text)
+            r_json = json.loads(r.text)           
 
             # print("request: {} \rrepsonse: {}".format(content["action"], r.text ))
             if "error" in r_json:
@@ -66,7 +68,7 @@ class NanoRpc:
                     logging.debug(msg)
                 else :
                     if silent : logging.debug(msg)
-                    else : logging.warn(msg)
+                    else : logging.warn(msg)           
             return r_json
         except Exception as e:
             if self.debug : logging.debug(f'Error str{e} ... {max_retry} Retrys left for post_with_auth : {content["action"]}')
@@ -226,8 +228,13 @@ class NanoRpc:
         return payload
 
     def block_count(self, max_retry = 2):
-        req_active_difficulty = {"action" : "block_count"}
-        resp = self.post_with_auth(req_active_difficulty, max_retry = max_retry)
+        req = {"action" : "block_count"}
+        resp = self.post_with_auth(req, max_retry = max_retry)
+        return resp
+    
+    def version(self):
+        req = {"action" : "version"}
+        resp = self.post_with_auth(req)
         return resp
 
 
@@ -518,11 +525,16 @@ class NanoRpc:
             if "hash" in publish: published = True
 
 
-    def get_block_result(self, block, broadcast, source_seed=None, source_index = None) :
-        if not block["success"] : logging.warn(block["error"])
+    def get_block_result(self, block, broadcast, source_seed=None, source_index = None, exit_after_s = 2) :
+        if not block["success"] : logging.warning(block["error"])
         if broadcast :
-            publish = self.publish_block(block["block"], subtype=block["subtype"])
-            broadcast = True if "hash" in publish else False
+            with timeout(exit_after_s, exception=RuntimeError) :
+                publish = None
+                while publish is None :
+                    publish = self.publish_block(block["block"], subtype=block["subtype"]) 
+                    if publish is None : time.sleep(0.5) ; broadcast = False; logging.error(f'block not published : {block["hash"]}') ; continue
+                    broadcast = True if "hash" in publish else False
+                   
 
         result = {"success" : block["success"],
                     "published" : broadcast,
@@ -532,9 +544,9 @@ class NanoRpc:
                     "block": block["block"],
                     "subtype" : block["subtype"],
                     "account_data" : {"account" : block["block"]["account"] if "account" in block["block"] else "" ,
-                                     "private" : block["private"] if "private" in block else "",
-                                     "source_seed" : source_seed,
-                                     "source_index" : source_index},
+                                    "private" : block["private"] if "private" in block else "",
+                                    "source_seed" : source_seed,
+                                    "source_index" : source_index},
                     "error" : block["error"]
                     }
         return result

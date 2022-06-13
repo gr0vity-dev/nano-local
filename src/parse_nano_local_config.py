@@ -484,17 +484,20 @@ class ConfigParser :
 
 
 
-    def cp_dockerfile_and_nano_node(self, nano_node_path, node_name):
-        #copy nano_node into working directory for Dockerfile
+    def cp_dockerfile_and_nano_node(self, exec_path, node_name):
+        #copy nano_node into working directory for Dockerfile        
         dockerfile_path = _dockerfile_path.format(node_name=node_name)
-        copy_node =        f"cp -p {nano_node_path} {dockerfile_path}/nano_node"
-        copy_dockerfile =  f"cp -p {_config_dir}/default_Dockerfile {dockerfile_path}/Dockerfile"
-
-        if os.path.exists(nano_node_path) :
+        if exec_path.split(".")[-1] == "deb" :
+            copy_node =        f"cp -p {exec_path} {dockerfile_path}/package.deb"        
+            copy_dockerfile =  f"cp -p {_config_dir}/default_deb_Dockerfile {dockerfile_path}/Dockerfile"      
+        else :
+            copy_node =        f"cp -p {exec_path} {dockerfile_path}/nano_node"        
+            copy_dockerfile =  f"cp -p {_config_dir}/default_Dockerfile {dockerfile_path}/Dockerfile"    
+        if os.path.exists(exec_path) :
             os.system(copy_node)
             os.system(copy_dockerfile)
         else :
-            logging.error(f'No nano_node could be found at [{nano_node_path}]. This container will fail on start' )
+            logging.error(f'No nano_node could be found at [{exec_path}]. This container will fail on start' )
 
 
         return dockerfile_path
