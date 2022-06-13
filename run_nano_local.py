@@ -4,7 +4,7 @@ import json
 import logging
 from os import system
 from os.path import dirname
-from subprocess import call, run, check_output
+from subprocess import call, run, check_output, CalledProcessError
 from src.parse_nano_local_config import ConfigParser
 from src.parse_nano_local_config import ConfigReadWrite
 from src.nano_local_initial_blocks import InitialBlocks
@@ -124,8 +124,10 @@ def write_docker_compose_env(compose_version):
     _conf_rw.write_list(f'{_node_path["container"]}/dc_nano_local_env', env_variables)
 
 def subprocess_read_lines(command):
-    res = check_output(command, shell=True, encoding='UTF-8')
-    print("subprocess_read_lines:" , len(res))
+    try:
+        res = check_output(command, shell=True, encoding='UTF-8')
+    except CalledProcessError as e:
+        raise RuntimeError(f"command '{e.cmd}' return with error (code {e.returncode}): {e.output}")  
     return res.splitlines()
 
 def generate_genesis_open(genesis_key):
