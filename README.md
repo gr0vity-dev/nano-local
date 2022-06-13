@@ -21,15 +21,17 @@ prerequisites :
 
 | Action       | Code       | Description  |
 | :----------  |:-----------| -----|
-| Create | <code>$ ./run_nano_local.py create</code> | Create folders and node config |
-| Start | <code>$ ./run_nano_local.py start</code> | Start all nodes and services (optional flag <code>--build = true</code> rebuilds docker containers)|
-| Init |<code>$ ./run_nano_local.py init</code>  | Create Epochs Canary Burn and Vote weight distribution |
-| CSI | <code>$ ./run_nano_local.py csi</code> | Do all of the above : c(reate) s(tart) i(nit) |
-| Test |<code>$ ./run_nano_local.py test</code>  | runs all tests (optional flag <code>--case = {module.class.test_method}</code>) |
-| Stop | <code>$ ./run_nano_local.py stop</code>|  Stop all nodes and services |
-| Restart | <code>$ ./run_nano_local.py stop</code>|  Restart nodes only  |
-| Reset | <code>$ ./run_nano_local.py reset</code> |  Delete all blocks except genesis block by removing data.ldb from all nodes |
-| Destroy | <code>$ ./run_nano_local.py destroy</code> |  Remove all nodes and delte virtaul environment |
+| create | <code>$ ./run_nano_local.py create</code> | Create folders and node config |
+| start | <code>$ ./run_nano_local.py start</code> | Start all nodes and services (optional flag <code>--build = true</code> rebuilds docker containers)|
+| init |<code>$ ./run_nano_local.py init</code>  | Create Epochs Canary Burn and Vote weight distribution |
+| csi | <code>$ ./run_nano_local.py csi</code> | Do all of the above : c(reate) s(tart) i(nit) |
+| test |<code>$ ./run_nano_local.py test</code>  | runs tests from <code>[testcase]</code> section of <code>nano_local_config.toml</code>  |
+| pytest |<code>$ ./run_nano_local.py pytest</code>  | runs tests from <code>[testcase]</code> section of <code>nano_local_config.toml</code> |
+| stop | <code>$ ./run_nano_local.py stop</code>|  Stop all nodes and services |
+| stop_nodes | <code>$ ./run_nano_local.py stop_nodes</code>|  Stop nodes only |
+| restart | <code>$ ./run_nano_local.py stop</code>|  Restart nodes only  |
+| reset | <code>$ ./run_nano_local.py reset</code> |  Delete all blocks except genesis block by removing data.ldb from all nodes |
+| destroy | <code>$ ./run_nano_local.py destroy</code> |  Remove all nodes and delte virtaul environment |
 
 
 #### Optional : Configure the network :
@@ -48,25 +50,30 @@ You can enable various services :
 
 #### Optional : Run Tests :
 
-<code>$ ./run_nano_local.py test</code> runs all tests.
-
-| Test       | Code      | Description  |
-| :-----------  |:----------| -----|
-|all | <code>$ ./run_nano_local.py test</code> | run all tests|
-|NetworkChecks|<code>$ ./run_nano_local.py test -c basic.NetworkChecks</code>|
-|rpc_online|<code>test_rpc_online</code> | all nodes online|
-|peer_count|<code>test_peer_count</code> | all nodes interconnected|
-|equal_block_count|<code>test_equal_block_count</code> | all nodes have same blocks|
-|equal_online_stake_total|<code>test_equal_online_stake_total</code> | all nodes see same online weight|
-|equal_confirmation_quorum|<code>test_equal_confirmation_quorum</code> |all nodes have equal network view |
-|equal_peers_stake_total|<code>test_equal_peers_stake_total</code> | all nodes have equal peer weight|
-|equal_representatives_online|<code>test_equal_representatives_online</code> | all nodes have same online representatives|
-|BlockPropagation|<code>$ ./run_nano_local.py test -c basic.BlockPropagation</code>|
-|account_splitting_1022_step1|<code>test_account_splitting_1022_step1</code> | Create 1022 accounts by splitting each account into 2|
-|account_splitting_1022_step2|<code>test_account_splitting_1022_step2</code> | Publish all blocks (2044)|
-|account_splitting_1022_step3|<code>test_account_splitting_1022_step3</code> | Check if all blocks are confirmed|
+All tests are configured in the <code>[testcase]</code> section of <code>nano_local_config.toml</code>
+<code>$ ./run_nano_local.py test</code> runs the configured tests
 
 
+
+| Module | Test       | Code      | Description  | longrunning |
+| :---   | :--------  |:----------| -------------|-------------|
+|basic|NetworkChecks|
+|basic|rpc_online|<code>test_rpc_online</code> | all nodes online| 
+|basic|peer_count|<code>test_peer_count</code> | all nodes interconnected|
+|basic|equal_block_count|<code>test_equal_block_count</code> | all nodes have same blocks|
+|basic|equal_online_stake_total|<code>test_equal_online_stake_total</code> | all nodes see same online weight|
+|basic|equal_confirmation_quorum|<code>test_equal_confirmation_quorum</code> |all nodes have equal network view |
+|basic|equal_peers_stake_total|<code>test_equal_peers_stake_total</code> | all nodes have equal peer weight|
+|basic|equal_representatives_online|<code>test_equal_representatives_online</code> | all nodes have same online representatives|
+
+|basic|BlockPropagation|
+|basic|account_split_10|<code>test_1_account_split_10</code> | Create 10 accounts by splitting each account into 2 new accounts|
+|basic|account_split_1000|<code>test_1_account_split_1000</code> | Create 1000 accounts by splitting each account into 2 new accounts|
+
+|advanced|ReplayLedgers|
+|advanced|publish_10_change_blocks|<code>test_N1_1_publish_10_change_blocks</code> | copy data.ldb to all nodes and publish 10 change blocks |
+|advanced|bucket_saturation|<code>test_N1_2_publish_bucket_saturation</code> | test bucket prioritisation under network saturation | YES|
+|advanced|10x bucket_saturation|<code>test_N1_3_loop_2_10x</code> | repeat bucket_saturation test 10 times | YES|
 
 #### Optional : Delete virtual python environment
 To remove your virtual python environment 
