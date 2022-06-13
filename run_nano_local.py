@@ -2,15 +2,16 @@
 
 import json
 import logging
-from os import popen, system
+from os import system
 from os.path import dirname
-from subprocess import call, run
+from subprocess import call, run, check_output, CalledProcessError,STDOUT
 from src.parse_nano_local_config import ConfigParser
 from src.parse_nano_local_config import ConfigReadWrite
 from src.nano_local_initial_blocks import InitialBlocks
 from src.nano_rpc import NanoRpc
 import argparse
 import copy
+import time
 
 # * create (this will create the one time resources that need creating)
 # * start (this will start the nodes)
@@ -123,19 +124,23 @@ def write_docker_compose_env(compose_version):
 
     _conf_rw.write_list(f'{_node_path["container"]}/dc_nano_local_env', env_variables)
 
+def subprocess_read_lines(command):
+    try:
+        res = check_output(command, shell=True, stderr=STDOUT, encoding='UTF-8')        
+    except CalledProcessError as e:
+        raise RuntimeError(f"command '{e.cmd}' return with error (code {e.returncode}): {e.output}")  
+    return res.splitlines()
 
 def generate_genesis_open(genesis_key):
-    #TODO find a less intrusive way to create a legacy open block.
+    #TODO find a less intrusive way to create a legacy open block.   
     try :
-        docker_run =       "docker run -d --name ln_get_genesis nanocurrency/nano-beta:latest 1>/dev/null"
-        docker_exec =     f"docker exec -it ln_get_genesis /usr/bin/nano_node --network=dev --debug_bootstrap_generate --key={genesis_key} """ #dev net to speed up things
+        docker_exec =     f"docker run --name ln_get_genesis nanocurrency/nano-beta:latest nano_node --network=dev --debug_bootstrap_generate --key={genesis_key} "
         docker_stop_rm = """docker stop ln_get_genesis 1>/dev/null &&
                             docker rm ln_get_genesis 1>/dev/null &"""
 
-        logging.info("run temporary docker conatiner for genesis generation")
-        call(docker_run, shell=True)        
-        blocks = ''.join(popen(docker_exec).readlines()[102:110])
-        logging.info("stop and remove docker container")
+        logging.info("run temporary docker conatiner for genesis generation")         
+        blocks = ''.join(subprocess_read_lines(docker_exec)[104:112]) 
+        logging.info("stop and remove docker container")        
         call(docker_stop_rm, shell=True)
         return json.loads(str(blocks))
 
@@ -148,7 +153,7 @@ def is_rpc_available(node_names):
         containers = copy.deepcopy(node_names)
         for container in containers:
             cmd_rpc_url = f"docker port {container} | grep 17076/tcp | awk '{{print $3}}'"
-            rpc_url = "http://" + str(popen(cmd_rpc_url).readlines()[0:1][0]).strip()
+            rpc_url = "http://" + str(subprocess_read_lines(cmd_rpc_url)[0:1][0]).strip()
             if NanoRpc(rpc_url).is_online(timeout=3) :
                 node_names.remove(container)
             else :
@@ -191,6 +196,7 @@ def create_nodes(compose_version, genesis_node_name = "nl_genesis"):
     prepare_nodes(genesis_node_name = genesis_node_name)
     write_docker_compose_env(compose_version)
     _conf.write_docker_compose()
+    _conf.print_enabled_services()
 
 def start_all(build_f):
     dir_nano_nodes = _node_path["container"]
@@ -198,8 +204,7 @@ def start_all(build_f):
     if build_f :
         command =  f'cd {dir_nano_nodes} && docker-compose up -d --build'
     system(command)
-    is_rpc_available(_conf.get_nodes_name())
-                 
+    is_rpc_available(_conf.get_nodes_name())                
                  
 
 def start_nodes():
@@ -224,6 +229,21 @@ def stop_nodes():
 def restart_nodes():
     stop_nodes()
     start_nodes()
+
+def restart_wait_sync():
+    from src.nano_block_ops import BlockAsserts
+    ba = BlockAsserts()
+    all_cemented = False
+    while not all_cemented:
+        try :
+            block_count = ba.assert_all_blocks_cemented()
+            all_cemented = True
+        except:
+            logging.info("Not all blocks cemented... restarting nodes.")
+            restart_nodes()
+            time.sleep(10)
+    logging.getLogger().success(f'All {block_count["cemented"]} blocks are cemented')
+    
 
 def reset_nodes():
     stop_nodes()
@@ -322,7 +342,7 @@ def main():
 
     elif args.command == 'init':
         init_nodes()
-        restart_nodes()
+        #restart_nodes()
         logging.getLogger().success("ledger initialized")
 
     elif args.command == 'stop':
@@ -336,6 +356,9 @@ def main():
     elif args.command == 'restart':
         restart_nodes()
         logging.getLogger().success("nodes restarted")
+    
+    elif args.command == 'restart_wait_sync':
+        restart_wait_sync()        
 
     elif args.command == 'reset':
         reset_nodes()
