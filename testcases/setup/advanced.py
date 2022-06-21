@@ -41,7 +41,7 @@ class Init :
 
     def n1_variables(self):
         self.path = "./pregen_ledgers"
-        self.network_dir = "n1_3nodes_482blocks"
+        self.network_dir = "_private_3nodes_equal_weight_1"
         self.path_json1_ldb = f'{self.path}/{self.network_dir}/1_accounts_split.json'
         self.path_data1_ldb = f'{self.path}/{self.network_dir}/1_data.ldb'
         self.path_json2_ldb = f'{self.path}/{self.network_dir}/2_bucket_funding.json'

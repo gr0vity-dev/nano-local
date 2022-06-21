@@ -42,12 +42,12 @@ class PreGenLedger():
 
         self.pre_gen_bucket_seed_prefix = "FACE" # {prefix}000.000{bucket_id} (example bucket_17_seed : FACE000000000000000000000000000000000000000000000000000000000017)
         self.pre_gen_account_min_end_balance = 100 * 10**30
-        self.pre_gen_max_bucket = 6 #used to prefill buckets from 0 to 105 (at 105 you'll need at least pre_gen_account_min_end_balance=2**106 (~81.113) )
+        self.pre_gen_max_bucket = 100 #used to prefill buckets from 0 to 105 (at 105 you'll need at least pre_gen_account_min_end_balance=2**106 (~81.113) )
         self.pre_gen_start_index = 0 #skip # seeds and pre_generation at index # (should be 0 except for testing purposes)
         self.pre_gen_accounts = 5000 #(must be smaller than (2**(pre_gen_splitting_depth+1) -2))
         self.pre_gen_bucket_saturation_main_index = 100
-        self.pre_gen_bucket_saturation_indexes = [1,2,3,4]
-        self.pre_gen_bucket_saturation_rounds = 10 # (pre_gen_bucket_saturation_rounds * pre_gen_accounts will be crated per index.  Example: 10*5000 * 4 = 200'000 )
+        self.pre_gen_bucket_saturation_indexes = [1,2,3,4,5]
+        self.pre_gen_bucket_saturation_rounds = 80 # (pre_gen_bucket_saturation_rounds * pre_gen_accounts will be crated per index.  Example: 10*5000 * 4 = 200'000 )
 
 
     def validate(self):
@@ -126,6 +126,7 @@ class PreGenLedger():
         self.ba.assert_all_blocks_cemented()
         block_list_of_list = []
         block_list = []
+        counter = 0
 
         for round in range(0,self.pre_gen_bucket_saturation_rounds):
             random_rep = self.bg.set_single_change_rep() #generate a random account and set is as new rep
@@ -133,8 +134,10 @@ class PreGenLedger():
             block_list = []
             for bucket_index in self.pre_gen_bucket_saturation_indexes :
                 bucket_seed = self.get_bucket_seed(bucket_index)
-                for account_index in range(self.pre_gen_start_index, self.pre_gen_accounts):
+                for account_index in range(self.pre_gen_start_index, self.pre_gen_accounts):                    
                     block_list.append(self.bg.blockgen_single_change(bucket_seed, account_index))
+                    counter = counter + 1
+                    print(f"change blocks created : {counter}", end ="\r")
         if block_list != [] : block_list_of_list.append(block_list)
 
         self.brw.write_blocks_to_disk(block_list_of_list,self.pre_gen_file_names["bucket_rounds"]["json_file"] )
@@ -184,21 +187,21 @@ class PreGenLedger():
 
 
 def main():
-    pre_gen = PreGenLedger("Block_Propagation")
+    pre_gen = PreGenLedger("_private_3nodes_equal_weight_1")
 
-    pre_gen.pre_gen_account_split() #,source_seed=pre_gen.get_prefixed_suffixed_seed("ACDC", "27"))
-    pre_gen.publish_account_split()
-    pre_gen.blocks_confirmed_account_split()
-    pre_gen.write_ledger_account_split()
+    # pre_gen.pre_gen_account_split() #,source_seed=pre_gen.get_prefixed_suffixed_seed("ACDC", "27"))
+    # pre_gen.publish_account_split()
+    # pre_gen.blocks_confirmed_account_split()
+    # pre_gen.write_ledger_account_split()
 
-    pre_gen.pre_gen_bucket_funding()
-    pre_gen.publish_bucket_funding()
-    pre_gen.blocks_confirmed_bucket_funding()
-    pre_gen.write_ledger_bucket_funding()
+    # pre_gen.pre_gen_bucket_funding()
+    # pre_gen.publish_bucket_funding()
+    # pre_gen.blocks_confirmed_bucket_funding()
+    # pre_gen.write_ledger_bucket_funding()
 
     pre_gen.pre_gen_bucket_rounds()
-    pre_gen.publish_bucket_rounds()
-    pre_gen.blocks_confirmed_bucket_rounds()
+    #pre_gen.publish_bucket_rounds()
+    #pre_gen.blocks_confirmed_bucket_rounds()
     pre_gen.write_ledger_bucket_rounds()
 
 
