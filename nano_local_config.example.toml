@@ -28,7 +28,7 @@ nanovotevisu_enable = false
 
     ### Choose between --docker_tag (existing tag  --nano_node_path
     #docker_tag = "nanocurrency/nano:V23.1" #shared between all nodes
-    docker_tag = "nanocurrency/nano-beta:latest" #shared between all nodes
+    docker_tag = "nanocurrency/nano-beta:V23.3" #shared between all nodes
     #nano_node_path = "/path/to/nano_node"   #path to nano_node executable
 
 #### individual node settings
@@ -62,7 +62,7 @@ nanovotevisu_enable = false
 [testcases]    
     
     [testcases.basic]
-         #ignore_module = "" #optional
+         ignore_module = "" #optional
 
     [testcases.basic.NetworkChecks] 
         skip_all = false
@@ -79,14 +79,17 @@ nanovotevisu_enable = false
 
     [testcases.basic.BlockPropagation]
         #skip_all = true #testcases will be shown as "Skipped"
-        test_1_account_split_10 = true
-        test_1_account_split_1000 = true
+       
+        test_1_account_split_10 = false
+        test_1_account_split_1000 = false
 
     [testcases.advanced]
-         ignore_module = "" #ignore entire module
+         #ignore_module = "" #ignore entire module
 
-    [testcases.advanced.ReplayLedgers]                   
-        test_N1_1_publish_10_change_blocks = true
+    [testcases.advanced.ReplayLedgers]    
+        test_01_setup_ledger = true  
+        test_02_publish = true              
+        test_N1_1_publish_10_change_blocks = false
         test_N1_2_publish_bucket_saturation = false
         test_N1_3_loop_2_10x = false
     
