@@ -12,6 +12,7 @@ import time
 import json
 import inspect
 from beautifultable import BeautifulTable
+from colorama import Fore, Style
 
 
 def print_table(table, print_header = True):
@@ -75,7 +76,7 @@ class NanoStats():
         return (union_length / max(1,avg_aec_size)) * 100
 
   
-    def compare_active_elections(self, every_s = 5, repeat_header = 10):        
+    def compare_active_elections(self, every_s = 5, repeat_header = 10, format = "table"):        
         print_header_inc = -1
         previous_aecs = []
         previous_bcs = []
@@ -169,13 +170,43 @@ class NanoStats():
                      "pr3_e_hint"           : election_delta[2][3] if len(election_delta) > 2 and len(election_delta[2]) > 3 else "", 
                      }            
             
-            
-
-            #print(data.values())          
-            table = (data.keys(), data.values())                       
-            if (print_header_inc % repeat_header) == 0 : print_header = True
-            print_table(table, print_header=print_header)
-            print_header = False
+            if format == "line" :
+                print( Fore.LIGHTBLUE_EX + f'aec_overlap_all|count_all|max' , end='')
+                print( Style.RESET_ALL, end='')
+                print( f'{data["overlap_all"]:>6}|{data["overlap_all_count"]:>4}|{data["overlap_max"]:>6}' , end='')
+                print( Fore.LIGHTBLUE_EX + f'   .count|cemented' , end='')
+                print( Style.RESET_ALL, end='')
+                print( Fore.GREEN + f' pr1:' , end='')
+                print( Style.RESET_ALL, end='')
+                print( f'{data["pr1_bc_inc"]:>4}|{data["pr1_cemented_inc"]:>4}' , end='')
+                print( Fore.GREEN + f' |pr2:' , end='')
+                print( Style.RESET_ALL, end='')
+                print( f'{data["pr2_bc_inc"]:>4}|{data["pr2_cemented_inc"]:>4}' , end='')
+                print( Fore.GREEN + f' |pr3:'  , end='')
+                print( Style.RESET_ALL, end='')
+                print( f'{data["pr3_bc_inc"]:>4}|{data["pr3_cemented_inc"]:>4}' , end='')
+                print( Fore.LIGHTBLUE_EX + f'   .confirmed|dropped|churn|elections_started|hinted:' , end='')
+                print( Style.RESET_ALL, end='')
+                print( Fore.GREEN + f' pr1:' , end='')
+                print( Style.RESET_ALL, end='')
+                print( f' {data["pr1_e_conf"]:>4}|{data["pr1_e_drop"]:>4}|{data["pr1_churn"]:>4}|{data["pr1_e_start"]:>4}|{data["pr1_e_hint"]:>2}' , end='')
+                print( Fore.GREEN + f' |pr2:' , end='')
+                print( Style.RESET_ALL, end='')
+                print( f' {data["pr2_e_conf"]:>4}|{data["pr2_e_drop"]:>4}|{data["pr2_churn"]:>4}|{data["pr2_e_start"]:>4}|{data["pr2_e_hint"]:>2}' , end='')
+                print( Fore.GREEN + f' |pr3:'  , end='')
+                print( Style.RESET_ALL, end='')
+                print( f' {data["pr3_e_conf"]:>4}|{data["pr3_e_drop"]:>4}|{data["pr3_churn"]:>4}|{data["pr3_e_start"]:>4}|{data["pr3_e_hint"]:>2}', end='')
+                        
+                print( Fore.LIGHTBLUE_EX + f'   example_hash', end='')           
+                print( Style.RESET_ALL, end='')
+                print( example_hash )
+                   
+            if format == "table" :
+                #print(data.values())          
+                table = (data.keys(), data.values())                       
+                if (print_header_inc % repeat_header) == 0 : print_header = True
+                print_table(table, print_header=print_header)
+                print_header = False
                      
             
             
@@ -188,7 +219,7 @@ class NanoStats():
   
 def main():
     s = NanoStats()
-    s.compare_active_elections(every_s = 5, repeat_header = 25)
+    s.compare_active_elections(every_s = 5, repeat_header = 25, format = "line")
 
 
 if __name__ == "__main__":       

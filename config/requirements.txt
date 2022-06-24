@@ -11,3 +11,4 @@ pytest
 pytest-html
 pandas 
 tabulate
+colorama
