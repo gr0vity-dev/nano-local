@@ -33,14 +33,14 @@ class ReplayLedgers(unittest.TestCase):
         self.ba.assert_blocks_confirmed(first_round_block_hashes, sleep_on_stall_s=0.5, log_to_console=True)
 
     @unittest.skipIf(is_not_in_config(__module__, __qualname__,
-       "test_N1_2_setup_ledger"), "according to nano_local_config.toml")
-    def test_N1_2_setup_ledger(self):
+       "test_01_setup_ledger"), "according to nano_local_config.toml")
+    def test_01_setup_ledger(self):
         ini = self.Init(2)
         ini.setup_ledger(ini.pre_gen_files["ledger_file"], use_nanoticker = not ini.debug)
     
     @unittest.skipIf(is_not_in_config(__module__, __qualname__,
-       "test_N1_2_publish"), "according to nano_local_config.toml")
-    def test_N1_2_publish(self):
+       "test_02_publish"), "according to nano_local_config.toml")
+    def test_02_publish(self):
         ini = self.Init(2)
         blocks = self.brw.read_blocks_from_disk(ini.pre_gen_files["json_file"], blocks=True)
         block_count_start = self.bg.get_nano_rpc_default().block_count()["count"]        

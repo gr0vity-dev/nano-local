@@ -207,6 +207,12 @@ class NanoRpc:
             "hash": block_hash
             }
         return self.post_with_auth(req)
+    
+    def confirmation_active(self) :
+        req = { "action": "confirmation_active" }
+        resp = self.post_with_auth(req)
+        if resp["confirmations"] == "" : resp["confirmations"] = []
+        return resp
 
     def block_confirmed(self, json_block = None , block_hash = None) :
         if json_block is not None :
@@ -230,6 +236,12 @@ class NanoRpc:
     def block_count(self, max_retry = 2):
         req = {"action" : "block_count"}
         resp = self.post_with_auth(req, max_retry = max_retry)
+        return resp
+    
+    def get_stats(self, type="counters"):
+        req = {"action" : "stats",
+               "type" : str(type) }
+        resp = self.post_with_auth(req)
         return resp
     
     def version(self):
