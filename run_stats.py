@@ -26,8 +26,6 @@ def get_table(table, print_header = True):
         return ("| " + " | ".join("{:{}}".format(x, col_width[i]) for i, x in enumerate(line)) + " |")
 
 
-
-
 class NanoStats():
    
     def __init__(self):        
@@ -68,7 +66,7 @@ class NanoStats():
         aecs = []
         try:
             for rpc in self.rpcs: #this should be async to get even better results.               
-                aecs.append(set(rpc.confirmation_active()["confirmations"]))
+                aecs.append(rpc.confirmation_active())
         except Exception as e:
             print("rpc not reachable", str(e))
             #return []
@@ -83,13 +81,15 @@ class NanoStats():
         print_header_inc = -1
         previous_aecs = []
         previous_bcs = []
-        previous_stats = []
+        previous_stats = []        
         
         while True :     
             print_header_inc = print_header_inc + 1
-            aecs = self.get_active_confirmations()
-            bcs = self.get_block_count_prs() 
             stats = self.get_election_stats()
+            aecs_detail = self.get_active_confirmations()
+            aecs = set([x["confirmations"] for x in aecs_detail]) if len(aecs_detail) > 0 else set()
+            bcs = self.get_block_count_prs() 
+           
             if len(aecs) == 0 : #if rpc non reachable.
                 time.sleep(5)
                 continue                 
@@ -184,10 +184,26 @@ class NanoStats():
                      "pr1" : "PR1",
                      "pr2" : "PR2",
                      "pr3" : "PR3",
+                     "aec_uncon_1" : aecs_detail[0]["unconfirmed"] if len(aecs_detail) > 0 else "",
+                     "aec_uncon_2" : aecs_detail[1]["unconfirmed"] if len(aecs_detail) > 1 else "",
+                     "aec_uncon_3" : aecs_detail[2]["unconfirmed"] if len(aecs_detail) > 2 else "",
+                     "bc_pr1" : bcs[0]["count"].ljust(10) if len(bcs) > 0 and "count" in bcs[0] else " "*10,
+                     "bc_pr2" : bcs[1]["count"].ljust(10) if len(bcs) > 1 and "count" in bcs[1] else " "*10,
+                     "bc_pr3" : bcs[2]["count"].ljust(10) if len(bcs) > 2 and "count" in bcs[2] else " "*10,
+                     "cem_perc_pr1" : round(int(bcs[0]["cemented"]) / int(bcs[0]["count"]) *100,2) if len(bcs) > 0 and "count" in bcs[0] and "cemented" in bcs[0] else "",
+                     "cem_perc_pr2" : round(int(bcs[1]["cemented"]) / int(bcs[1]["count"]) *100,2) if len(bcs) > 1 and "count" in bcs[1] and "cemented" in bcs[1] else "",
+                     "cem_perc_pr3" : round(int(bcs[2]["cemented"]) / int(bcs[2]["count"]) *100,2) if len(bcs) > 2 and "count" in bcs[2] and "cemented" in bcs[2] else "",
+                     "sync_pr1_c" : round(int(bcs[0]["count"])/max([int(x["count"]) for x in bcs]) *100,2) if len(bcs) > 0 and "count" in bcs[0] else "",
+                     "sync_pr2_c" : round(int(bcs[1]["count"])/max([int(x["count"]) for x in bcs]) *100,2) if len(bcs) > 1 and "count" in bcs[1] else "",
+                     "sync_pr3_c" : round(int(bcs[2]["count"])/max([int(x["count"]) for x in bcs]) *100,2) if len(bcs) > 2 and "count" in bcs[2] else "",
+                     "sync_cem_pr1" : round(max([int(x["cemented"]) for x in bcs]) -int(bcs[0]["cemented"]),2) if len(bcs) > 0 and "cemented" in bcs[0] else "",
+                     "sync_cem_pr2" : round(max([int(x["cemented"]) for x in bcs]) -int(bcs[1]["cemented"]),2) if len(bcs) > 1 and "cemented" in bcs[1] else "",
+                     "sync_cem_pr3" : round(max([int(x["cemented"]) for x in bcs]) -int(bcs[2]["cemented"]),2) if len(bcs) > 2 and "cemented" in bcs[2] else "",
                      }
             
+            
 
-            #self.conf_p.append_line()
+            
             
             if format == "line" :
                 print( Fore.LIGHTBLUE_EX + f'aec_overlap_all|count_all|max' , end='')
@@ -225,7 +241,7 @@ class NanoStats():
                 #print(data.values())          
                 table = (data.keys(), data.values())                       
                 if (print_header_inc % repeat_header) == 0 : print_header = True
-                print_table(table, print_header=print_header)
+                print(get_table(table, print_header=print_header))
                 print_header = False
             
 
@@ -234,25 +250,29 @@ class NanoStats():
 
 
             if format == "table_per_pr" :
-                #print(data.values())  
-                values = [["pr1","overlap_all","overlap_all_count","overlap_max","pr1_churn","pr1_e_start","pr1_e_conf","pr1_e_drop","pr1_bc_inc","pr1_cemented_inc","pr1_e_hint","overlap_1_2_abs","overlap_1_2_perc","overlap_1_3_abs","overlap_1_3_perc"], 
-                          ["pr2","overlap_all","overlap_all_count","overlap_max","pr2_churn","pr2_e_start","pr2_e_conf","pr2_e_drop","pr2_bc_inc","pr2_cemented_inc","pr2_e_hint","overlap_1_2_abs","overlap_1_2_perc","overlap_2_3_abs","overlap_2_3_perc"],
-                          ["pr3","overlap_all","overlap_all_count","overlap_max","pr3_churn","pr3_e_start","pr3_e_conf","pr3_e_drop","pr3_bc_inc","pr3_cemented_inc","pr3_e_hint","overlap_1_3_abs","overlap_1_3_perc","overlap_2_3_abs","overlap_2_3_perc"],
+                header = 'time     | PRs | AEC overlap | AEC overlap count | AEC churn | AEC unconf. | elect_start | elect_conf | elect_drop | block_inc  | cemented_inc     | elect_hint | AEC overlap PR_% | AEC overlap PR_% | count      | cemented %   | sync count | miss cement. |'
+                if print_header_inc == 0 :
+                    print(header) 
+                    self.conf_p.append_line("./run_conf_timer.out", header) 
+
+                values = [["pr1","overlap_all","overlap_all_count","pr1_churn","pr1_e_start","pr1_e_conf","pr1_e_drop","pr1_bc_inc","pr1_cemented_inc","pr1_e_hint","overlap_1_2_perc","overlap_1_3_perc", "bc_pr1","cem_perc_pr1","sync_pr1_c","sync_cem_pr1","aec_uncon_1"], 
+                          ["pr2","overlap_all","overlap_all_count","pr2_churn","pr2_e_start","pr2_e_conf","pr2_e_drop","pr2_bc_inc","pr2_cemented_inc","pr2_e_hint","overlap_1_2_perc","overlap_2_3_perc", "bc_pr2","cem_perc_pr2","sync_pr2_c","sync_cem_pr2","aec_uncon_1"],
+                          ["pr3","overlap_all","overlap_all_count","pr3_churn","pr3_e_start","pr3_e_conf","pr3_e_drop","pr3_bc_inc","pr3_cemented_inc","pr3_e_hint","overlap_1_3_perc","overlap_2_3_perc", "bc_pr3","cem_perc_pr3","sync_pr3_c","sync_cem_pr3","aec_uncon_1"],
                           ]        
-                table1 = (values[0], [data[x] for x in values[0]])
-                table2 = (values[1], [data[x] for x in values[1]])
-                table3 = (values[2], [data[x] for x in values[2]])                    
-                #if (print_header_inc % repeat_header) == 0 : 
-                #    print("| PRs | overlap_all | overlap_all_count | overlap_max | churn     | elect_start | elect_conf | elect_drop | block_inc  | cemented_inc     | elect_hint | overlap pr_ abs | overlap pr_ %    | overlap pr_ abs | overlap pr_ %    |")
-                       #   | pr1 | overlap_all | overlap_all_count | overlap_max | pr1_churn | pr1_e_start | pr1_e_conf | pr1_e_drop | pr1_bc_inc | pr1_cemented_inc | pr1_e_hint | overlap_1_2_abs | overlap_1_2_perc | overlap_1_3_abs | overlap_1_3_perc |
-                print(strftime("%H:%M:%S", gmtime()), get_table(table1, print_header=False))
-                print("         " + get_table(table2, False))
-                print("         " + get_table(table3, False))               
-                print('-' * 236)
-                print("time     | PRs | overlap_all | overlap_all_count | overlap_max | churn     | elect_start | elect_conf | elect_drop | block_inc  | cemented_inc     | elect_hint | overlap pr_ abs | overlap pr_ %    | overlap pr_ abs | overlap pr_ %    |", end = "\r" )
-                print_header = False
-                     
-            
+                table_pr1 = (values[0], [str(data[x]) for x in values[0]])
+                table_pr2 = (values[1], [str(data[x]).replace("1_2", "2_1") for x in values[1]])
+                table_pr3 = (values[2], [str(data[x]).replace("1_3", "3_1").replace("2_3", "3_2") for x in values[2]])
+                
+                multiline = f'{strftime("%H:%M:%S", gmtime())} {get_table(table_pr1, print_header=False)}  \
+                            \n{"         " + get_table(table_pr2, False)} \
+                            \n{"         " + get_table(table_pr3, False)} '
+                print(multiline)
+                print('-'*len(header) )
+                print(header, end = "\r" )
+                
+
+                  
+                self.conf_p.append_line("./run_conf_timer.out", multiline)
             
             previous_aecs = aecs
             previous_bcs = bcs
