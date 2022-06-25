@@ -4,24 +4,26 @@ from os import system, listdir
 from os.path import exists
 from math import ceil, log10
 from time import time
+from src.parse_nano_local_config import ConfigReadWrite
 from src.nano_rpc import NanoRpc
 from src.nano_block_ops import BlockAsserts, BlockGenerator, BlockReadWrite
 import copy
 import logging
 import time
+from time import strftime,gmtime
 import json
 import inspect
 from beautifultable import BeautifulTable
 from colorama import Fore, Style
 
 
-def print_table(table, print_header = True):
+def get_table(table, print_header = True):
     col_width = [max(len(str(x)) for x in col) for col in zip(*table)]  
      
     for line in table:
         if print_header == False :
             print_header = True ; continue
-        print ("| " + " | ".join("{:{}}".format(x, col_width[i]) for i, x in enumerate(line)) + " |")
+        return ("| " + " | ".join("{:{}}".format(x, col_width[i]) for i, x in enumerate(line)) + " |")
 
 
 
@@ -30,7 +32,8 @@ class NanoStats():
    
     def __init__(self):        
         self.bg = BlockGenerator(default_rpc_index = 1, broadcast_blocks=False)       
-        self.rpcs = self.bg.get_rpc_all()   
+        self.rpcs = self.bg.get_rpc_all() 
+        self.conf_p = ConfigReadWrite()
 
     def get_block_count_prs(self):
         bc = []
@@ -73,7 +76,7 @@ class NanoStats():
         return aecs
     
     def get_overlap_percent(self, union_length, avg_aec_size):        
-        return (union_length / max(1,avg_aec_size)) * 100
+        return round((union_length / max(1,avg_aec_size)) * 100,2)
 
   
     def compare_active_elections(self, every_s = 5, repeat_header = 10, format = "table"):        
@@ -94,6 +97,7 @@ class NanoStats():
             aec_avg_size = sum(len(x) for x in aecs) / len(aecs)
             union = set()
             max_overlap = 0
+            oberlap_pr = {}
             
             #AEC overlap for all PRs
             for aec in aecs :            
@@ -107,9 +111,12 @@ class NanoStats():
             for i in range(0, len(aecs)):
                 for j in range(i, len(aecs)):
                     if i == j : continue #no need to compare to itself
-                    max_union_length = len(aecs[i].intersection(aecs[j]))
-                    max_aec_avg_size = (len(aecs[i]) + len(aecs[j])) / 2
-                    max_overlap = max(max_overlap, self.get_overlap_percent(max_union_length, max_aec_avg_size))             
+                    overlap_pr_i_j = len(aecs[i].intersection(aecs[j]))
+                    aec_avg_size_i_j = (len(aecs[i]) + len(aecs[j])) / 2
+                    oberlap_pr[f'{i}_{j}'] = {}
+                    oberlap_pr[f'{i}_{j}']["abs"] = overlap_pr_i_j
+                    oberlap_pr[f'{i}_{j}']["perc"] = self.get_overlap_percent(overlap_pr_i_j, aec_avg_size_i_j)
+                    max_overlap = max(max_overlap, self.get_overlap_percent(overlap_pr_i_j, aec_avg_size_i_j))             
 
 
             #churn in blocks every {every_s =5} seconds for each PR
@@ -145,8 +152,8 @@ class NanoStats():
             
             data = {
                      "overlap_all_count"    : union_length , 
-                     "overlap_all"          : str(round(overlap,2)) + "%",
-                     "overlap_max"          : str(round(max_overlap,2)) + "%",                   
+                     "overlap_all"          : str(overlap) + "%",
+                     "overlap_max"          : str(max_overlap) + "%",                   
                      "pr1_churn"            : churn[0] if len(churn) > 0 else "" , 
                      "pr1_e_start"          : election_delta[0][0] if len(election_delta) > 0 and len(election_delta[0]) > 0 else "", 
                      "pr1_e_conf"           : election_delta[0][1] if len(election_delta) > 0 and len(election_delta[0]) > 1 else "", 
@@ -168,7 +175,19 @@ class NanoStats():
                      "pr3_bc_inc"           : count_cemented_delta[2][0] if len(count_cemented_delta) > 2 and len(count_cemented_delta[2]) > 0 else "",
                      "pr3_cemented_inc"     : count_cemented_delta[2][1] if len(count_cemented_delta) > 2 and len(count_cemented_delta[2]) > 1 else "",
                      "pr3_e_hint"           : election_delta[2][3] if len(election_delta) > 2 and len(election_delta[2]) > 3 else "", 
-                     }            
+                     "overlap_1_2_abs"      : oberlap_pr["0_1"]["abs"]  if "0_1" in oberlap_pr and "abs" in oberlap_pr["0_1"] else "",
+                     "overlap_1_3_abs"      : oberlap_pr["0_2"]["abs"] if "0_2" in oberlap_pr and "abs" in oberlap_pr["0_2"] else "",
+                     "overlap_2_3_abs"      : oberlap_pr["1_2"]["abs"] if "1_2" in oberlap_pr and "abs" in oberlap_pr["1_2"] else "",
+                     "overlap_1_2_perc"      : "1_2  " +str(oberlap_pr["0_1"]["perc"]) + "%" if "0_1" in oberlap_pr and "perc" in oberlap_pr["0_1"] else "",
+                     "overlap_1_3_perc"      : "1_3  " +str(oberlap_pr["0_2"]["perc"]) + "%" if "0_2" in oberlap_pr and "perc" in oberlap_pr["0_2"] else "",
+                     "overlap_2_3_perc"      : "2_3  " +str(oberlap_pr["1_2"]["perc"]) + "%" if "1_2" in oberlap_pr and "perc" in oberlap_pr["1_2"] else "",
+                     "pr1" : "PR1",
+                     "pr2" : "PR2",
+                     "pr3" : "PR3",
+                     }
+            
+
+            #self.conf_p.append_line()
             
             if format == "line" :
                 print( Fore.LIGHTBLUE_EX + f'aec_overlap_all|count_all|max' , end='')
@@ -202,10 +221,35 @@ class NanoStats():
                 print( example_hash )
                    
             if format == "table" :
+                data.pop("pr1") ; data.pop("pr2") ; data.pop("pr3") #remove keys used for "table_per_pr" formatting option
                 #print(data.values())          
                 table = (data.keys(), data.values())                       
                 if (print_header_inc % repeat_header) == 0 : print_header = True
                 print_table(table, print_header=print_header)
+                print_header = False
+            
+
+
+
+
+
+            if format == "table_per_pr" :
+                #print(data.values())  
+                values = [["pr1","overlap_all","overlap_all_count","overlap_max","pr1_churn","pr1_e_start","pr1_e_conf","pr1_e_drop","pr1_bc_inc","pr1_cemented_inc","pr1_e_hint","overlap_1_2_abs","overlap_1_2_perc","overlap_1_3_abs","overlap_1_3_perc"], 
+                          ["pr2","overlap_all","overlap_all_count","overlap_max","pr2_churn","pr2_e_start","pr2_e_conf","pr2_e_drop","pr2_bc_inc","pr2_cemented_inc","pr2_e_hint","overlap_1_2_abs","overlap_1_2_perc","overlap_2_3_abs","overlap_2_3_perc"],
+                          ["pr3","overlap_all","overlap_all_count","overlap_max","pr3_churn","pr3_e_start","pr3_e_conf","pr3_e_drop","pr3_bc_inc","pr3_cemented_inc","pr3_e_hint","overlap_1_3_abs","overlap_1_3_perc","overlap_2_3_abs","overlap_2_3_perc"],
+                          ]        
+                table1 = (values[0], [data[x] for x in values[0]])
+                table2 = (values[1], [data[x] for x in values[1]])
+                table3 = (values[2], [data[x] for x in values[2]])                    
+                #if (print_header_inc % repeat_header) == 0 : 
+                #    print("| PRs | overlap_all | overlap_all_count | overlap_max | churn     | elect_start | elect_conf | elect_drop | block_inc  | cemented_inc     | elect_hint | overlap pr_ abs | overlap pr_ %    | overlap pr_ abs | overlap pr_ %    |")
+                       #   | pr1 | overlap_all | overlap_all_count | overlap_max | pr1_churn | pr1_e_start | pr1_e_conf | pr1_e_drop | pr1_bc_inc | pr1_cemented_inc | pr1_e_hint | overlap_1_2_abs | overlap_1_2_perc | overlap_1_3_abs | overlap_1_3_perc |
+                print(strftime("%H:%M:%S", gmtime()), get_table(table1, print_header=False))
+                print("         " + get_table(table2, False))
+                print("         " + get_table(table3, False))               
+                print('-' * 236)
+                print("time     | PRs | overlap_all | overlap_all_count | overlap_max | churn     | elect_start | elect_conf | elect_drop | block_inc  | cemented_inc     | elect_hint | overlap pr_ abs | overlap pr_ %    | overlap pr_ abs | overlap pr_ %    |", end = "\r" )
                 print_header = False
                      
             
@@ -219,7 +263,7 @@ class NanoStats():
   
 def main():
     s = NanoStats()
-    s.compare_active_elections(every_s = 5, repeat_header = 25, format = "line")
+    s.compare_active_elections(every_s = 5, repeat_header = 10, format = "table_per_pr")
 
 
 if __name__ == "__main__":       
