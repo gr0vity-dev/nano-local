@@ -107,8 +107,8 @@ class Init :
 
         self.ba.assert_all_blocks_cemented()
 
-        if use_nanoticker : #wait 3 minutes for Nanoticker to properly get new data.ldb
-            time.sleep(60*3)
+        #if use_nanoticker : #wait 3 minutes for Nanoticker to properly get new data.ldb
+        #    time.sleep(60*3)
 
 
     def mp_start_join(self, mp_procs):

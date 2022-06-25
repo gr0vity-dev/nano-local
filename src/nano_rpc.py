@@ -28,38 +28,39 @@ class NanoRpc:
     async def set_aio_connection(self):
         # 0.1s for 1million connections
         if self.aio_conn is None :
-            self.aio_conn = aiohttp.TCPConnector(limit_per_host=500, limit=0, verify_ssl=False)
+            self.aio_conn = aiohttp.TCPConnector(limit_per_host=50, limit=50, verify_ssl=False,force_close=True)
 
     async def aio_post(self,data, sync = True, json_data = False, include_request = False, aio_results = [], ignore_errors = []):
         parallel_requests = 1 if sync else 5
         semaphore = asyncio.Semaphore(parallel_requests)
-        session = aiohttp.ClientSession(connector=self.aio_conn)
-        async def do_req(el, aio_errors):
-            async with semaphore:
-                async with session.post(url=self.RPC_URL, json=el if json_data else json.loads(el), ssl=False) as response:
-                    obj = json.loads(await response.read())
-                    if include_request : obj["request"] = el if json_data else json.loads(el)
-                    if obj is None :
-                        print("Request failed", el)
-                    if "error" in obj :
-                        if not obj["error"] in ignore_errors :
-                            aio_errors["error_count"] = aio_errors["error_count"] + 1
-                            aio_errors["last_error"] = obj["error"]
-                            aio_errors["last_request"] = el
-                    aio_results.append(obj)
-                    #print(f"aio_post_count : {len(aio_results)}", end="\r")
+        #session = aiohttp.ClientSession(connector=self.aio_conn)
+        async with aiohttp.ClientSession(connector=self.aio_conn) as session:
+            async def do_req(el, aio_errors):
+                async with semaphore:
+                    async with session.post(url=self.RPC_URL, json=el if json_data else json.loads(el), ssl=False) as response:
+                        obj = json.loads(await response.read())
+                        if include_request : obj["request"] = el if json_data else json.loads(el)
+                        if obj is None :
+                            print("Request failed", el)
+                        if "error" in obj :
+                            if not obj["error"] in ignore_errors :
+                                aio_errors["error_count"] = aio_errors["error_count"] + 1
+                                aio_errors["last_error"] = obj["error"]
+                                aio_errors["last_request"] = el
+                        aio_results.append(obj)
+                        #print(f"aio_post_count : {len(aio_results)}", end="\r")
 
-        aio_errors = {"error_count" : 0 , "last_request" : "" , "last_error" : ""}
-        await asyncio.gather(*(do_req(el, aio_errors) for el in data))
-        if aio_errors["error_count"] > 0 : print(json.dumps(aio_errors, indent=4))
-        await session.close()
+            aio_errors = {"error_count" : 0 , "last_request" : "" , "last_error" : ""}
+            await asyncio.gather(*(do_req(el, aio_errors) for el in data))
+            if aio_errors["error_count"] > 0 : print(json.dumps(aio_errors, indent=4))
+        #await session.close()
 
     def post_with_auth(self, content, max_retry=2, timeout = 3, silent = True):
         try :
             url = self.RPC_URL
             headers = {"Content-type": "application/json", "Accept": "text/plain"}
             r = requests.post(url, json=content, headers=headers, timeout=timeout)
-            r_json = json.loads(r.text)           
+            r_json = json.loads(r.text)  
 
             # print("request: {} \rrepsonse: {}".format(content["action"], r.text ))
             if "error" in r_json:
@@ -132,8 +133,14 @@ class NanoRpc:
         publish_commands = [{"action": "process","json_block": "true", "subtype" : block["subtype"] ,"block": (block if json_data else json.loads(block.replace("'", '"')))  } for block in blocks]
         return self.__publish(payload_array = publish_commands, json_data=True, sync=sync)
 
-    def publish_block(self, block, subtype=None):
-        return self.__publish(json_block = block, subtype=subtype if subtype is not None else block["subtype"] if "subtype" in block else None)
+    def publish_block(self, json_block, subtype=None):
+        if subtype is None : raise ValueError("can't be none")
+        blocks = []
+        blocks.append(json_block)
+        self.publish_blocks(blocks)
+
+       
+        
 
     def __publish(self, payload = None , payload_array = None, json_block = None, subtype = None, timeout = 3, sync = True, json_data = False) :
         if json_block is not None:
@@ -151,7 +158,7 @@ class NanoRpc:
                     "subtype": subtype,
                     "block": json_block,
                 }
-        if payload is not None:
+        if payload is not None:            
             return self.post_with_auth(json.loads(str(payload).replace("'", '"')), timeout=timeout)
 
         if payload_array is not None :
@@ -614,6 +621,7 @@ class NanoRpc:
                                    source_index=source_index,
                                    link = "0"*64,
                                    representative=new_rep, in_memory = not broadcast)
+        
         return self.get_block_result(block, broadcast, source_seed=source_seed, source_index=source_index)
 
     def create_change_block_pkey(

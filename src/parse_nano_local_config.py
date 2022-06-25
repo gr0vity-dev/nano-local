@@ -49,6 +49,10 @@ class ConfigReadWrite:
     def write_list(self,path,list):
         with open(path, "w") as f:
             print(*list, sep = "\n", file = f)
+    
+    def append_line(self,path, line):
+        with open(path, 'a') as file:
+            file.write(line)
 
     def write_toml(self, path, content):
         with open(path, "wb") as f:
