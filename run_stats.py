@@ -11,19 +11,19 @@ import copy
 import logging
 import time
 from time import strftime,gmtime
+from datetime import datetime
 import json
 import inspect
-from beautifultable import BeautifulTable
 from colorama import Fore, Style
 
 
-def get_table(table, print_header = True):
-    col_width = [max(len(str(x)) for x in col) for col in zip(*table)]  
+def get_table(table, print_header = True, color=""):
+    col_width = [max(len(str(x)) for x in col) for col in zip(*table)]     
      
     for line in table:
         if print_header == False :
             print_header = True ; continue
-        return ("| " + " | ".join("{:{}}".format(x, col_width[i]) for i, x in enumerate(line)) + " |")
+        return ("| " + " | ".join("{}{:{}}{}".format(color, x , col_width[i], Style.RESET_ALL) for i, x in enumerate(line)) + " |")
 
 
 class NanoStats():
@@ -60,8 +60,6 @@ class NanoStats():
         if len(stats) > 0 : stats.pop(0) #remove genesis (non PR)
         return stats
     
-
-
     def get_active_confirmations(self):
         aecs = []
         try:
@@ -76,6 +74,82 @@ class NanoStats():
     def get_overlap_percent(self, union_length, avg_aec_size):        
         return round((union_length / max(1,avg_aec_size)) * 100,2)
 
+    def print_to_console(self, data,format, print_header_inc, repeat_header):
+
+            
+            if format == "line" :
+                print( Fore.LIGHTBLUE_EX + f'aec_overlap_all|count_all|max' , end='')
+                print( Style.RESET_ALL, end='')
+                print( f'{data["overlap_all"]:>6}|{data["overlap_all_count"]:>4}|{data["overlap_max"]:>6}' , end='')
+                print( Fore.LIGHTBLUE_EX + f'   .count|cemented' , end='')
+                print( Style.RESET_ALL, end='')
+                print( Fore.GREEN + f' pr1:' , end='')
+                print( Style.RESET_ALL, end='')
+                print( f'{data["pr1_bc_inc"]:>4}|{data["pr1_cemented_inc"]:>4}' , end='')
+                print( Fore.GREEN + f' |pr2:' , end='')
+                print( Style.RESET_ALL, end='')
+                print( f'{data["pr2_bc_inc"]:>4}|{data["pr2_cemented_inc"]:>4}' , end='')
+                print( Fore.GREEN + f' |pr3:'  , end='')
+                print( Style.RESET_ALL, end='')
+                print( f'{data["pr3_bc_inc"]:>4}|{data["pr3_cemented_inc"]:>4}' , end='')
+                print( Fore.LIGHTBLUE_EX + f'   .confirmed|dropped|churn|elections_started|hinted:' , end='')
+                print( Style.RESET_ALL, end='')
+                print( Fore.GREEN + f' pr1:' , end='')
+                print( Style.RESET_ALL, end='')
+                print( f' {data["pr1_e_conf"]:>4}|{data["pr1_e_drop"]:>4}|{data["pr1_churn"]:>4}|{data["pr1_e_start"]:>4}|{data["pr1_e_hint"]:>2}' , end='')
+                print( Fore.GREEN + f' |pr2:' , end='')
+                print( Style.RESET_ALL, end='')
+                print( f' {data["pr2_e_conf"]:>4}|{data["pr2_e_drop"]:>4}|{data["pr2_churn"]:>4}|{data["pr2_e_start"]:>4}|{data["pr2_e_hint"]:>2}' , end='')
+                print( Fore.GREEN + f' |pr3:'  , end='')
+                print( Style.RESET_ALL, end='')
+                print( f' {data["pr3_e_conf"]:>4}|{data["pr3_e_drop"]:>4}|{data["pr3_churn"]:>4}|{data["pr3_e_start"]:>4}|{data["pr3_e_hint"]:>2}', end='')
+                        
+                print( Fore.LIGHTBLUE_EX + f'   example_hash', end='')           
+                print( Style.RESET_ALL, end='')
+                print( data["example_hash"] )
+                   
+            if format == "table" :
+                data.pop("pr1") ; data.pop("pr2") ; data.pop("pr3") #remove keys used for "table_per_pr" formatting option
+                #print(data.values())          
+                table = (data.keys(), data.values())                       
+                if (print_header_inc % repeat_header) == 0 : print_header = True
+                print(get_table(table, print_header=print_header))
+                print_header = False          
+
+
+
+            if format == "table_per_pr" :
+                file_path = f"./{datetime.now().strftime('%j')}_run_stats.out"
+                header = 'time     | PRs | AEC overlap | AEC overlap count | AEC unconf. | AEC churn | elect_start | elect_conf | elect_drop | block_inc  | cemented_inc     | elect_hint | AEC overlap PR_% | count      | cemented %   | sync count | miss cement. |'
+                if print_header_inc == 0 :
+                    print(header) 
+                    self.conf_p.append_line(file_path, header + "\n") 
+
+                values = [["pr1","overlap_all","overlap_all_count","aec_uncon_1","pr1_churn","pr1_e_start","pr1_e_conf","pr1_e_drop","pr1_bc_inc","pr1_cemented_inc","pr1_e_hint","overlap_1_2_perc", "bc_pr1","cem_perc_pr1","sync_pr1_c","sync_cem_pr1"], 
+                          ["pr2","overlap_all","overlap_all_count","aec_uncon_1","pr2_churn","pr2_e_start","pr2_e_conf","pr2_e_drop","pr2_bc_inc","pr2_cemented_inc","pr2_e_hint","overlap_2_3_perc", "bc_pr2","cem_perc_pr2","sync_pr2_c","sync_cem_pr2"],
+                          ["pr3","overlap_all","overlap_all_count","aec_uncon_1","pr3_churn","pr3_e_start","pr3_e_conf","pr3_e_drop","pr3_bc_inc","pr3_cemented_inc","pr3_e_hint","overlap_1_3_perc", "bc_pr3","cem_perc_pr3","sync_pr3_c","sync_cem_pr3"],
+                          ]        
+                table_pr1 = (values[0], [str(data[x]) for x in values[0]])
+                table_pr2 = (values[1], [str(data[x]).replace("1_2", "2_1") for x in values[1]])
+                table_pr3 = (values[2], [str(data[x]).replace("1_3", "3_1").replace("2_3", "3_2") for x in values[2]])
+                
+                line1 = f'{strftime("%H:%M:%S", gmtime())} {get_table(table_pr1, print_header=False)}'
+                line2=  f'{"         " + get_table(table_pr2, False, color=Fore.LIGHTGREEN_EX)} '
+                line3=  f'{"         " + get_table(table_pr3, False, color=Fore.LIGHTBLUE_EX)} '
+                line4=  f'{"-"*len(header)}'
+                print(line1)
+                #print(Fore.LIGHTYELLOW_EX + line2)
+                #print(Fore.LIGHTBLUE_EX + line3)
+                print( line2)
+                print(line3)
+                print( Style.RESET_ALL, end="")
+                print(line4)
+                print(header, end = "\r" )
+                
+                #without format
+                line2=  f'{"         " + get_table(table_pr2, False)} '
+                line3=  f'{"         " + get_table(table_pr3, False)} '                
+                self.conf_p.append_line(file_path, line1 + "\n"+ line2 + "\n"+ line3 + "\n"+ line4 + "\n")
   
     def compare_active_elections(self, every_s = 5, repeat_header = 10, format = "table"):        
         print_header_inc = -1
@@ -86,8 +160,8 @@ class NanoStats():
         while True :     
             print_header_inc = print_header_inc + 1
             stats = self.get_election_stats()
-            aecs_detail = self.get_active_confirmations()
-            aecs = set([x["confirmations"] for x in aecs_detail]) if len(aecs_detail) > 0 else set()
+            aecs_detail = self.get_active_confirmations()            
+            aecs = [set(x["confirmations"]) for x in aecs_detail] if len(aecs_detail) > 0 else set()
             bcs = self.get_block_count_prs() 
            
             if len(aecs) == 0 : #if rpc non reachable.
@@ -146,9 +220,7 @@ class NanoStats():
                     count_cemented_delta.append([count_delta, cemented_delta])                                  
 
 
-            example_hash =  list(union)[0] if len(union) > 0 else ""
-            #print(f"overlap all [{str(round(overlap,2)):>8}%] | max: [{str(round(max_overlap,2)):>8}%] | churn : {churn} | e_start/conf/drop/hint : {election_delta} | count/cemented_delta : [{count_cemented_delta}] | overlap_all_count ({union_length,example_hash})")
-
+            example_hash =  list(union)[0] if len(union) > 0 else ""          
             
             data = {
                      "overlap_all_count"    : union_length , 
@@ -178,101 +250,33 @@ class NanoStats():
                      "overlap_1_2_abs"      : oberlap_pr["0_1"]["abs"]  if "0_1" in oberlap_pr and "abs" in oberlap_pr["0_1"] else "",
                      "overlap_1_3_abs"      : oberlap_pr["0_2"]["abs"] if "0_2" in oberlap_pr and "abs" in oberlap_pr["0_2"] else "",
                      "overlap_2_3_abs"      : oberlap_pr["1_2"]["abs"] if "1_2" in oberlap_pr and "abs" in oberlap_pr["1_2"] else "",
-                     "overlap_1_2_perc"      : "1_2  " +str(oberlap_pr["0_1"]["perc"]) + "%" if "0_1" in oberlap_pr and "perc" in oberlap_pr["0_1"] else "",
-                     "overlap_1_3_perc"      : "1_3  " +str(oberlap_pr["0_2"]["perc"]) + "%" if "0_2" in oberlap_pr and "perc" in oberlap_pr["0_2"] else "",
-                     "overlap_2_3_perc"      : "2_3  " +str(oberlap_pr["1_2"]["perc"]) + "%" if "1_2" in oberlap_pr and "perc" in oberlap_pr["1_2"] else "",
-                     "pr1" : "PR1",
-                     "pr2" : "PR2",
-                     "pr3" : "PR3",
-                     "aec_uncon_1" : aecs_detail[0]["unconfirmed"] if len(aecs_detail) > 0 else "",
-                     "aec_uncon_2" : aecs_detail[1]["unconfirmed"] if len(aecs_detail) > 1 else "",
-                     "aec_uncon_3" : aecs_detail[2]["unconfirmed"] if len(aecs_detail) > 2 else "",
-                     "bc_pr1" : bcs[0]["count"].ljust(10) if len(bcs) > 0 and "count" in bcs[0] else " "*10,
-                     "bc_pr2" : bcs[1]["count"].ljust(10) if len(bcs) > 1 and "count" in bcs[1] else " "*10,
-                     "bc_pr3" : bcs[2]["count"].ljust(10) if len(bcs) > 2 and "count" in bcs[2] else " "*10,
-                     "cem_perc_pr1" : round(int(bcs[0]["cemented"]) / int(bcs[0]["count"]) *100,2) if len(bcs) > 0 and "count" in bcs[0] and "cemented" in bcs[0] else "",
-                     "cem_perc_pr2" : round(int(bcs[1]["cemented"]) / int(bcs[1]["count"]) *100,2) if len(bcs) > 1 and "count" in bcs[1] and "cemented" in bcs[1] else "",
-                     "cem_perc_pr3" : round(int(bcs[2]["cemented"]) / int(bcs[2]["count"]) *100,2) if len(bcs) > 2 and "count" in bcs[2] and "cemented" in bcs[2] else "",
-                     "sync_pr1_c" : round(int(bcs[0]["count"])/max([int(x["count"]) for x in bcs]) *100,2) if len(bcs) > 0 and "count" in bcs[0] else "",
-                     "sync_pr2_c" : round(int(bcs[1]["count"])/max([int(x["count"]) for x in bcs]) *100,2) if len(bcs) > 1 and "count" in bcs[1] else "",
-                     "sync_pr3_c" : round(int(bcs[2]["count"])/max([int(x["count"]) for x in bcs]) *100,2) if len(bcs) > 2 and "count" in bcs[2] else "",
-                     "sync_cem_pr1" : round(max([int(x["cemented"]) for x in bcs]) -int(bcs[0]["cemented"]),2) if len(bcs) > 0 and "cemented" in bcs[0] else "",
-                     "sync_cem_pr2" : round(max([int(x["cemented"]) for x in bcs]) -int(bcs[1]["cemented"]),2) if len(bcs) > 1 and "cemented" in bcs[1] else "",
-                     "sync_cem_pr3" : round(max([int(x["cemented"]) for x in bcs]) -int(bcs[2]["cemented"]),2) if len(bcs) > 2 and "cemented" in bcs[2] else "",
+                     "overlap_1_2_perc"     : "1_2  " +str(oberlap_pr["0_1"]["perc"]) + "%" if "0_1" in oberlap_pr and "perc" in oberlap_pr["0_1"] else "",
+                     "overlap_1_3_perc"     : "1_3  " +str(oberlap_pr["0_2"]["perc"]) + "%" if "0_2" in oberlap_pr and "perc" in oberlap_pr["0_2"] else "",
+                     "overlap_2_3_perc"     : "2_3  " +str(oberlap_pr["1_2"]["perc"]) + "%" if "1_2" in oberlap_pr and "perc" in oberlap_pr["1_2"] else "",
+                     "pr1"                  : "PR1",
+                     "pr2"                  : "PR2",
+                     "pr3"                  : "PR3",
+                     "aec_uncon_1"          : aecs_detail[0]["unconfirmed"] if len(aecs_detail) > 0 else "",
+                     "aec_uncon_2"          : aecs_detail[1]["unconfirmed"] if len(aecs_detail) > 1 else "",
+                     "aec_uncon_3"          : aecs_detail[2]["unconfirmed"] if len(aecs_detail) > 2 else "",
+                     "bc_pr1"               : bcs[0]["count"].ljust(10) if len(bcs) > 0 and "count" in bcs[0] else " "*10,
+                     "bc_pr2"               : bcs[1]["count"].ljust(10) if len(bcs) > 1 and "count" in bcs[1] else " "*10,
+                     "bc_pr3"               : bcs[2]["count"].ljust(10) if len(bcs) > 2 and "count" in bcs[2] else " "*10,
+                     "cem_perc_pr1"         : round(int(bcs[0]["cemented"]) / int(bcs[0]["count"]) *100,2) if len(bcs) > 0 and "count" in bcs[0] and "cemented" in bcs[0] else "",
+                     "cem_perc_pr2"         : round(int(bcs[1]["cemented"]) / int(bcs[1]["count"]) *100,2) if len(bcs) > 1 and "count" in bcs[1] and "cemented" in bcs[1] else "",
+                     "cem_perc_pr3"         : round(int(bcs[2]["cemented"]) / int(bcs[2]["count"]) *100,2) if len(bcs) > 2 and "count" in bcs[2] and "cemented" in bcs[2] else "",
+                     "sync_pr1_c"           : round(int(bcs[0]["count"])/max([int(x["count"]) for x in bcs]) *100,2) if len(bcs) > 0 and "count" in bcs[0] else "",
+                     "sync_pr2_c"           : round(int(bcs[1]["count"])/max([int(x["count"]) for x in bcs]) *100,2) if len(bcs) > 1 and "count" in bcs[1] else "",
+                     "sync_pr3_c"           : round(int(bcs[2]["count"])/max([int(x["count"]) for x in bcs]) *100,2) if len(bcs) > 2 and "count" in bcs[2] else "",
+                     "sync_cem_pr1"         : round(max([int(x["cemented"]) for x in bcs]) -int(bcs[0]["cemented"]),2) if len(bcs) > 0 and "cemented" in bcs[0] else "",
+                     "sync_cem_pr2"         : round(max([int(x["cemented"]) for x in bcs]) -int(bcs[1]["cemented"]),2) if len(bcs) > 1 and "cemented" in bcs[1] else "",
+                     "sync_cem_pr3"         : round(max([int(x["cemented"]) for x in bcs]) -int(bcs[2]["cemented"]),2) if len(bcs) > 2 and "cemented" in bcs[2] else "",
+                     "example_hash"         : example_hash 
                      }
             
             
-
+            self.print_to_console(data, format, print_header_inc, repeat_header)
             
-            
-            if format == "line" :
-                print( Fore.LIGHTBLUE_EX + f'aec_overlap_all|count_all|max' , end='')
-                print( Style.RESET_ALL, end='')
-                print( f'{data["overlap_all"]:>6}|{data["overlap_all_count"]:>4}|{data["overlap_max"]:>6}' , end='')
-                print( Fore.LIGHTBLUE_EX + f'   .count|cemented' , end='')
-                print( Style.RESET_ALL, end='')
-                print( Fore.GREEN + f' pr1:' , end='')
-                print( Style.RESET_ALL, end='')
-                print( f'{data["pr1_bc_inc"]:>4}|{data["pr1_cemented_inc"]:>4}' , end='')
-                print( Fore.GREEN + f' |pr2:' , end='')
-                print( Style.RESET_ALL, end='')
-                print( f'{data["pr2_bc_inc"]:>4}|{data["pr2_cemented_inc"]:>4}' , end='')
-                print( Fore.GREEN + f' |pr3:'  , end='')
-                print( Style.RESET_ALL, end='')
-                print( f'{data["pr3_bc_inc"]:>4}|{data["pr3_cemented_inc"]:>4}' , end='')
-                print( Fore.LIGHTBLUE_EX + f'   .confirmed|dropped|churn|elections_started|hinted:' , end='')
-                print( Style.RESET_ALL, end='')
-                print( Fore.GREEN + f' pr1:' , end='')
-                print( Style.RESET_ALL, end='')
-                print( f' {data["pr1_e_conf"]:>4}|{data["pr1_e_drop"]:>4}|{data["pr1_churn"]:>4}|{data["pr1_e_start"]:>4}|{data["pr1_e_hint"]:>2}' , end='')
-                print( Fore.GREEN + f' |pr2:' , end='')
-                print( Style.RESET_ALL, end='')
-                print( f' {data["pr2_e_conf"]:>4}|{data["pr2_e_drop"]:>4}|{data["pr2_churn"]:>4}|{data["pr2_e_start"]:>4}|{data["pr2_e_hint"]:>2}' , end='')
-                print( Fore.GREEN + f' |pr3:'  , end='')
-                print( Style.RESET_ALL, end='')
-                print( f' {data["pr3_e_conf"]:>4}|{data["pr3_e_drop"]:>4}|{data["pr3_churn"]:>4}|{data["pr3_e_start"]:>4}|{data["pr3_e_hint"]:>2}', end='')
-                        
-                print( Fore.LIGHTBLUE_EX + f'   example_hash', end='')           
-                print( Style.RESET_ALL, end='')
-                print( example_hash )
-                   
-            if format == "table" :
-                data.pop("pr1") ; data.pop("pr2") ; data.pop("pr3") #remove keys used for "table_per_pr" formatting option
-                #print(data.values())          
-                table = (data.keys(), data.values())                       
-                if (print_header_inc % repeat_header) == 0 : print_header = True
-                print(get_table(table, print_header=print_header))
-                print_header = False
-            
-
-
-
-
-
-            if format == "table_per_pr" :
-                header = 'time     | PRs | AEC overlap | AEC overlap count | AEC churn | AEC unconf. | elect_start | elect_conf | elect_drop | block_inc  | cemented_inc     | elect_hint | AEC overlap PR_% | AEC overlap PR_% | count      | cemented %   | sync count | miss cement. |'
-                if print_header_inc == 0 :
-                    print(header) 
-                    self.conf_p.append_line("./run_conf_timer.out", header) 
-
-                values = [["pr1","overlap_all","overlap_all_count","pr1_churn","pr1_e_start","pr1_e_conf","pr1_e_drop","pr1_bc_inc","pr1_cemented_inc","pr1_e_hint","overlap_1_2_perc","overlap_1_3_perc", "bc_pr1","cem_perc_pr1","sync_pr1_c","sync_cem_pr1","aec_uncon_1"], 
-                          ["pr2","overlap_all","overlap_all_count","pr2_churn","pr2_e_start","pr2_e_conf","pr2_e_drop","pr2_bc_inc","pr2_cemented_inc","pr2_e_hint","overlap_1_2_perc","overlap_2_3_perc", "bc_pr2","cem_perc_pr2","sync_pr2_c","sync_cem_pr2","aec_uncon_1"],
-                          ["pr3","overlap_all","overlap_all_count","pr3_churn","pr3_e_start","pr3_e_conf","pr3_e_drop","pr3_bc_inc","pr3_cemented_inc","pr3_e_hint","overlap_1_3_perc","overlap_2_3_perc", "bc_pr3","cem_perc_pr3","sync_pr3_c","sync_cem_pr3","aec_uncon_1"],
-                          ]        
-                table_pr1 = (values[0], [str(data[x]) for x in values[0]])
-                table_pr2 = (values[1], [str(data[x]).replace("1_2", "2_1") for x in values[1]])
-                table_pr3 = (values[2], [str(data[x]).replace("1_3", "3_1").replace("2_3", "3_2") for x in values[2]])
-                
-                multiline = f'{strftime("%H:%M:%S", gmtime())} {get_table(table_pr1, print_header=False)}  \
-                            \n{"         " + get_table(table_pr2, False)} \
-                            \n{"         " + get_table(table_pr3, False)} '
-                print(multiline)
-                print('-'*len(header) )
-                print(header, end = "\r" )
-                
-
-                  
-                self.conf_p.append_line("./run_conf_timer.out", multiline)
             
             previous_aecs = aecs
             previous_bcs = bcs
