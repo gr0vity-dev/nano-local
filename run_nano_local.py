@@ -204,7 +204,17 @@ def start_all(build_f):
     if build_f :
         command =  f'cd {dir_nano_nodes} && docker-compose up -d --build'
     system(command)
-    is_rpc_available(_conf.get_nodes_name())                
+    is_rpc_available(_conf.get_nodes_name())  
+
+def build_nodes() :
+    dir_nano_nodes = _node_path["container"] 
+    nodes = ' '.join(_conf.get_nodes_name())   
+    command =  f'cd {dir_nano_nodes} && docker-compose build {nodes}'
+    system(command)
+    logging.getLogger().success(f"nodes [{nodes}] built")
+    
+    
+
                  
 
 def start_nodes():
@@ -334,6 +344,12 @@ def main():
     elif args.command == 'create':
         create_nodes(args.compose_version)
         logging.getLogger().success("./nano_nodes directory was created")
+    
+    elif args.command == 'build_nodes':
+        stop_nodes()
+        build_nodes()
+        start_nodes()
+        logging.getLogger().success("nodes built & started")
         
 
     elif args.command == 'start':
