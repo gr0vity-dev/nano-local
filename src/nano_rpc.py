@@ -55,6 +55,15 @@ class NanoRpc:
             if aio_errors["error_count"] > 0 : print(json.dumps(aio_errors, indent=4))
         #await session.close()
 
+    def request_get(self, url) :  
+        try:     
+            headers = {"Content-type": "application/json", "Accept": "text/plain"}
+            r = requests.get(url, headers=headers, timeout=1)
+            response = {"status_code" : r.status_code, "message" : json.loads(r.text), "success" : True }
+        except Exception as e :
+            response = {"success" : False , "error_message" : str(e)}
+        return response
+
     def post_with_auth(self, content, max_retry=2, timeout = 3, silent = True):
         try :
             url = self.RPC_URL
