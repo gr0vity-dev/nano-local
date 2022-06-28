@@ -19,6 +19,7 @@ class BlockGenerator():
     single_change_rep = None
 
     def __init__(self, broadcast_blocks = False, default_rpc_index = 0) :
+        self.default_rpc_index = default_rpc_index
         self.broadcast = broadcast_blocks
         self.single_account_open_counter = 0
         self.nt = NanoTools()
@@ -30,11 +31,12 @@ class BlockGenerator():
         return [NanoRpc(x) for x in self.conf.get_rpc_endpoints()]
 
     def get_nano_rpc_default(self):
-        return self.nano_rpc_default
+        return NanoRpc(self.conf.get_rpc_endpoints()[min(self.default_rpc_index, len(self.nano_rpc_all) -1)])
+        #return self.nano_rpc_default
 
     def get_nano_rpc(self, nano_rpc=None) :
         #return default is no rpc is specified
-        if nano_rpc is None : nano_rpc = self.nano_rpc_default
+        if nano_rpc is None : nano_rpc = self.get_nano_rpc_default()
         return nano_rpc
 
     def blockgen_single_account_opener(self, representative, source_key, destination_seed, send_amount, number_of_accounts, destination_index = 0, nano_rpc=None, accounts_keep_track = False):
@@ -145,30 +147,47 @@ class BlockAsserts():
         self.conf = ConfigParser()
         self.nano_rpc_all = BlockGenerator().get_rpc_all()
         self.nano_rpc_default = self.nano_rpc_all[ min(default_rpc_index, len(self.nano_rpc_all) -1) ]
+    
+    def assert_nanoticker_reader(self, ledger_block_count, exit_after_s=180):
+        system("docker restart nl_nanoticker")
+        try:
+            with timeout(exit_after_s, exception=RuntimeError) :
+                while True :
+                    res =  self.nano_rpc_default.request_get(f'http://{self.conf.get_remote_address()}:42002/json/stats.json')
+                    if res["status_code"] == 200 :                    
+                        if res["message"] is not None and "blockCountMin" in res["message"] :                        
+                            min_block_count = res["message"]["blockCountMin"]                            
+                            if min_block_count == ledger_block_count : break
+                    time.sleep(1) 
+        except RuntimeError as re :
+            self.tc.fail(str(re))   
+        self.tc.assertEqual(ledger_block_count, min_block_count)
+
 
     def assert_list_of_blocks_published(self, list_of_blocks, sync = True, is_running = Value('i', False)) :
         for blocks in list_of_blocks :
             self.assert_blocks_published(blocks,sync=sync)
         is_running.value = False
 
+    
     def assert_blocks_published(self, blocks, sync = True):
         blocks_to_publish_count = len(blocks)
-        rpc_block_count_start = int(self.nano_rpc_default.block_count()["count"])
+        rpc_block_count_start = self.nano_rpc_default.block_count()
         #print("start block_count" , rpc_block_count_start)
-        self.nano_rpc_default.publish_blocks(blocks, json_data=True, sync=sync) #we don't care about the result
-        self.assert_expected_block_count(blocks_to_publish_count+rpc_block_count_start)
+        res = self.nano_rpc_default.publish_blocks(blocks, json_data=True, sync=sync) #we don't care about the result
+        self.assert_expected_block_count(blocks_to_publish_count+int(rpc_block_count_start["count"]))
 
 
     def assert_expected_block_count(self, expected_count, exit_after_s = 2) :
         try:
             with timeout(exit_after_s, exception=RuntimeError) :
                 while True :
-                    rpc_block_count_end = int(self.nano_rpc_default.block_count()["count"])
-                    if rpc_block_count_end == expected_count : break
+                    rpc_block_count_end = self.nano_rpc_default.block_count()
+                    if int(rpc_block_count_end["count"]) == expected_count : break
                     time.sleep(0.2)
         except :
             pass
-        self.tc.assertGreaterEqual(rpc_block_count_end, expected_count ) #if other blocks arrive in the meantime
+        self.tc.assertGreaterEqual(int(rpc_block_count_end["count"]), expected_count ) #if other blocks arrive in the meantime
 
 
     def assert_single_block_confirmed(self, hash, sleep_on_stall_s =0.1, exit_after_s= 120, exit_on_first_stall = False):
