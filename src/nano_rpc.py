@@ -23,12 +23,59 @@ class NanoRpc:
         self.RPC_URL = url
         self.aio_conn = None #aiohttp.TCPConnector(limit_per_host=100, limit=0, ttl_dns_cache=300)
         self.aio_results = []
-        #self.loop = asyncio.get_event_loop()
+        self.loop = self.get_or_create_eventloop()
+    
+
+    def get_or_create_eventloop(self):
+        try:
+            return asyncio.get_event_loop()
+        except RuntimeError as ex:
+            if "There is no current event loop in thread" in str(ex):
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                return asyncio.get_event_loop()
 
     async def set_aio_connection(self):
         # 0.1s for 1million connections
         if self.aio_conn is None :
             self.aio_conn = aiohttp.TCPConnector(limit_per_host=50, limit=50, verify_ssl=False,force_close=True)
+
+    def exec_parallel_post(self,post_requests, sync= False):
+        res = []
+        errors = self.get_new_aio_error()
+        self.loop.run_until_complete(self.post_requests_parallel(post_requests, sync=sync, aio_results=res, aio_errors=errors, include_request=True))
+        if errors["error_count"] > 0 : print(json.dumps(errors, indent=4))
+        return res
+    
+    def get_new_aio_error(self):
+        return {"error_count" : 0 , "last_request" : "" , "last_error" : ""}
+
+    async def post_requests_parallel(self, data, sync = True, aio_results = [], include_request = False, ignore_errors = [], aio_errors=None):
+        #data = [{"url" : "http://...", "request" : {"json_object"}}]
+        parallel_requests = 1 if sync else 5
+        semaphore = asyncio.Semaphore(parallel_requests)
+        #session = aiohttp.ClientSession(connector=self.aio_conn)
+        async with aiohttp.ClientSession(connector=self.aio_conn) as session:
+            async def do_req(el, aio_errors):
+                async with semaphore:                  
+                    async with session.post(url=el["url"], json=el["request"], ssl=False) as response:
+                        obj = {"response" : json.loads(await response.read())}
+                        if include_request : 
+                            obj["request"] = el["request"]
+                            obj["url"] = el["url"]
+                        if obj is None :
+                            print("Request failed", el)
+                        if "error" in obj :
+                            if not obj["error"] in ignore_errors :
+                                aio_errors["error_count"] = aio_errors["error_count"] + 1
+                                aio_errors["last_error"] = obj["error"]
+                                aio_errors["last_request"] = el
+                        aio_results.append(obj)
+
+            aio_errors = self.get_new_aio_error() if aio_errors != self.get_new_aio_error() else aio_errors
+            await asyncio.gather(*(do_req(el, aio_errors) for el in data))
+            #if aio_errors["error_count"] > 0 : print(json.dumps(aio_errors, indent=4))
+        #await session.close()
 
     async def aio_post(self,data, sync = True, json_data = False, include_request = False, aio_results = [], ignore_errors = []):
         parallel_requests = 1 if sync else 5
@@ -50,7 +97,7 @@ class NanoRpc:
                         aio_results.append(obj)
                         #print(f"aio_post_count : {len(aio_results)}", end="\r")
 
-            aio_errors = {"error_count" : 0 , "last_request" : "" , "last_error" : ""}
+            aio_errors = self.get_new_aio_error
             await asyncio.gather(*(do_req(el, aio_errors) for el in data))
             if aio_errors["error_count"] > 0 : print(json.dumps(aio_errors, indent=4))
         #await session.close()
@@ -71,7 +118,7 @@ class NanoRpc:
             r = requests.post(url, json=content, headers=headers, timeout=timeout)
             r_json = json.loads(r.text)  
 
-            # print("request: {} \rrepsonse: {}".format(content["action"], r.text ))
+            # print("request: {} \rrepsonse: {}".format(content["action"], r.text ))ƒ
             if "error" in r_json:
                 msg = "error in post_with_auth |\n request: \n{}\nresponse:\n{}".format(content, r.text)
                 if r_json["error"] == "Account not found" :
@@ -123,11 +170,12 @@ class NanoRpc:
 
         return result
 
-    def get_active_difficulty(self):
-        req_active_difficulty = {"action" : "active_difficulty"}
-        return self.post_with_auth(req_active_difficulty)
+    def get_active_difficulty(self ,request_only =False):
+        req = {"action" : "active_difficulty"}
+        if request_only : return req
+        return self.post_with_auth(req)
 
-    # def get_block_count(self):
+    # def get_block_count(self ,request_only =False):
     #     req_active_difficulty = {"action" : "block_count"}
     #     return self.post_with_auth(req_active_difficulty)
 
@@ -173,7 +221,7 @@ class NanoRpc:
         if payload_array is not None :
             res = []
             #loop = asyncio.get_event_loop()
-            asyncio.get_event_loop().run_until_complete(self.aio_post(payload_array, sync=sync, json_data=json_data, aio_results=res))
+            self.loop.run_until_complete(self.aio_post(payload_array, sync=sync, json_data=json_data, aio_results=res))
             return res
 
     def block_hash_aio(self, json_blocks, sync = False):
@@ -186,7 +234,7 @@ class NanoRpc:
                 "block": json_block
                 })
         #loop = asyncio.get_event_loop()
-        asyncio.get_event_loop().run_until_complete(self.aio_post(lst, sync=sync, json_data=True, aio_results=res))
+        self.loop.run_until_complete(self.aio_post(lst, sync=sync, json_data=True, aio_results=res))
         return res
 
     def block_info_aio(self, block_hashes, sync = False, ignore_errors= []) :
@@ -199,7 +247,7 @@ class NanoRpc:
                 "hash": block_hash
                 })
         #loop = asyncio.get_event_loop()
-        asyncio.get_event_loop().run_until_complete(self.aio_post(lst,sync=sync, json_data=True, include_request=True, aio_results=res, ignore_errors=ignore_errors))
+        self.loop.run_until_complete(self.aio_post(lst,sync=sync, json_data=True, include_request=True, aio_results=res, ignore_errors=ignore_errors))
         return res
 
     def block_confirmed_aio(self, block_hashes, ignore_errors = []) :
@@ -208,26 +256,29 @@ class NanoRpc:
         return set(map(lambda x: x["request"]["hash"], confirmed_blocks))   #confirmed hashes
 
 
-    def block_hash(self, json_block):
+    def block_hash(self, json_block ,request_only =False):
         req = {
             "action": "block_hash",
             "json_block": "true",
             "block": json_block
             }
+        if request_only : return req
         return self.post_with_auth(req)
 
-    def block_info(self, block_hash) :
+    def block_info(self, block_hash ,request_only =False):
         req = {
             "action": "block_info",
             "json_block": "true",
             "hash": block_hash
             }
+        if request_only : return req
         return self.post_with_auth(req)
     
-    def confirmation_active(self) :
+    def confirmation_active(self ,request_only =False):
         req = { "action": "confirmation_active" }
+        if request_only : return req
         resp = self.post_with_auth(req)
-        if resp["confirmations"] == "" : resp["confirmations"] = []
+        if resp["confirmations"] == "" : resp["confirmations"] = []        
         return resp
 
     def block_confirmed(self, json_block = None , block_hash = None) :
@@ -249,30 +300,34 @@ class NanoRpc:
 
         return payload
 
-    def block_count(self, max_retry = 2):
-        req = {"action" : "block_count"}
+    def block_count(self, max_retry = 2 ,request_only =False):
+        req = {"action" : "block_count"} 
+        if request_only : return req
         resp = self.post_with_auth(req, max_retry = max_retry)
         return resp
     
-    def get_stats(self, type="counters"):
+    def get_stats(self, type="counters" ,request_only =False):
         req = {"action" : "stats",
                "type" : str(type) }
+        if request_only : return req
         resp = self.post_with_auth(req)
         return resp
     
-    def version(self):
+    def version(self ,request_only =False):
         req = {"action" : "version"}
+        if request_only : return req
         resp = self.post_with_auth(req)
         return resp
 
 
-    def generate_account(self, seed, index):
-        req_deterministic_key = {
+    def generate_account(self, seed, index ,request_only =False):
+        req = {
             "action": "deterministic_key",
             "seed": seed,
             "index": index,
         }
-        account_data = self.post_with_auth(req_deterministic_key)
+        if request_only : return req
+        account_data = self.post_with_auth(req)
 
         account_data = {
             "seed": seed,
@@ -286,41 +341,44 @@ class NanoRpc:
         }
         return account_data
 
-    def validate_account_number(self, account):
+    def validate_account_number(self, account,request_only = False):
         response = {"success" : False}
-        req_validate_account_number = {
+        req = {
             "action": "validate_account_number",
             "account": account,
         }
-        data = self.post_with_auth(req_validate_account_number)
+        if request_only : return req
+        data = self.post_with_auth(req)
         if data["valid"] == "1" :
             response["success"] = True
         return response
 
-    def unlock_wallet(self, wallet, password):
+    def unlock_wallet(self, wallet, password, request_only = False):
         response = {"success" : False}
-        req_password_enter = {
+        req = {
         "action": "password_enter",
         "wallet": wallet,
         "password": password
         }
-        data = self.post_with_auth(req_password_enter)
+        if request_only : return req
+        data = self.post_with_auth(req)
         if data["valid"] == "1" :
             response["success"] = True
         return response
 
-    def wallet_create(self, seed):
+    def wallet_create(self, seed, request_only = False):
         # response = {"success" : False}
         if seed == None :
-            req_wallet_create = {
+            req = {
             "action": "wallet_create"
         }
         else :
-            req_wallet_create = {
+            req = {
                 "action": "wallet_create",
                 "seed": seed,
             }
-        data = self.post_with_auth(req_wallet_create)
+        if request_only : return req
+        data = self.post_with_auth(req)
         # {
         #     "wallet": "646FD8B5940AB5B1AD2C0B079576A4CF5A25E8ADB10C91D514547EF5C10C05B7",
         #     "last_restored_account": "nano_3mcsrncubmquwcwgiouih17fjo8183t497c3q9w6qtnwz8bp3fig5x8m4rkw",
@@ -328,42 +386,46 @@ class NanoRpc:
         # }
         return data
 
-    def wallet_add(self, wallet, private_key) :
+    def wallet_add(self, wallet, private_key,request_only =False) :
         # response = {"success" : False}
-        req_wallet_add = {
+        req = {
             "action": "wallet_add",
             "wallet": wallet,
             "key": private_key
         }
-        data = self.post_with_auth(req_wallet_add)
+        if request_only : return req
+        data = self.post_with_auth(req)
         # {
         #   "account": "nano_3e3j5tkog48pnny9dmfzj1r16pg8t1e76dz5tmac6iq689wyjfpi00000000"
         # }
         return data
 
-    def key_expand(self, private_key):
-        req_key_expand = {
+    def key_expand(self, private_key ,request_only =False):
+        req = {
             "action": "key_expand",
             "key": private_key
         }
-        data = self.post_with_auth(req_key_expand)
+        if request_only : return req
+        data = self.post_with_auth(req)
         return data
 
-    def peers(self):
-        req_peers = {
+    def peers(self ,request_only =False):
+        req = {
             "action": "peers"
         }
-        data = self.post_with_auth(req_peers)
+        if request_only : return req
+        data = self.post_with_auth(req)
         return data
 
-    def confirmation_quorum(self):
-        req_confirmation_quorum = {
+    def confirmation_quorum(self ,request_only =False):
+        req = {
             "action": "confirmation_quorum"
         }
-        data = self.post_with_auth(req_confirmation_quorum)
+        if request_only : return req
+        data = self.post_with_auth(req)
         return data
 
-    def account_info(self, account):
+    def account_info(self, account ,request_only =False):
         req = {
             "action": "account_info",
             "account": account,
@@ -371,11 +433,12 @@ class NanoRpc:
             "pending": "true",
             "include_confirmed": "true"
         }
+        if request_only : return req
         data = self.post_with_auth(req)
         return data
 
-    def block_create(self,balance, account, key, representative, link, previous) :
-        req_block_create = {
+    def block_create(self,balance, account, key, representative, link, previous ,request_only =False):
+        req = {
             "action": "block_create",
             "json_block": "true",
             "type": "state",
@@ -387,26 +450,29 @@ class NanoRpc:
             "previous": previous,
             "difficulty" : self.get_active_difficulty()["network_receive_current"]
         }
-        data = self.post_with_auth(req_block_create)
+        if request_only : return req
+        data = self.post_with_auth(req)
         return data
 
-    def representatives_online(self, weight = "false"):
-        req_representatives_online = {
+    def representatives_online(self, weight = "false" ,request_only =False):
+        req = {
             "action": "representatives_online"  ,
             "weight" :  str(weight).lower()
         }
-        data = self.post_with_auth(req_representatives_online)
+        if request_only : return req
+        data = self.post_with_auth(req)
         return data
 
-    def check_balance(self, account, include_only_confirmed = True):
+    def check_balance(self, account, include_only_confirmed = True,request_only =False):
 
         multiplier = 10 ** 30
-        req_account_balance = {
+        req = {
             "action": "account_balance",
             "account": account,
             "include_only_confirmed" : include_only_confirmed
         }
-        data = self.post_with_auth(req_account_balance)
+        if request_only : return req
+        data = self.post_with_auth(req)
 
         return {"account": account,
                 "balance_raw" : int(data["balance"]),
@@ -428,10 +494,11 @@ class NanoRpc:
         else :
             return "0.00"
 
-    def account_key(self, account) :
-        req_destination_key = {"action": "account_key",
+    def account_key(self, account ,request_only =False):
+        req = {"action": "account_key",
                                "account": account}
-        data = self.post_with_auth(req_destination_key) #["key"]
+        if request_only : return req
+        data = self.post_with_auth(req) #["key"]
         return data
 
     def get_pending_blocks(
