@@ -37,6 +37,10 @@ class ConfigReadWrite:
     def write_json(self,path,json_dict):
          with open(path, "w") as f:
             json.dump(json_dict, f)
+    def append_json(self,path,json_dict):
+         with open(path, "a") as f:
+            json.dump(json_dict, f)
+            f.write('\n')
 
     def read_json(self,path):
          with open(path, "r") as f:
@@ -247,6 +251,9 @@ class ConfigParser :
             node_conf = self.get_node_config(node_name)
             api.append(node_conf["rpc_url"])
         return api
+    
+    def get_remote_address(self):
+        return self.config_dict["remote_address"]
 
 
     def key_expand(self,private_key):
