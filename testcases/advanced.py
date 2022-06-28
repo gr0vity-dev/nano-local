@@ -14,8 +14,8 @@ class ReplayLedgers(unittest.TestCase):
     from testcases.setup.advanced import Init
 
     def setUp(self) -> None:
-        self.bg = BlockGenerator(broadcast_blocks=True, default_rpc_index=1)
-        self.ba = BlockAsserts(default_rpc_index=1)
+        self.bg = BlockGenerator(broadcast_blocks=True, default_rpc_index=0)
+        self.ba = BlockAsserts(default_rpc_index=0)
         self.brw = BlockReadWrite()
         self.conf = ConfigParser()
         self.nano_rpc = self.bg.get_nano_rpc_default()
@@ -39,8 +39,14 @@ class ReplayLedgers(unittest.TestCase):
         ini.setup_ledger(ini.pre_gen_files["ledger_file"], use_nanoticker = not ini.debug)
     
     @unittest.skipIf(is_not_in_config(__module__, __qualname__,
-       "test_02_publish"), "according to nano_local_config.toml")
-    def test_02_publish(self):
+       "test_02_nanoticker_ready"), "according to nano_local_config.toml")
+    def test_02_nanoticker_ready(self):
+        self.ba.assert_nanoticker_reader(1070012)
+
+    
+    @unittest.skipIf(is_not_in_config(__module__, __qualname__,
+       "test_03_publish"), "according to nano_local_config.toml")
+    def test_03_publish(self):
         ini = self.Init(2)
         blocks = self.brw.read_blocks_from_disk(ini.pre_gen_files["json_file"], blocks=True)
         block_count_start = self.bg.get_nano_rpc_default().block_count()["count"]        
