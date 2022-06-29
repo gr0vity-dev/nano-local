@@ -97,7 +97,7 @@ class NanoRpc:
                         aio_results.append(obj)
                         #print(f"aio_post_count : {len(aio_results)}", end="\r")
 
-            aio_errors = self.get_new_aio_error
+            aio_errors = self.get_new_aio_error()
             await asyncio.gather(*(do_req(el, aio_errors) for el in data))
             if aio_errors["error_count"] > 0 : print(json.dumps(aio_errors, indent=4))
         #await session.close()
