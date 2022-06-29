@@ -392,11 +392,9 @@ def main():
     while True :   
         t1 = run_threaded( s.compare_active_elections,  kwargs={"previous" : previous, "nano_node_version":  args.version,})       
         time.sleep(5)
-        previous = t1.join()
+        previous = t1.join()       
         
         
-        #t2.join()
-        print(time.time())
 
     # if args.command == 'aec' : #c(reate) s(tart) i(nit)
     #     s.compare_active_elections(nano_node_version = args.version, every_s = 5, repeat_header = 10, format = "table_per_pr")
