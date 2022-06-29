@@ -88,7 +88,8 @@ nanovotevisu_enable = false
 
     [testcases.advanced.ReplayLedgers]    
         test_01_setup_ledger = true  
-        test_02_publish = true              
+        test_02_nanoticker_ready = false
+        test_03_publish = true          
         test_N1_1_publish_10_change_blocks = false
         test_N1_2_publish_bucket_saturation = false
         test_N1_3_loop_2_10x = false

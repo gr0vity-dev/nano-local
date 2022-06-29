@@ -17,7 +17,6 @@ import inspect
 from colorama import Fore, Style
 import argparse
 import re
-import schedule
 import threading
 import queue
 
