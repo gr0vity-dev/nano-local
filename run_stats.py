@@ -133,7 +133,7 @@ class NanoStats():
     def get_overlap_percent(self, union_length, avg_aec_size):        
         return round((union_length / max(1,avg_aec_size)) * 100,2)
 
-    def log_to_console_aec(self, data, values):    
+    def log_to_console_aec(self, data, values,nano_node_version=None):    
 
             file_path = f"./{datetime.now().strftime('%j')}_run_stats.out"
             header = 'time     | PRs  | AEC overlap | AEC overlap count | AEC unconf.   | AEC churn | elect_start | elect_conf | elect_drop | block_inc  | cemented_inc     | elect_hint | AEC overlap PR_% | count      | cemented %   | sync count | miss cement. | uncemented       |'
@@ -159,9 +159,12 @@ class NanoStats():
     def get_path(self, filename) :
         return f"./log/{datetime.now().strftime('%j')}_{filename}.log"
 
-    def log_write_file_aec(self, data, values, filename = "aec_stats"):        
+    def log_write_file_aec(self, data, values, filename = "aec_stats", nano_node_version = None):  
+              
         ts = [{},{},{}]
         for i in range(0,3):
+            ts[i]["version"] = nano_node_version
+
             for key in values[i] :                        
                 #string values
                 if key == f'__pr{i+1}' : 
@@ -169,7 +172,7 @@ class NanoStats():
                 # elif isinstance(data[key], str) :
                 #     ts[i][key] = data[key]  
                 elif key in ["elapsed"]:
-                        ts[i][key] = data[key]                        
+                        ts[i][key] = data[key]                
                 #integer values
                 else : 
                     try:
@@ -184,6 +187,7 @@ class NanoStats():
 
          
     def log_write_file_stats_delta(self, request_responses, previous = None, nano_node_version = None, filename = "counter_stats"):
+        
         if previous is None : previous = {}        
         rpc_stats = self.get_stats(request_responses)        
         if previous == {}:
@@ -199,12 +203,14 @@ class NanoStats():
             self.conf_p.append_json(self.get_path(filename), stats_delta)
         
     
-    def aec_stats(self, current, previous = None, nano_node_version = None):
+    def aec_stats(self, current, previous = None, nano_node_version = None):       
         
-        stats = current["stats"]
+        stats = current["election_stats"]
         aecs_detail = current["aecs"]
         aecs = [set(x["confirmations"]) for x in aecs_detail] if len(aecs_detail) > 0 else set()
         bcs = current["bcs"]
+        p_aecs_detail = previous["aecs"]
+        p_aecs = [set(x["confirmations"]) for x in p_aecs_detail] if len(p_aecs_detail) > 0 else set()
               
         if len(aecs) == 0 : #if rpc non reachable.
             return      
@@ -236,16 +242,16 @@ class NanoStats():
 
         #churn in blocks every {every_s =5} seconds for each PR
         churn = []
-        if len(previous["aecs"]) == len(aecs) :                                                   
+        if len(p_aecs) == len(aecs) :                                                   
             for i in range(0, len(aecs)):                    
-                churn.append( str(len(previous["aecs"][i]) - len(aecs[i].intersection(previous["aecs"][i]))).ljust(4) )
+                churn.append( str(len(p_aecs[i]) - len(aecs[i].intersection(p_aecs[i]))).ljust(4) )
         
         election_delta = []
         for i in range(0, len(stats)):
             pr_election_stats = []
             for key,value in stats[i].items():
-                if len(previous["stats"]) <= i : break
-                delta = value - previous["stats"][i].get(key, 0)                   
+                if len(previous["election_stats"]) <= i : break
+                delta = value - previous["election_stats"][i].get(key, 0)                   
                 pr_election_stats.append(delta)
             election_delta.append(pr_election_stats)
 
@@ -323,20 +329,25 @@ class NanoStats():
         
         return (data, values)
 
-    def compare_active_elections(self, previous = None, nano_node_version = None, every_s = 5, repeat_header = 10, format = "table"):    
+    def compare_active_elections(self, previous = None, nano_node_version = None):    
 
         requests = self.collect_requests()
         request_responses = self.exec_requests(requests) 
+        #print(request_responses)
 
-        if previous is None : previous = {"aecs" : [], "bcs" : [], "stats" : []}
+        if previous is None : previous = {"aecs" : [], "bcs" : [], "stats" : [], "election_stats" : []}
         current = { "aecs" : self.get_active_confirmations(request_responses), 
                     "bcs" : self.get_block_count_prs(request_responses), 
-                    "stats" : self.get_election_stats(request_responses)}       
+                    "election_stats" : self.get_election_stats(request_responses),
+                    "stats" : self.get_stats(request_responses)}       
        
+        #print("DEBUG_PRINT",current)
         data , values = self.aec_stats(current,previous, )
-        self.log_to_console_aec(data,values)
-        self.log_write_file_aec(data,values)
-        self.log_write_file_stats_delta(request_responses, previous["stats"])   
+        self.log_to_console_aec(data,values,nano_node_version=nano_node_version)
+        self.log_write_file_aec(data,values, nano_node_version=nano_node_version)
+        self.log_write_file_stats_delta(request_responses, previous["stats"], nano_node_version=nano_node_version)   
+
+        #print(previous)
         
         previous = current
         return previous
@@ -380,8 +391,8 @@ def main():
     
     previous = None
     while True :   
-        t1 = run_threaded( s.compare_active_elections,  kwargs={"previous" : previous, "nano_node_version":  args.version, "repeat_header": 10, "format": "table_per_pr",})       
-        time.sleep(2)
+        t1 = run_threaded( s.compare_active_elections,  kwargs={"previous" : previous, "nano_node_version":  args.version,})       
+        time.sleep(5)
         previous = t1.join()
         
         
