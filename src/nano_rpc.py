@@ -191,10 +191,7 @@ class NanoRpc:
         return self.__publish(payload_array = publish_commands, json_data=True, sync=sync)
 
     def publish_block(self, json_block, subtype=None):
-        if subtype is None : raise ValueError("can't be none")
-        blocks = []
-        blocks.append(json_block)
-        self.publish_blocks(blocks)
+        return self.__publish(json_block = json_block, subtype=subtype if subtype is not None else json_block["subtype"] if "subtype" in json_block else None)
 
        
         
@@ -280,6 +277,7 @@ class NanoRpc:
         resp = self.post_with_auth(req)
         if resp["confirmations"] == "" : resp["confirmations"] = []        
         return resp
+
 
     def block_confirmed(self, json_block = None , block_hash = None) :
         if json_block is not None :
@@ -590,8 +588,12 @@ class NanoRpc:
 
             elif sub_type == "change" :
                 amount_raw = "0"
-                destination_account = source_account_data["account"]
+                destination_account = source_account_data["account"]                
                 link = link
+            
+            elif sub_type == "epoch" :
+                pass
+
 
             block = self.block_create(balance, source_account_data["account"], source_account_data["private"],representative,link, previous )
             block["private"] = source_account_data["private"]
@@ -643,7 +645,7 @@ class NanoRpc:
                                     "source_seed" : source_seed,
                                     "source_index" : source_index},
                     "error" : block["error"]
-                    }
+                    }        
         return result
 
 
@@ -737,13 +739,21 @@ class NanoRpc:
         broadcast = True
     ):
 
-        account_info = self.account_info(genesis_account)
-        epoch_block = self.block_create(account_info["balance"],genesis_account, genesis_private_key, account_info["representative"],epoch_link,account_info["frontier"] )
-        logging.debug(epoch_block["hash"])
+        #account_info = self.account_info(genesis_account)
+        #epoch_block = self.block_create(account_info["balance"],genesis_account, genesis_private_key, account_info["representative"],epoch_link,account_info["frontier"] )
+        #print(epoch_block)
+        block = self.create_block( "epoch",
+                                    source_private_key=genesis_private_key,
+                                    destination_account=genesis_account,
+                                    link=epoch_link,
+                                    in_memory= not broadcast)
+
+        return self.get_block_result(block, broadcast)
 
         if broadcast:
             publish = self.publish_block(epoch_block["block"], subtype="epoch")
-
+        
+        
         return {"success" : True,
                 "account" : genesis_account,
                 "hash": epoch_block["hash"]
