@@ -5,10 +5,17 @@ from src.parse_nano_local_config import ConfigReadWrite, ConfigParser, Helpers
 import time
 import json
 from multiprocessing import Process, Queue, Value
+import threading
+from os import system
 
 
 def is_not_in_config(module,qual_name, function_name) :
     return ConfigParser().skip_testcase('{}.{}.{}'.format( module, qual_name, function_name))
+
+def run_threaded(job_func, *args, **kwargs):
+    job_thread = threading.Thread(target=job_func, *args, **kwargs)
+    job_thread.start()
+    return job_thread
 
 class ReplayLedgers(unittest.TestCase):
     from testcases.setup.advanced import Init
@@ -37,25 +44,125 @@ class ReplayLedgers(unittest.TestCase):
     def test_01_setup_ledger(self):
         ini = self.Init(2)
         ini.setup_ledger(ini.pre_gen_files["ledger_file"], use_nanoticker = not ini.debug)
-    
+
     @unittest.skipIf(is_not_in_config(__module__, __qualname__,
        "test_02_nanoticker_ready"), "according to nano_local_config.toml")
     def test_02_nanoticker_ready(self):
         self.ba.assert_nanoticker_reader(1070012)
 
-    
+
     @unittest.skipIf(is_not_in_config(__module__, __qualname__,
        "test_03_publish"), "according to nano_local_config.toml")
     def test_03_publish(self):
         ini = self.Init(2)
         blocks = self.brw.read_blocks_from_disk(ini.pre_gen_files["json_file"], blocks=True)
-        block_count_start = self.bg.get_nano_rpc_default().block_count()["count"]        
+        block_count_start = self.bg.get_nano_rpc_default().block_count()["count"]
         self.ba.assert_list_of_blocks_published(blocks, sync=False)
         block_count_end = self.bg.get_nano_rpc_default().block_count()
         print(  "blocks_start" , block_count_start,
                 "blocks_end" , block_count_end["count"],
                 "blocks_cemented" , block_count_end["cemented"])
-        
+
+
+    @unittest.skipIf(is_not_in_config(__module__, __qualname__,
+       "test_04_pub_restart_pr3"), "according to nano_local_config.toml")
+    def test_04_pub_restart_pr3(self):
+        for i in range(0,10):
+            ini = self.Init(2)
+            ini.setup_ledger(ini.pre_gen_files["ledger_file"], use_nanoticker = not ini.debug)
+
+            stop_event = threading.Event()
+            ini = self.Init(2)
+            blocks = self.brw.read_blocks_from_disk(ini.pre_gen_files["json_file"], blocks=True)
+            #block_count_start = self.bg.get_nano_rpc_default().block_count()["count"]
+
+
+            first_50k_blocks = [x for x in blocks[0:2]] #first 2 rounds of 25k change blocks : 25k accounts with 1 change block.
+            next_50k_blocks = [x for x in blocks[2:4]] #next 2 rounds of 25k change blocks : 25k accounts with 1 change block.
+
+            t1 = run_threaded(self.ba.assert_list_of_blocks_published, args=(first_50k_blocks,), kwargs={"sync" :False, "stop_event" : stop_event})
+            t1.join() #wait for the first 50k blocks to be published
+
+            t2 = run_threaded(self.ba.assert_list_of_blocks_published, args=(next_50k_blocks,), kwargs={"sync" :False, "stop_event" : stop_event})
+            system("docker stop nl_pr3") # bring PRs out of sync by disconnection 1 PR
+            time.sleep(20)
+            system("docker start nl_pr3")
+            t2.join() # wait for the next 50k blocks to be published
+
+            time.sleep(15 * 60) #15min recovery phase before scheduling a new test
+            ini.stop_nodes(sleep=30) # stop nodes nd sleep for 30 seconds to prepare for the next run.
+
+
+    @unittest.skipIf(is_not_in_config(__module__, __qualname__,
+       "test_05_pub_restart_all_prs"), "according to nano_local_config.toml")
+    def test_05_pub_restart_all_prs(self):
+        for i in range(0,10):
+            ini = self.Init(2)
+            ini.setup_ledger(ini.pre_gen_files["ledger_file"], use_nanoticker = not ini.debug)
+
+            stop_event = threading.Event()
+            ini = self.Init(2)
+            blocks = self.brw.read_blocks_from_disk(ini.pre_gen_files["json_file"], blocks=True)
+            #block_count_start = self.bg.get_nano_rpc_default().block_count()["count"]
+
+            first_50k_blocks = [x for x in blocks[0:2]] #first 2 rounds of 25k change blocks : 25k accounts with 1 change block.
+            next_50k_blocks = [x for x in blocks[2:4]] #next 2 rounds of 25k change blocks : 25k accounts with 1 change block.
+
+            t1 = run_threaded(self.ba.assert_list_of_blocks_published, args=(first_50k_blocks,), kwargs={"sync" :False, "stop_event" : stop_event})
+            t1.join() #wait for the first 50k blocks to be published
+
+            t2 = run_threaded(self.ba.assert_list_of_blocks_published, args=(next_50k_blocks,), kwargs={"sync" :False, "stop_event" : stop_event})
+            system("docker stop nl_pr3") # bring PRs out of sync by disconnection 1 PR
+            system("docker stop nl_pr2")
+            system("docker stop nl_pr1")
+            time.sleep(20)
+            system("docker start nl_pr3")
+            system("docker start nl_pr2")
+            system("docker start nl_pr1")
+
+            t2.join() # wait for the next 50k blocks to be published
+
+            time.sleep(15 * 60) #15min recovery phase before scheduling a new test
+            ini.stop_nodes(sleep=30) # stop nodes nd sleep for 30 seconds to prepare for the next run.
+
+    @unittest.skipIf(is_not_in_config(__module__, __qualname__,
+       "test_06_100k_while_pr3_down"), "according to nano_local_config.toml")
+    def test_06_100k_while_pr3_down(self):
+        for i in range(0,10):
+            #Publish 25k blocks when all PRs are available.
+            #stop PR3
+            #Publish 100k blocks when PR3 is down.
+            #start PR3
+            #publish 50k blocks when PR3 is back up
+            #wait 15 minutes
+
+            ini = self.Init(2)
+            ini.setup_ledger(ini.pre_gen_files["ledger_file"], use_nanoticker = not ini.debug)
+
+            stop_event = threading.Event()
+            ini = self.Init(2)
+            blocks = self.brw.read_blocks_from_disk(ini.pre_gen_files["json_file"], blocks=True)
+            #block_count_start = self.bg.get_nano_rpc_default().block_count()["count"]
+
+
+            first_25k_blocks = [x for x in blocks[0:1]] #first 2 rounds of 25k change blocks : 25k accounts with 1 change block.
+            next_100k_blocks = [x for x in blocks[1:5]] #next 2 rounds of 25k change blocks : 25k accounts with 1 change block.
+            last_50k_blocks = [x for x in blocks[5:7]] #next 2 rounds of 25k change blocks : 25k accounts with 1 change block.
+
+            t1 = run_threaded(self.ba.assert_list_of_blocks_published, args=(first_25k_blocks,), kwargs={"sync" :False, "stop_event" : stop_event})
+            t1.join() #wait for the first 50k blocks to be published
+
+            system("docker stop nl_pr3") # bring PRs out of sync by disconnection 1 PR
+            t2 = run_threaded(self.ba.assert_list_of_blocks_published, args=(next_100k_blocks,), kwargs={"sync" :False, "stop_event" : stop_event})
+            t2.join() # wait for the next 50k blocks to be published
+            system("docker start nl_pr3")
+
+            t3 = run_threaded(self.ba.assert_list_of_blocks_published, args=(last_50k_blocks,), kwargs={"sync" :False, "stop_event" : stop_event})
+            t3.join() # wait for the next 50k blocks to be published
+
+            time.sleep(15 * 60) #15min recovery phase before scheduling a new test
+            ini.stop_nodes(sleep=30) # stop nodes nd sleep for 30 seconds to prepare for the next run.
+
 
     @unittest.skipIf(is_not_in_config(__module__, __qualname__,
        "test_N1_2_publish_bucket_saturation"), "according to nano_local_config.toml")

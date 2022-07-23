@@ -177,7 +177,8 @@ class BlockAsserts():
         rpc_block_count_start = self.nano_rpc_default.block_count()
         #print("start block_count" , rpc_block_count_start)
         res = self.nano_rpc_default.publish_blocks(blocks, json_data=True, sync=sync) #we don't care about the result
-        #DEBUG PURPOSE; DISABLE  self.assert_expected_block_count(blocks_to_publish_count+int(rpc_block_count_start["count"]))
+        #DEBUG PURPOSE; DISABLE  
+        #self.assert_expected_block_count(blocks_to_publish_count+int(rpc_block_count_start["count"]))
 
 
     def assert_expected_block_count(self, expected_count, exit_after_s = 2) :

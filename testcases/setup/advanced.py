@@ -91,7 +91,18 @@ class Init :
                 pass
 
             queue.put(q_res)
+    
+    def exec_commands(self,commands):
+        for command in commands :
+            status = call(command, shell=True)
+            if status != 0 : raise Exception(f"{command} failed with status:{status}")
 
+    def stop_nodes(self, sleep=0) :
+        commands = ["./run_nano_local.py stop_nodes"] #last command        
+        self.exec_commands(commands)
+        time.sleep(sleep)
+        
+    
 
     def setup_ledger(self, ledger_source, use_nanoticker = False) :
         #copy ledger to all nodes and restart nodes
@@ -101,9 +112,7 @@ class Init :
             commands.append(f"cp -p {ledger_source} {ledger_destination}")
         commands.append("./run_nano_local.py start") #last command
 
-        for command in commands :
-            status = call(command, shell=True)
-            if status != 0 : raise Exception(f"{command} failed with status:{status}")
+        self.exec_commands(commands)
 
         self.ba.assert_all_blocks_cemented()
 

@@ -6,8 +6,8 @@ from datetime import datetime
 from time import strftime,gmtime,time, sleep
 
 
-bg = BlockGenerator(default_rpc_index=2, broadcast_blocks=False)
-ba = BlockAsserts(default_rpc_index=2)
+bg = BlockGenerator(default_rpc_index=1, broadcast_blocks=False)
+ba = BlockAsserts(default_rpc_index=1)
 h = Helpers()
 bg.set_single_change_rep()
 timeout_s = 20
@@ -75,9 +75,10 @@ def main():
                 try:
                     q_res = {"timeout_uduration" : timeout_s}
                     blocks = []
-                    change_response = bg.blockgen_single_change(source_seed="FACE000000000000000000000000000000000000000000000000000000000025", source_index=i)        
+                    change_response = bg.blockgen_single_change(source_seed="FACE000000000000000000000000000000000000000000000000000000000025", source_index=i)                          
                     blocks.append(change_response["block"])
-                    ba.assert_blocks_published(blocks,sync=True)        
+                    ba.assert_blocks_published(blocks,sync=True)
+                    print(datetime.now(), change_response["hash"])
                     t1 = time()
                     try:
                         ba.assert_single_block_confirmed(change_response["hash"], exit_after_s=timeout_s, sleep_on_stall_s=0.1)

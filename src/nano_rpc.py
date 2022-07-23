@@ -1,5 +1,4 @@
 from collections.abc import Mapping
-from socket import timeout
 import requests
 import json
 import secrets
@@ -645,7 +644,8 @@ class NanoRpc:
                                     "source_seed" : source_seed,
                                     "source_index" : source_index},
                     "error" : block["error"]
-                    }        
+                    }
+        
         return result
 
 
