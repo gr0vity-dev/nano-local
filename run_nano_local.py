@@ -258,8 +258,11 @@ def restart_wait_sync():
 def reset_nodes():
     stop_nodes()
     dir_nano_nodes = _node_path["container"]
-    command = f'cd {dir_nano_nodes} && find . -name "data.ldb"  -type f -delete'
-    system(command)
+    commands =  [ f'cd {dir_nano_nodes} && find . -name "data.ldb"  -type f -delete',
+                  f'cd {dir_nano_nodes} && find . -name "wallets.ldb"  -type f -delete' ]
+    
+    for command in commands:
+        system(command)
     start_nodes()
 
 def destroy_all():

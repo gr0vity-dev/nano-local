@@ -8,6 +8,7 @@ services:
     command: nano_node daemon --network=test -l
     restart: unless-stopped
     ports:
+    - 44000:17075
     - 45000:17076
     - 47000:17078
     volumes:
@@ -24,6 +25,7 @@ services:
     container_name : default_build
     restart: unless-stopped
     ports:
+    - 44000:17075
     - 45000:17076
     - 47000:17078
     volumes:

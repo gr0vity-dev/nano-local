@@ -487,9 +487,10 @@ class ConfigParser :
             logging.warning("No docker_tag or nano_node_path specified. use [latest] (nanocurrency/nano-test:latest)")
 
     def compose_set_node_ports(self, node_name, port_i):
+        host_port_peer = 44000 + port_i
         host_port_rpc = 45000 + port_i
         host_port_ws = 47000 + port_i
-        self.compose_dict["services"][node_name]["ports"] = [f'{host_port_rpc}:17076', f'{host_port_ws}:17078']
+        self.compose_dict["services"][node_name]["ports"] = [f'{host_port_peer}:17075', f'{host_port_rpc}:17076', f'{host_port_ws}:17078']
         #hijack port settings to append config
         node_config = self.get_node_config(node_name)
         node_config["rpc_url"] = f'http://localhost:{host_port_rpc}'

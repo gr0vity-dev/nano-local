@@ -14,5 +14,6 @@ enable_voting = true
 peering_port = 17075
 preconfigured_peers = []
 allow_local_peers = true
+#bandwidth_limit = 4096
 
 
