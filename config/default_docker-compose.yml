@@ -1,42 +1,45 @@
-version : '3'
+version: '3'
+
 services:
 
   default_docker:
     image: nanocurrency/nano:V23.1
     user: "1000"
-    container_name : default_docker
+    container_name: default_docker
     command: nano_node daemon --network=test -l
     restart: unless-stopped
     ports:
-    - 44000:17075
-    - 45000:17076
-    - 47000:17078
+      - 44000:17075
+      - 45000:17076
+      - 47000:17078
     volumes:
-    - ./default_docker:/./home/nanocurrency
+      - ./default_docker:/./home/nanocurrency
     env_file:
-    - ./dc_nano_local_env
+      - ./dc_nano_local_env
     networks:
-    - nano-local
+      - nano-local
 
   default_build:
     build: ./nano-workspace/docker/.
     command: /usr/bin/nano_node --daemon --network=test
     user: "1000"
-    container_name : default_build
+    container_name: default_build
     restart: unless-stopped
     ports:
-    - 44000:17075
-    - 45000:17076
-    - 47000:17078
+      - 44000:17075
+      - 45000:17076
+      - 47000:17078
     volumes:
-    - ./default_build:/./home/nanocurrency
+      - ./default_build:/./home/nanocurrency
     env_file:
-    - ./dc_nano_local_env
+      - ./dc_nano_local_env
     networks:
-    - nano-local
-
+      - nano-local
 
 networks:
   nano-local:
-    name : nano-local
+    name: nano-local
     driver: bridge
+  
+volumes:
+  nl_default_volume : {}
