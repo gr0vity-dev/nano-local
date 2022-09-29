@@ -47,7 +47,7 @@ services:
     restart: unless-stopped
     user: "472"
     depends_on:
-      - prometheus
+      - nl_prometheus
     ports:
       - 42005:3000
     volumes:
