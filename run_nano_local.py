@@ -221,7 +221,32 @@ def start_all(build_f):
     if build_f:
         command = f'cd {dir_nano_nodes} && docker-compose up -d --build'
     system(command)
+    time.sleep(2)
     is_rpc_available(_conf.get_nodes_name())
+
+
+def start_prom():
+    if not _conf.get_config_value("promexporter_enable"): return
+    dir_nano_nodes = _node_path["container"]
+    prom_exporter = ' '.join([f'{x}_exporter' for x in _conf.get_nodes_name()])
+    command = f'cd {dir_nano_nodes} && docker-compose start {prom_exporter}'
+    system(command)
+
+
+def start_prom_stack():
+    if not _conf.get_config_value("promexporter_enable"): return
+    if _conf.get_config_value("prom_gateway") == "nl_pushgateway:9091":
+        dir_nano_nodes = _node_path["container"]
+        command = f'cd {dir_nano_nodes} && docker-compose start nl_prometheus nl_grafana nl_pushgateway'
+        system(command)
+
+
+def stop_prom():
+    if not _conf.get_config_value("promexporter_enable"): return
+    dir_nano_nodes = _node_path["container"]
+    prom_exporter = ' '.join([f'{x}_exporter' for x in _conf.get_nodes_name()])
+    command = f'cd {dir_nano_nodes} && docker-compose stop {prom_exporter}'
+    system(command)
 
 
 def build_nodes():
@@ -238,6 +263,7 @@ def start_nodes():
     nodes = ' '.join(_conf.get_nodes_name())
     command = f'cd {dir_nano_nodes} && docker-compose start {nodes}'
     system(command)
+    start_prom()  #prom depends on node PID. SHould be started after node
     is_rpc_available(_conf.get_nodes_name())
 
 
@@ -250,6 +276,7 @@ def stop_all():
 
 def stop_nodes():
     ''' stop nodes '''
+    stop_prom()  #prom depends on node PID should be stopped before node.
     dir_nano_nodes = _node_path["container"]
     nodes = ' '.join(_conf.get_nodes_name())
     command = f'cd {dir_nano_nodes} && docker-compose stop {nodes}'
@@ -417,6 +444,14 @@ def main():
     elif args.command == 'start':
         start_all(args.build)
         logging.getLogger().success("all containers started")
+
+    elif args.command == 'start_prom':
+        start_prom()
+        logging.getLogger().success("prom-exporter containers started")
+
+    elif args.command == 'start_prom_stack':
+        start_prom_stack()
+        logging.getLogger().success("prom-stack containers started")
 
     elif args.command == 'init':
         init_nodes()
