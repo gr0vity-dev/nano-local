@@ -548,12 +548,12 @@ class ConfigParser:
 
     def set_promexporter_compose(self):
         #Create prometheus, prom-gateway and grafana IF we use default prom-gateway
-        if self.get_config_value("prom_gateway") == "nl_pushgateway:9091" :
+        if self.get_config_value("prom_gateway") == "nl_pushgateway:9091":
             promexporter_compose = self.conf_rw.read_yaml(
                 f'{_config_dir}/promexporter/default_docker-compose.yml')
             for container in promexporter_compose["services"]:
-                self.compose_dict["services"][container] = promexporter_compose[
-                    "services"][container]
+                self.compose_dict["services"][
+                    container] = promexporter_compose["services"][container]
             for volume in promexporter_compose["volumes"]:
                 self.compose_dict["volumes"][volume] = promexporter_compose[
                     "volumes"][volume]
@@ -578,6 +578,8 @@ class ConfigParser:
 
             self.compose_dict["services"][container_name][
                 "command"] = f'--rpchost {host_ip} --rpc_port {node_port} --push_gateway {prom_gateway} --hostname {node["name"]} --runid {self.runid}'
+            self.compose_dict["services"][container_name][
+                "pid"] = f'service:{node["name"]}'
 
             self.enabled_services.append(
                 f'{container_name} added for node {node["name"]}')
