@@ -158,8 +158,29 @@ def generate_genesis_open(genesis_key):
         system(docker_stop_rm)
 
 
-def is_rpc_available(node_names):
-    while len(node_names) > 0:
+def is_all_containers_online(node_names):
+
+    containers_online = 0
+    for container in node_names:
+        cmd = f"docker ps |grep {container}$ | wc -l"
+        res = int(subprocess_read_lines(cmd)[0:1][0])
+        containers_online = containers_online + res
+    if len(node_names) == containers_online:
+        return {
+            "success": True,
+            "msg": f"All {containers_online} containers online"
+        }
+    else:
+        return {
+            "success": False,
+            "msg": f"{containers_online}/{len(node_names)} containers online"
+        }
+
+
+def is_rpc_available(node_names, wait=True):
+    repeat = True  #only query once if wait == false
+    while len(node_names) > 0 and repeat:
+        repeat = wait
         containers = copy.deepcopy(node_names)
         for container in containers:
             cmd_rpc_url = f"docker port {container} | grep 17076/tcp | awk '{{print $3}}'"
@@ -170,7 +191,8 @@ def is_rpc_available(node_names):
             else:
                 logging.warning(
                     f"RPC {rpc_url} not yet reachable for node {container} ")
-    logging.info(f"Nodes {_conf.get_nodes_name()} started successfully")
+
+    logging.info(f"Nodes {_conf.get_nodes_name()} reachable")
 
 
 def prepare_nodes(genesis_node_name):
@@ -188,8 +210,7 @@ def prepare_node_env(node_name):
     write_nanomonitor_config(node_name)
 
 
-def init_nodes(genesis_node_name="nl_genesis"):
-
+def init_wallets(genesis_node_name="nl_genesis"):
     start_nodes()  #fixes a bug on mac m1
     init_blocks = InitialBlocks()
     for node_name in _conf.get_nodes_name():
@@ -204,6 +225,11 @@ def init_nodes(genesis_node_name="nl_genesis"):
                 node_name,
                 seed=_conf.get_node_config(node_name)["seed"])
 
+
+def init_nodes(genesis_node_name="nl_genesis"):
+
+    init_wallets()
+    init_blocks = InitialBlocks()
     init_blocks.publish_initial_blocks()
 
 
@@ -305,12 +331,21 @@ def restart_wait_sync():
         f'All {block_count["cemented"]} blocks are cemented')
 
 
+def network_status():
+    ''' get confirmed count for each node'''
+    response = is_all_containers_online(_conf.get_nodes_name())
+    if response["success"]:
+        is_rpc_available(_conf.get_nodes_name(), wait=False)
+        ba = BlockAsserts()
+        logging.getLogger().info(ba.network_status())
+    logging.getLogger().info(response["msg"])
+
+
 def reset_nodes():
     stop_nodes()
     dir_nano_nodes = _node_path["container"]
     commands = [
-        f'cd {dir_nano_nodes} && find . -name "data.ldb"  -type f -delete',
-        f'cd {dir_nano_nodes} && find . -name "wallets.ldb"  -type f -delete'
+        f'cd {dir_nano_nodes} && find . -name "*.ldb"  -type f -delete'
     ]
 
     for command in commands:
@@ -426,7 +461,9 @@ def main():
     set_log_level(args.loglevel)
     _conf.set_prom_runid(args.runid)
 
-    if args.command == 'csi':  #c(reate) s(tart) i(nit)
+    if args.command == "status":
+        network_status()
+    elif args.command == 'csi':  #c(reate) s(tart) i(nit)
         create_nodes(args.compose_version)
         start_all(True)
         init_nodes()
@@ -457,6 +494,11 @@ def main():
         init_nodes()
         #restart_nodes()
         logging.getLogger().success("ledger initialized")
+
+    elif args.command == 'init_wallets':
+        init_wallets()
+        #restart_nodes()
+        logging.getLogger().success("wallets initialized")
 
     elif args.command == 'stop':
         stop_all()
