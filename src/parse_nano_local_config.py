@@ -15,7 +15,7 @@ import string
 from pyblake2 import blake2b
 from math import ceil
 
-from src.nano_rpc import NanoTools
+from src.nano_rpc import NanoRpc, NanoTools
 
 _app_dir = os.path.dirname(__file__).replace(
     "/src", "")  #<-- absolute dir the script is in
@@ -298,6 +298,13 @@ class ConfigParser:
             api.append(node_conf["rpc_url"])
         return api
 
+    def map_rpc_endpoint_to_node_name(self, rpc_endpoint: NanoRpc):
+
+        for node_name in self.get_nodes_name():
+            node_conf = self.get_node_config(node_name)
+            if rpc_endpoint.RPC_URL == node_conf["rpc_url"]: return node_name
+        return None
+
     def get_remote_address(self):
         return self.config_dict["remote_address"]
 
@@ -577,7 +584,7 @@ class ConfigParser:
             prom_gateway = self.get_config_value("prom_gateway")
 
             self.compose_dict["services"][container_name][
-                "command"] = f'--rpchost {host_ip} --rpc_port {node_port} --push_gateway {prom_gateway} --hostname {node["name"]} --runid {self.runid}'
+                "command"] = f'--rpchost {host_ip} --rpc_port {node_port} --push_gateway {prom_gateway} --hostname {node["name"]} --runid {self.runid} --interval 2'
             self.compose_dict["services"][container_name][
                 "pid"] = f'service:{node["name"]}'
 

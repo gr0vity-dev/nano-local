@@ -1,7 +1,7 @@
 global:
-  scrape_interval: 15s
-  scrape_timeout: 10s
-  evaluation_interval: 15s
+  scrape_interval: 3s
+  scrape_timeout: 2s
+  evaluation_interval: 3s
 alerting:
   alertmanagers:
   - follow_redirects: true
@@ -14,8 +14,8 @@ scrape_configs:
 - job_name: node
   honor_labels: true
   honor_timestamps: true
-  scrape_interval: 15s
-  scrape_timeout: 10s
+  scrape_interval: 3s
+  scrape_timeout: 2s
   scheme: http
   follow_redirects: true
   static_configs:
