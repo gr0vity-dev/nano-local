@@ -195,6 +195,13 @@ def is_rpc_available(node_names, wait=True):
     logging.info(f"Nodes {_conf.get_nodes_name()} reachable")
 
 
+def get_nodes_name_as_string(node_name, suffix=""):
+    if node_name == 'all':
+        return ' '.join([f'{x}{suffix}' for x in _conf.get_nodes_name()])
+    else:
+        return node_name
+
+
 def prepare_nodes(genesis_node_name):
     #prepare genesis
     prepare_node_env(genesis_node_name)
@@ -211,7 +218,7 @@ def prepare_node_env(node_name):
 
 
 def init_wallets(genesis_node_name="nl_genesis"):
-    start_nodes()  #fixes a bug on mac m1
+    start_nodes('all')  #fixes a bug on mac m1
     init_blocks = InitialBlocks()
     for node_name in _conf.get_nodes_name():
         if node_name == genesis_node_name:
@@ -251,10 +258,10 @@ def start_all(build_f):
     is_rpc_available(_conf.get_nodes_name())
 
 
-def start_prom():
+def start_prom(node_name):
     if not _conf.get_config_value("promexporter_enable"): return
     dir_nano_nodes = _node_path["container"]
-    prom_exporter = ' '.join([f'{x}_exporter' for x in _conf.get_nodes_name()])
+    prom_exporter = get_nodes_name_as_string(node_name, suffix="_exporter")
     command = f'cd {dir_nano_nodes} && docker-compose start {prom_exporter}'
     system(command)
 
@@ -267,29 +274,29 @@ def start_prom_stack():
         system(command)
 
 
-def stop_prom():
+def stop_prom(node_name):
     if not _conf.get_config_value("promexporter_enable"): return
     dir_nano_nodes = _node_path["container"]
-    prom_exporter = ' '.join([f'{x}_exporter' for x in _conf.get_nodes_name()])
+    prom_exporter = get_nodes_name_as_string(node_name, suffix="_exporter")
     command = f'cd {dir_nano_nodes} && docker-compose stop {prom_exporter}'
     system(command)
 
 
-def build_nodes():
+def build_nodes(node_name):
     dir_nano_nodes = _node_path["container"]
-    nodes = ' '.join(_conf.get_nodes_name())
+    nodes = get_nodes_name_as_string(node_name)
     command = f'cd {dir_nano_nodes} && docker-compose build {nodes}'
     system(command)
     logging.getLogger().success(f"nodes [{nodes}] built")
 
 
-def start_nodes():
+def start_nodes(node):
     ''' start nodes '''
     dir_nano_nodes = _node_path["container"]
-    nodes = ' '.join(_conf.get_nodes_name())
+    nodes = get_nodes_name_as_string(node)
     command = f'cd {dir_nano_nodes} && docker-compose start {nodes}'
     system(command)
-    start_prom()  #prom depends on node PID. SHould be started after node
+    start_prom(node)  #prom depends on node PID. SHould be started after node
     is_rpc_available(_conf.get_nodes_name())
 
 
@@ -300,19 +307,19 @@ def stop_all():
     system(command)
 
 
-def stop_nodes():
+def stop_nodes(node):
     ''' stop nodes '''
-    stop_prom()  #prom depends on node PID should be stopped before node.
+    stop_prom(node)  #prom depends on node PID should be stopped before node.
     dir_nano_nodes = _node_path["container"]
-    nodes = ' '.join(_conf.get_nodes_name())
+    nodes = get_nodes_name_as_string(node)
     command = f'cd {dir_nano_nodes} && docker-compose stop {nodes}'
     system(command)
 
 
-def restart_nodes():
+def restart_nodes(node_name):
     ''' restart nodes '''
-    stop_nodes()
-    start_nodes()
+    stop_nodes(node_name)
+    start_nodes(node_name)
 
 
 def restart_wait_sync():
@@ -325,7 +332,7 @@ def restart_wait_sync():
             all_cemented = True
         except AssertionError:
             logging.info("Not all blocks cemented... restarting nodes.")
-            restart_nodes()
+            restart_nodes('all')
             time.sleep(10)
     logging.getLogger().success(
         f'All {block_count["cemented"]} blocks are cemented')
@@ -341,16 +348,20 @@ def network_status():
     logging.getLogger().info(response["msg"])
 
 
-def reset_nodes():
-    stop_nodes()
+def reset_nodes(node):
+
+    stop_nodes(node)
+    commands = []
     dir_nano_nodes = _node_path["container"]
-    commands = [
-        f'cd {dir_nano_nodes} && find . -name "*.ldb"  -type f -delete'
-    ]
+    nodes = _conf.get_nodes_name() if node == 'all' else [node]
+    for node in nodes:
+        path = f'{dir_nano_nodes}/{node}'
+        commands.append(f'cd {path} && find . -name "*.ldb"  -type f -delete')
 
     for command in commands:
+        print("DEBUG", command)
         system(command)
-    start_nodes()
+    start_nodes(node)
 
 
 def destroy_all():
@@ -419,6 +430,12 @@ def parse_args():
     parser.add_argument('--runid',
                         default="default",
                         help='if prom-exporter is enabled, sets the run id')
+    parser.add_argument(
+        '--node',
+        default="all",
+        help=
+        'specify for which node an action takes place. Example "start --node nl_pr1" will only start nl_pr1'
+    )
     parser.add_argument('command',
                         help='create , start, init, stop, reset, destroy',
                         default='create')
@@ -467,15 +484,15 @@ def main():
         create_nodes(args.compose_version)
         start_all(True)
         init_nodes()
-        restart_nodes()
+        restart_nodes('all')
     elif args.command == 'create':
         create_nodes(args.compose_version)
         logging.getLogger().success("./nano_nodes directory was created")
 
     elif args.command == 'build_nodes':
-        stop_nodes()
-        build_nodes()
-        start_nodes()
+        stop_nodes(args.node)
+        build_nodes(args.node)
+        start_nodes(args.node)
         logging.getLogger().success("nodes built & started")
 
     elif args.command == 'start':
@@ -483,7 +500,7 @@ def main():
         logging.getLogger().success("all containers started")
 
     elif args.command == 'start_prom':
-        start_prom()
+        start_prom('all')
         logging.getLogger().success("prom-exporter containers started")
 
     elif args.command == 'start_prom_stack':
@@ -492,12 +509,10 @@ def main():
 
     elif args.command == 'init':
         init_nodes()
-        #restart_nodes()
         logging.getLogger().success("ledger initialized")
 
     elif args.command == 'init_wallets':
         init_wallets()
-        #restart_nodes()
         logging.getLogger().success("wallets initialized")
 
     elif args.command == 'stop':
@@ -505,18 +520,18 @@ def main():
         logging.getLogger().success("all containers stopped")
 
     elif args.command == 'stop_nodes':
-        stop_nodes()
+        stop_nodes(args.node)
         logging.getLogger().success("nodes stopped")
 
     elif args.command == 'restart':
-        restart_nodes()
+        restart_nodes(args.node)
         logging.getLogger().success("nodes restarted")
 
     elif args.command == 'restart_wait_sync':
         restart_wait_sync()
 
     elif args.command == 'reset':
-        reset_nodes()
+        reset_nodes(args.node)
         logging.getLogger().success("data.ldb deleted")
 
     elif args.command == 'destroy':
