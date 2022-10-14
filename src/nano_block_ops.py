@@ -397,10 +397,10 @@ class BlockAsserts():
             })
 
         report = [
-            '{:<16} {:>6}% synced | {}/{} blocks cemented'.format(
+            '{:<16} {:>6.2f}% synced | {}/{} blocks cemented'.format(
                 bc["node_name"],
-                int(bc["cemented"]) / max_count * 100, bc["cemented"],
-                bc["count"]) for bc in nodes
+                round(int(bc["cemented"]) / max_count * 100,
+                      2), bc["cemented"], bc["count"]) for bc in nodes
         ]
         return '\n' + '\n'.join(report)
 
