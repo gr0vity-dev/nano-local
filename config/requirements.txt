@@ -12,3 +12,4 @@ pytest-html
 pandas 
 tabulate
 colorama
+nanolib

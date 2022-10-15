@@ -67,7 +67,7 @@ def create_node_folders(node_name):
             f"cd nano_nodes/{node_name} && mkdir -p nanoNodeMonitor")
 
     for command in commands:
-        system(command)
+        run_shell_command(command)
 
     _node_path[node_name] = {
         "data_path": f"./nano_nodes/{node_name}/NanoTest",
@@ -107,7 +107,7 @@ def write_docker_compose_env(compose_version):
     #Read default env file
     conf_variables = _conf.config_dict
     env_variables = []
-    genesis_block = generate_genesis_open(conf_variables['genesis_key'])
+    genesis_block = json.loads(_conf.get_genesis_block())
     s_genesis_block = str(genesis_block).replace("'", '"')
 
     if compose_version == 1:
@@ -127,6 +127,15 @@ def write_docker_compose_env(compose_version):
                         env_variables)
 
 
+def run_shell_command(command):
+    status = call(command, shell=True)
+    if status == 1:  #retry once
+        print("======== RETRY =======\n", command, "| status:", status)
+        status = call(command, shell=True)
+    if status != 0:
+        raise Exception(f"{command} failed with status:{status}")
+
+
 def subprocess_read_lines(command):
     try:
         res = check_output(command,
@@ -138,24 +147,6 @@ def subprocess_read_lines(command):
             f"command '{e.cmd}' return with error (code {e.returncode}): {e.output}"
         )
     return res.splitlines()
-
-
-def generate_genesis_open(genesis_key):
-    #TODO find a less intrusive way to create a legacy open block.
-    try:
-        docker_exec = f"docker run --name ln_get_genesis nanocurrency/nano-beta:latest nano_node --network=dev --debug_bootstrap_generate --key={genesis_key} "
-        docker_stop_rm = """docker stop ln_get_genesis 1>/dev/null &&
-                            docker rm ln_get_genesis 1>/dev/null &"""
-
-        logging.info("run temporary docker conatiner for genesis generation")
-        blocks = ''.join(subprocess_read_lines(docker_exec)[104:112])
-        logging.info("stop and remove docker container")
-        call(docker_stop_rm, shell=True)
-        return json.loads(str(blocks))
-
-    except Exception as e:
-        logging.error(str(e))
-        system(docker_stop_rm)
 
 
 def is_all_containers_online(node_names):
@@ -259,9 +250,9 @@ def start_all(build_f):
     command = f'cd {dir_nano_nodes} && docker-compose up -d'
     if build_f:
         command = f'cd {dir_nano_nodes} && docker-compose up -d --build'
-    system(command)
+    run_shell_command(command)
     time.sleep(2)
-    is_rpc_available(_conf.get_nodes_name())
+    is_rpc_available(get_nodes_name('all', as_string=False))
 
 
 def start_prom(node_name):
@@ -269,7 +260,7 @@ def start_prom(node_name):
     dir_nano_nodes = _node_path["container"]
     prom_exporter = get_nodes_name(node_name, suffix="_exporter")
     command = f'cd {dir_nano_nodes} && docker-compose start {prom_exporter}'
-    system(command)
+    run_shell_command(command)
 
 
 def start_prom_stack():
@@ -277,7 +268,7 @@ def start_prom_stack():
     if _conf.get_config_value("prom_gateway") == "nl_pushgateway:9091":
         dir_nano_nodes = _node_path["container"]
         command = f'cd {dir_nano_nodes} && docker-compose start nl_prometheus nl_grafana nl_pushgateway'
-        system(command)
+        run_shell_command(command)
 
 
 def stop_prom(node_name):
@@ -285,14 +276,14 @@ def stop_prom(node_name):
     dir_nano_nodes = _node_path["container"]
     prom_exporter = get_nodes_name(node_name, suffix="_exporter")
     command = f'cd {dir_nano_nodes} && docker-compose stop {prom_exporter}'
-    system(command)
+    run_shell_command(command)
 
 
 def build_nodes(node_name):
     dir_nano_nodes = _node_path["container"]
     nodes = get_nodes_name(node_name)
     command = f'cd {dir_nano_nodes} && docker-compose build {nodes}'
-    system(command)
+    run_shell_command(command)
     logging.getLogger().success(f"nodes [{nodes}] built")
 
 
@@ -301,7 +292,7 @@ def start_nodes(node):
     dir_nano_nodes = _node_path["container"]
     nodes = get_nodes_name(node)
     command = f'cd {dir_nano_nodes} && docker-compose start {nodes}'
-    system(command)
+    run_shell_command(command)
     start_prom(node)  #prom depends on node PID. SHould be started after node
     is_rpc_available(get_nodes_name(node, as_string=False))
 
@@ -310,7 +301,7 @@ def stop_all():
     ''' stop all services '''
     dir_nano_nodes = _node_path["container"]
     command = f'cd {dir_nano_nodes} && docker-compose stop'
-    system(command)
+    run_shell_command(command)
 
 
 def stop_nodes(node):
@@ -319,7 +310,7 @@ def stop_nodes(node):
     dir_nano_nodes = _node_path["container"]
     nodes = get_nodes_name(node)
     command = f'cd {dir_nano_nodes} && docker-compose stop {nodes}'
-    system(command)
+    run_shell_command(command)
 
 
 def restart_nodes(node_name):
@@ -366,7 +357,7 @@ def reset_nodes(node):
 
     for command in commands:
         print("DEBUG", command)
-        system(command)
+        run_shell_command(command)
     start_nodes(node)
 
 
@@ -380,7 +371,7 @@ def destroy_all():
     ]  #remove python virtual environemtn
 
     for command in commands:
-        system(command)
+        run_shell_command(command)
 
 
 def run_pytest(output, args):

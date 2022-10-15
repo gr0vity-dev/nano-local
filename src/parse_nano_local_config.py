@@ -14,6 +14,7 @@ from base64 import b32encode, b32decode
 import string
 from pyblake2 import blake2b
 from math import ceil
+from nanolib import Block
 
 from src.nano_rpc import NanoRpc, NanoTools
 
@@ -291,11 +292,52 @@ class ConfigParser:
         expanded_key["seed"] = seed
         return expanded_key
 
+    def get_xnolib_localctx(self):
+        ctx = {
+            'peers': {
+                node: {
+                    "ip": self.get_remote_address(),
+                    "port": port,
+                    "score": 1000,
+                    "is_voting": True if node != "nl_genesis" else False
+                }
+                for node, port in self.get_nodes_rpc_port().items()
+            },
+            'repservurl': '',
+            'genesis_pub': self.get_genesis_account_data()["public"],
+            'epoch_v2_signing_account':
+            self.config_dict["NANO_TEST_CANARY_PUB"],
+            'genesis_block': self.get_genesis_block()
+        }
+
+    def get_genesis_block(self):
+        genesis_account = self.get_genesis_account_data()
+
+        block = Block(block_type="open",
+                      account=genesis_account["account"],
+                      representative=genesis_account["account"],
+                      source=genesis_account["public"])
+
+        block.solve_work(
+            difficulty=self.config_dict["NANO_TEST_EPOCH_1"].replace("0x", ""))
+
+        private_key = genesis_account["private"]
+        block.sign(private_key)
+
+        return block.json()
+
     def get_rpc_endpoints(self):
         api = []
         for node_name in self.get_nodes_name():
             node_conf = self.get_node_config(node_name)
             api.append(node_conf["rpc_url"])
+        return api
+
+    def get_nodes_rpc_port(self):
+        api = {}
+        for node_name in self.get_nodes_name():
+            node_conf = self.get_node_config(node_name)
+            api[node_name] = node_conf["rpc_url"].split(":")[2]
         return api
 
     def map_rpc_endpoint_to_node_name(self, rpc_endpoint: NanoRpc):
