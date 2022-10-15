@@ -195,11 +195,17 @@ def is_rpc_available(node_names, wait=True):
     logging.info(f"Nodes {_conf.get_nodes_name()} reachable")
 
 
-def get_nodes_name_as_string(node_name, suffix=""):
+def get_nodes_name(node_name, as_string=True, suffix=""):
+    result = [node_name]
+    if as_string:
+        result = node_name
+
     if node_name == 'all':
-        return ' '.join([f'{x}{suffix}' for x in _conf.get_nodes_name()])
-    else:
-        return node_name
+        result = [f'{x}{suffix}' for x in _conf.get_nodes_name()]
+        if as_string:
+            result = ' '.join(result)
+
+    return result
 
 
 def prepare_nodes(genesis_node_name):
@@ -261,7 +267,7 @@ def start_all(build_f):
 def start_prom(node_name):
     if not _conf.get_config_value("promexporter_enable"): return
     dir_nano_nodes = _node_path["container"]
-    prom_exporter = get_nodes_name_as_string(node_name, suffix="_exporter")
+    prom_exporter = get_nodes_name(node_name, suffix="_exporter")
     command = f'cd {dir_nano_nodes} && docker-compose start {prom_exporter}'
     system(command)
 
@@ -277,14 +283,14 @@ def start_prom_stack():
 def stop_prom(node_name):
     if not _conf.get_config_value("promexporter_enable"): return
     dir_nano_nodes = _node_path["container"]
-    prom_exporter = get_nodes_name_as_string(node_name, suffix="_exporter")
+    prom_exporter = get_nodes_name(node_name, suffix="_exporter")
     command = f'cd {dir_nano_nodes} && docker-compose stop {prom_exporter}'
     system(command)
 
 
 def build_nodes(node_name):
     dir_nano_nodes = _node_path["container"]
-    nodes = get_nodes_name_as_string(node_name)
+    nodes = get_nodes_name(node_name)
     command = f'cd {dir_nano_nodes} && docker-compose build {nodes}'
     system(command)
     logging.getLogger().success(f"nodes [{nodes}] built")
@@ -293,11 +299,11 @@ def build_nodes(node_name):
 def start_nodes(node):
     ''' start nodes '''
     dir_nano_nodes = _node_path["container"]
-    nodes = get_nodes_name_as_string(node)
+    nodes = get_nodes_name(node)
     command = f'cd {dir_nano_nodes} && docker-compose start {nodes}'
     system(command)
     start_prom(node)  #prom depends on node PID. SHould be started after node
-    is_rpc_available(_conf.get_nodes_name())
+    is_rpc_available(get_nodes_name(node, as_string=False))
 
 
 def stop_all():
@@ -311,7 +317,7 @@ def stop_nodes(node):
     ''' stop nodes '''
     stop_prom(node)  #prom depends on node PID should be stopped before node.
     dir_nano_nodes = _node_path["container"]
-    nodes = get_nodes_name_as_string(node)
+    nodes = get_nodes_name(node)
     command = f'cd {dir_nano_nodes} && docker-compose stop {nodes}'
     system(command)
 
