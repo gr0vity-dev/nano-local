@@ -1,17 +1,12 @@
 #!./venv_nano_local/bin/python
-from lib2to3.pgen2.token import NEWLINE
 from os import system
 from math import ceil, log10
 from time import time
 from src.nano_rpc import NanoRpc, NanoTools
 from src.parse_nano_local_config import ConfigParser, ConfigReadWrite
-import copy
 from interruptingcow import timeout
-import logging
 import time
-import json
 import unittest
-import traceback
 
 
 class BlockGenerator():
