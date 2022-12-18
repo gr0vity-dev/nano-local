@@ -32,7 +32,6 @@ A test-suite with some basic network- and block propagation checks can be run af
 | create            |<code>$ ./nl_run.py create</code>      | Create folders and node config |
 | start             |<code>$ ./nl_run.py start</code>       | Start all nodes and services (optional flag <code>--build = true</code> rebuilds docker containers)|
 | init              |<code>$ ./nl_run.py init</code>        | Create Epochs Canary Burn and Vote weight distribution |
-| csi               |<code>$ ./nl_run.py csi</code>         | Do all of the above : c(reate) s(tart) i(nit) |
 | test              |<code>$ ./nl_run.py test</code>        | runs tests from <code>[testcase]</code> section of <code>nl_config.toml</code>  |
 | pytest            |<code>$ ./nl_run.py pytest</code>      | runs tests from <code>[testcase]</code> section of <code>nl_config.toml</code> |
 | stop              |<code>$ ./nl_run.py stop</code>        | Stop all nodes and services |
