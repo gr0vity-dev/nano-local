@@ -1,5 +1,5 @@
 <?php
-//Default config. nanoNodeName, nanoNodeRPCIP and nanoNodeAccount will be replaced by [ ./run_nano_local.py create ] command
+//Default config. nanoNodeName, nanoNodeRPCIP and nanoNodeAccount will be replaced by [ ./nl_run.py.py create ] command
 $currency = 'nano';
 $themeChoice = 'dark';
 $nanoNodeName = 'nl_genesis'; #needs to be line 5

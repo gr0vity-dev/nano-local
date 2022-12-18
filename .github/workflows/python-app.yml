@@ -24,10 +24,10 @@ jobs:
        run: ./venv_nano_local.sh
      - name: setup nano-local network
        run: |
-         ./run_nano_local.py create 
-         ./run_nano_local.py start
-         ./run_nano_local.py init
+         ./nl_run.py.py create 
+         ./nl_run.py.py start
+         ./nl_run.py.py init
      - name: wait for nodes to sync
-       run: ./run_nano_local.py restart_wait_sync
+       run: ./nl_run.py.py restart_wait_sync
      - name: run testcases
-       run: ./run_nano_local.py pytest
+       run: ./nl_run.py.py pytest
