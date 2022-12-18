@@ -1,14 +1,21 @@
 # nano-local
-nano-local is a feature complete local nanocurrency network that enables prototyping on a local version of the nano network.
-This projects enables you to spin up your own local nano network with your own genesis block.
-RPC access to the genesis account is enabled by default at port http://localhost:45000 
-All configuration is done inside <code>nl_config.toml</code>
-Many additional services can be enabled : [nanolooker, nanoNodeMonitor, nano-vote-visualizer, nanoticker]
-A test-suite is included to do some basic checks. Currently some tests may fail.
+
+This project aims to easily spin up custom [nano-currency](https://nano.org) network on your local computer.
+The default config spins up a network 4 node : 1 genesis and 3 voting nodes of which each holds 33.3% of the total vote weight.
+Each node comes with their rpc and websocket endpoint enabled.
+
+All configuration is done inside the config file :  `nanolocal/nl_config.toml`
+Many additional services can be enabled : 
+- nanolooker
+- nanoNodeMonitor
+- nano-vote-visualizer
+- nanoticker
+A test-suite with some basic network- and block propagation checks can be run after having initialised the network.
 
 
-prerequisites : 
-* python3
+## prerequisites 
+
+* python3.7
 * docker
 * docker-compose (if you use docker-compose v1.xx try adding <code>--compose_version=1</code> flag)
 
@@ -16,24 +23,35 @@ prerequisites :
 
 #### Create a virtual python environment with all dependencies :
 
-<code>$ ./setup_venv.sh</code>
+<code>$ ./setup_python_venv.sh</code>
 
 #### Spin up a network :
 
 | Action            | Code                                          | Description  |
 | :----------       |:--------------------------------------------- | -----|
-| create            |<code>$ ./run_nano_local.py create</code>      | Create folders and node config |
-| start             |<code>$ ./run_nano_local.py start</code>       | Start all nodes and services (optional flag <code>--build = true</code> rebuilds docker containers)|
-| init              |<code>$ ./run_nano_local.py init</code>        | Create Epochs Canary Burn and Vote weight distribution |
-| csi               |<code>$ ./run_nano_local.py csi</code>         | Do all of the above : c(reate) s(tart) i(nit) |
-| test              |<code>$ ./run_nano_local.py test</code>        | runs tests from <code>[testcase]</code> section of <code>nl_config.toml</code>  |
-| pytest            |<code>$ ./run_nano_local.py pytest</code>      | runs tests from <code>[testcase]</code> section of <code>nl_config.toml</code> |
-| stop              |<code>$ ./run_nano_local.py stop</code>        | Stop all nodes and services |
-| stop_nodes        |<code>$ ./run_nano_local.py stop_nodes</code>  | Stop nodes only |
-| restart           |<code>$ ./run_nano_local.py restart</code>     | Restart nodes only  |
-| restart_wait_sync |<code>$ ./run_nano_local.py restart_wait_sync</code>    | Restart nodes until 100% of blocks are confirmed  |
-| reset             |<code>$ ./run_nano_local.py reset</code>       | Delete all blocks except genesis block by removing data.ldb from all nodes |
-| destroy           |<code>$ ./run_nano_local.py destroy</code>     | Remove all nodes and delte virtaul environment |
+| create            |<code>$ ./nl_run.py create</code>      | Create folders and node config |
+| start             |<code>$ ./nl_run.py start</code>       | Start all nodes and services (optional flag <code>--build = true</code> rebuilds docker containers)|
+| init              |<code>$ ./nl_run.py init</code>        | Create Epochs Canary Burn and Vote weight distribution |
+| csi               |<code>$ ./nl_run.py csi</code>         | Do all of the above : c(reate) s(tart) i(nit) |
+| test              |<code>$ ./nl_run.py test</code>        | runs tests from <code>[testcase]</code> section of <code>nl_config.toml</code>  |
+| pytest            |<code>$ ./nl_run.py pytest</code>      | runs tests from <code>[testcase]</code> section of <code>nl_config.toml</code> |
+| stop              |<code>$ ./nl_run.py stop</code>        | Stop all nodes and services |
+| stop_nodes        |<code>$ ./nl_run.py stop_nodes</code>  | Stop nodes only |
+| restart           |<code>$ ./nl_run.py restart</code>     | Restart nodes only  |
+| restart_wait_sync |<code>$ ./nl_run.py restart_wait_sync</code>    | Restart nodes until 100% of blocks are confirmed  |
+| reset             |<code>$ ./nl_run.py reset</code>       | Delete all blocks except genesis block by removing data.ldb from all nodes |
+| destroy           |<code>$ ./nl_run.py destroy</code>     | Remove all nodes and delte virtaul environment |
+
+####  Query nodes :
+
+Each node can be queried via RPC (see the [official documentation](https://docs.nano.org/commands/rpc-protocol/) )
+
+| Node          | RPC                        | Websocket  |
+| :----------   |:-------------------------- | -----------------------|
+| nl_genesis    |http://127.0.0.1:45000      | ws://127.0.0.1:47000 |
+| nl_pr1        |http://127.0.0.1:45001      | ws://127.0.0.1:47001 |
+| nl_pr2        |http://127.0.0.1:45002      | ws://127.0.0.1:47002 |
+| nl_pr3        |http://127.0.0.1:45003      | ws://127.0.0.1:47003 |
 
 
 #### Optional : Configure the network :
@@ -53,7 +71,7 @@ You can enable various services :
 #### Optional : Run Tests :
 
 All tests are configured in the <code>[testcase]</code> section of <code>nl_config.toml</code>
-<code>$ ./run_nano_local.py test</code> runs the configured tests
+<code>$ ./nl_run.py test</code> runs the configured tests
 
 
 
