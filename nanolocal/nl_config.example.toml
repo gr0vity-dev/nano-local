@@ -53,7 +53,7 @@ vote_weight_percent = 33.33
 config_node_path = "./nanolocal/services/default_config-node.toml"
 
 [testcases.basic]
-ignore_module = ""
+#ignore_module = ""
 
 [testcases.basic.NetworkChecks]
 skip_all = false
