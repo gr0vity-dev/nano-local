@@ -21,13 +21,13 @@ jobs:
        with:
          python-version: "3.8.15"
      - name: setup venv
-       run: ./venv_nano_local.sh
+       run: ./setup_python_venv.sh
      - name: setup nano-local network
        run: |
-         ./nl_run.py.py create 
-         ./nl_run.py.py start
-         ./nl_run.py.py init
+         ./nl_run.py create 
+         ./nl_run.py start
+         ./nl_run.py init
      - name: wait for nodes to sync
-       run: ./nl_run.py.py restart_wait_sync
+       run: ./nl_run.py restart_wait_sync
      - name: run testcases
-       run: ./nl_run.py.py pytest
+       run: ./nl_run.py pytest
