@@ -1,0 +1,72 @@
+genesis_key = "12C91837C846F875F56F67CD83040A832CFC0F131AF3DFF9E502C0D43F5D2D15"
+canary_key = "FB4E458CB13508353C5B2574B82F1D1D61367F61E88707F773F068FF90050BEE"
+epoch_count = 2
+burn_amount = "140282366920938463463374607431768211454"
+NANO_TEST_EPOCH_1 = "0xfff0000000000000"
+NANO_TEST_EPOCH_2 = "0x000000000000000f"
+NANO_TEST_EPOCH_2_RECV = "0x000000000000000f"
+NANO_TEST_MAGIC_NUMBER = "LC"
+
+#if you enabel any services , please set the ip for the machine in your network. default 127.0.0.1
+remote_address = '127.0.0.1' 
+#enables nanolooker block explorer at port 42000.
+#creates mongodb docker container with default port 27017
+nanolooker_enable = false
+#If you change these values, you need to run ./nl_run start --build true
+nanolooker_port = 42000
+nanolooker_node_name = "genesis"
+nanolooker_mongo_port = 27017
+
+#Enable monitor on port 46000 for genesis, 46001 for first representative.node , ...
+nanomonitor_enable = false
+#Enable live stats localhost:42002
+nanoticker_enable = false #nanomonitor_enable must be true for this to properly work
+#Enable nano-vote-visualizer for genesis account on port 42001
+nanovotevisu_enable = false
+
+
+[representatives]
+node_prefix = "nl"
+host_port_peer = 44000
+host_port_rpc = 45000
+host_port_ws = 47000
+config_node_path = "./nanolocal/services/default_config-node-voting_disabled.toml"
+config_rpc_path = "./nanolocal/services/default_config-rpc.toml"
+docker_tag = "nanocurrency/nano-beta:V24.0DB26"
+
+[[representatives.nodes]]
+name = "pr1"
+seed = "1110000000000000000000000000000000000000000000000000000000000001"
+vote_weight_percent = 33.33
+config_node_path = "./nanolocal/services/default_config-node.toml"
+
+[[representatives.nodes]]
+name = "pr2"
+seed = "1110000000000000000000000000000000000000000000000000000000000002"
+vote_weight_percent = 33.33
+config_node_path = "./nanolocal/services/default_config-node.toml"
+
+[[representatives.nodes]]
+name = "pr3"
+seed = "1110000000000000000000000000000000000000000000000000000000000003"
+vote_weight_percent = 33.33
+config_node_path = "./nanolocal/services/default_config-node.toml"
+
+[testcases.basic]
+ignore_module = ""
+
+[testcases.basic.NetworkChecks]
+skip_all = false
+test_rpc_online = true
+test_peer_count = true
+test_equal_block_count = true
+test_equal_online_stake_total = true
+test_equal_confirmation_quorum = true
+test_equal_peers_stake_total = true
+test_equal_representatives_online = true
+test_equal_representatives_count = true
+test_all_blocks_confirmed = true
+
+[testcases.basic.BlockPropagation]
+test_1_account_split_10 = false
+test_1_account_split_1000 = false

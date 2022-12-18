@@ -1,0 +1,14 @@
+version: '3'
+
+services:
+  default_exporter:
+    build:
+      context: ../
+      dockerfile: ./services/promexporter/Dockerfile    
+    container_name: ${node_name}_exporter
+    restart: unless-stopped
+    environment:
+      - NANO_PROM_DEBUG=0
+    command: --rpchost ${host_ip} --rpc_port ${node_port} --push_gateway ${prom_gateway} --hostname ${node_name} --interval 2 --runid ${RUNID}
+    networks:
+      - nano-local

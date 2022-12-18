@@ -1,0 +1,47 @@
+version : '3'
+
+#when enable_nanolooker = true, this will be copied into the docker-compose file in nano_nodes
+services:
+  nl_nanolooker_mongo:
+    image: mongo:latest
+    container_name: nanolooker_mongo
+    restart: unless-stopped
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=password
+    ports:
+      - 27017:27017
+    #volumes: #mongo:latest writes with root and removal is only possible root access
+    #  - ./.nl_nanolooker_mongo:/data/db
+    networks:
+    - nano-local
+  
+  nl_nanolooker:  
+    build: 
+      context: ../
+      dockerfile: ./services/nanolooker/Dockerfile
+      args:
+        - REMOTE_ADDRESS=127.0.0.1
+        - MONGO_CONTAINER=nanolooker_mongo
+        - MONGO_PORT=27017
+        - NODE_WEBSOCKET_PORT=47100
+    command: node /usr/src/app/nanolooker/server/server.js    
+    container_name : nanolooker
+    restart: unless-stopped
+    ports:
+      - 42000:3010
+    environment:
+      - NODE_ENV=production
+      - SERVER_PORT=3010
+      - RPC_DOMAIN=http://nl_genesis:17076      
+      - MONGO_USER=root
+      - MONGO_PASSWORD=password
+    networks:
+      - nano-local
+  
+networks:
+  nano-local:
+    name : nano-local
+    external: true
+
+  

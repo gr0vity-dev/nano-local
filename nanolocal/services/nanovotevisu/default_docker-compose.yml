@@ -1,0 +1,18 @@
+version : '3'
+
+#when nanovotevisu_enable = true, this will be copied (and adapted) into the docker-compose file in nano_nodes
+services:
+
+  nl_nanovotevisu:
+    build: 
+      context: ../
+      dockerfile: ./services/nanovotevisu/Dockerfile
+      args:
+        - REMOTE_ADDRESS=127.0.0.1 
+        - HOST_ACCOUNT=nano_1fzwxb8tkmrp8o66xz7tcx65rm57bxdmpitw39ecomiwpjh89zxj33juzt6p
+    container_name : nl_nanovotevisu
+    restart: "unless-stopped"
+    ports:
+    - "42001:80"  
+    networks:
+    - nano-local

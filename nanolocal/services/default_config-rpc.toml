@@ -1,0 +1,13 @@
+
+# Bind address for the RPC server
+# type:string,ip
+address = "::ffff:0.0.0.0"
+
+# Enable or disable control-level requests
+# type:bool
+enable_control = true
+enable_sign_hash = true
+port = 17076
+
+[logging]
+log_rpc = false

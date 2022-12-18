@@ -1,0 +1,20 @@
+ARG NANO_IMAGE="nanocurrency/nano-beta:latest"
+FROM $NANO_IMAGE
+
+
+ARG UID=999
+RUN groupadd -g 1001 nanolocal
+
+
+RUN if [ "$UID" != "0" ] && [ "$UID" != "1000" ]; \
+    then useradd -u ${UID} -g nanolocal -s /bin/sh -m nanolocal ; \
+    fi
+
+ARG TC_ENABLE=FALSE
+RUN if [[ -z "$TC_ENABLE" ]] ; \
+    then echo TC_ENABLE not provided ; \
+    else apt-get update && apt-get install iproute2 -y; \
+    fi
+
+# Switch to user
+USER ${UID}:1001
