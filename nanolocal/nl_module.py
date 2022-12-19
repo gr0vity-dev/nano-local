@@ -398,9 +398,10 @@ class nl_runner():
 
     def network_status(self, ):
         ''' get confirmed count for each node'''
-        response = self.is_all_containers_online(_conf.get_nodes_name())
+        conf = ConfigParser()
+        response = self.is_all_containers_online(conf.get_nodes_name())
         if response["success"]:
-            self.is_rpc_available(_conf.get_nodes_name(), wait=False)
+            self.is_rpc_available(conf.get_nodes_name(), wait=False)
             ba = BlockAsserts()
             logging.getLogger().info(ba.network_status())
         logging.getLogger().info(response["msg"])
@@ -536,7 +537,7 @@ class nl_runner():
                     pytest_output="html",
                     pytest_args="-v -rpf"):
 
-        if command == "status":
+        if command == 'status':
             self.network_status()
         elif command == 'csi':  #c(reate) s(tart) i(nit)
             if self.create_nodes(compose_version):
