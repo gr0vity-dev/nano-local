@@ -2,7 +2,7 @@
 
 import json
 import logging
-from os.path import dirname
+from os.path import dirname, exists as path_exists
 from os import getuid
 from subprocess import call, run, check_output, CalledProcessError, STDOUT, PIPE
 import copy
@@ -46,7 +46,10 @@ _conf_rw = ConfigReadWrite()
 _nano_lib = NanoLibTools()
 _conf = ConfigParser()
 _default_path = "./nanolocal"
-_node_path = {"container": f"{_default_path}/nano_nodes"}
+_node_path = {
+    "container": f"{_default_path}/nano_nodes",
+    "compose": f"{_default_path}/nano_nodes/docker-compose.yml"
+}
 
 
 class nl_runner():
@@ -237,6 +240,18 @@ class nl_runner():
 
         return result
 
+    def validate_config(self, action):
+        response = True
+        if action == "create":
+            for node in _conf.get_nodes_name():
+                if _conf.get_docker_tag(None) == "" and _conf.get_docker_tag(
+                        node) == "":
+                    logging.error(
+                        f"Config error : docker_tag can't be empty for node {node}"
+                    )
+                    response = False
+        return response
+
     def prepare_nodes(self):
         #prepare genesis
         for node_name in _conf.get_nodes_name():
@@ -269,12 +284,14 @@ class nl_runner():
     def init_nodes(self):
 
         self.init_wallets()
-        init_blocks = InitialBlocks(rpc_url=_conf.get_nodes_rpc()[0])
+        init_blocks = InitialBlocks(rpc_url=ConfigParser().get_nodes_rpc()[0])
         init_blocks.publish_initial_blocks()
 
     def create_nodes(self, compose_version):
         global _conf
         _conf = ConfigParser()
+        if not self.validate_config('create'):
+            return False
         self.prepare_nodes()
         self.write_docker_compose_env(compose_version)
         _conf.set_docker_compose()
@@ -282,6 +299,7 @@ class nl_runner():
         _conf.write_docker_compose()
         _conf.print_enabled_services()
         if getuid not in [0, 1000]: self.build_nodes('all')
+        return True
         #workaround to take changes from docker_tag into account
 
     def start_all(self, build_f):
@@ -355,7 +373,8 @@ class nl_runner():
         ''' down nodes '''
         dir_nano_nodes = _node_path["container"]
         command = f'cd {dir_nano_nodes} && docker-compose -p {_conf.get_project_name()} down'
-        self.run_shell_command(command)
+        if path_exists(_node_path["compose"]):
+            self.run_shell_command(command)
 
     def restart_nodes(self, node_name):
         ''' restart nodes '''
@@ -520,13 +539,14 @@ class nl_runner():
         if command == "status":
             self.network_status()
         elif command == 'csi':  #c(reate) s(tart) i(nit)
-            self.create_nodes(compose_version)
-            self.start_all(True)
-            self.init_nodes()
-            self.restart_nodes('all')
+            if self.create_nodes(compose_version):
+                self.start_all(True)
+                self.init_nodes()
+                self.restart_nodes('all')
         elif command == 'create':
-            self.create_nodes(compose_version)
-            logging.getLogger().success("./nano_nodes directory was created")
+            if self.create_nodes(compose_version):
+                logging.getLogger().success(
+                    "./nano_nodes directory was created")
 
         elif command == 'build_nodes':
             self.stop_nodes(node)
