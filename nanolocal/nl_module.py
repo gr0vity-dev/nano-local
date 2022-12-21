@@ -204,6 +204,8 @@ class nl_runner():
 
     def is_rpc_available(self, node_names, wait=True):
         repeat = True  #only query once if wait == false
+        max_timeout_s = 15
+        start_time = time.time()
         while len(node_names) > 0 and repeat:
             repeat = wait
             containers = copy.deepcopy(node_names)
@@ -218,13 +220,16 @@ class nl_runner():
                     if NanoRpc(rpc_url).is_online(timeout=3):
                         node_names.remove(container)
                     else:
-                        logging.warning(
-                            f"RPC {rpc_url} not yet reachable for node {container} docker_version: {_conf.get_docker_tag(container)}"
-                        )
+                        log_message = f"RPC {rpc_url} not yet reachable for node {container} docker_version: {_conf.get_docker_tag(container)}"
+                        if time.time() - start_time > max_timeout_s:
+                            raise ValueError("TIMEOUT:" + log_message)
+                        logging.warning(log_message)
                 else:
-                    logging.warning(
-                        f"No RPC ({response}) is available for  node {container} docker_version: {_conf.get_docker_tag(container)}"
-                    )
+                    log_message = f"No RPC ({response}) is available for  node {container} docker_version: {_conf.get_docker_tag(container)}"
+                    if time.time() - start_time > max_timeout_s:
+                        raise ValueError("TIMEOUT:" + log_message)
+                    logging.warning(log_message)
+                    time.sleep(1)
 
         logging.info(f"Nodes {_conf.get_nodes_name()} reachable")
 
