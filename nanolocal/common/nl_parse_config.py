@@ -7,12 +7,6 @@ import oyaml as yaml
 import secrets
 import json
 import copy
-import hashlib
-from ed25519_blake2b import SigningKey
-from binascii import hexlify, unhexlify
-from base64 import b32encode, b32decode
-import string
-from pyblake2 import blake2b
 from math import ceil
 from nanolib import Block
 from extradict import NestedData
@@ -362,19 +356,6 @@ class ConfigParser:
 
     def set_prom_runid(self, runid):
         self.runid = runid
-
-    # def account_from_seed(self, seed):
-    #     seed_u = unhexlify(seed)
-    #     index = 0x00000000.to_bytes(4, 'big')  # 1
-    #     blake2b_state = hashlib.blake2b(digest_size=32)
-    #     concat = seed_u + index
-    #     blake2b_state.update(concat)
-    #     # where `+` means concatenation, not sum: https://docs.python.org/3/library/hashlib.html#hashlib.hash.update
-    #     # code line above is equal to `blake2b_state.update(seed); blake2b_state.update(index)`
-    #     private_key = blake2b_state.digest()
-    #     expanded_key = self.key_expand(hexlify(private_key))
-    #     expanded_key["seed"] = seed
-    #     return expanded_key
 
     def get_name_with_prefix(self, node_name):
         return self.get_node_prefix() + node_name
