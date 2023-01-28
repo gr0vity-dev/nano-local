@@ -245,7 +245,6 @@ class BlockGenerator():
                         current_depth=0):
         fork_blocks = {"gap": [], "forks": []}
         nano_rpc = self.get_nano_rpc_default()
-        print(">>>>DEBUG RPC URL", nano_rpc.RPC_URL)
         send_block = nano_rpc.create_block(
             "send",
             source_seed=source_seed,
@@ -569,16 +568,26 @@ class BlockAsserts():
         else:
             self.tc.fail("Blocks must be of list or dict type")
 
-    def network_status(self):
+    def network_status(self, nodes_name: list = None):
+        if nodes_name == []: return ""
+
         max_count = 0
-        nodes = []
-        for nano_rpc in self.nano_rpc_all:
+        nodes_block_count = []
+
+        if nodes_name is not None:
+            nodes_rpc = [
+                NanoRpc(_CONFP.get_node_rpc(node)) for node in nodes_name
+            ]
+        else:
+            nodes_rpc = self.nano_rpc_all
+
+        for nano_rpc in nodes_rpc:
             block_count = nano_rpc.block_count()
             version_rpc_call = nano_rpc.version()
             max_count = int(block_count["count"]) if int(
                 block_count["count"]) > max_count else max_count
             node_name = _CONFP.get_node_name_from_rpc_url(nano_rpc)
-            nodes.append({
+            nodes_block_count.append({
                 "node_name": node_name,
                 "count": block_count["count"],
                 "cemented": block_count["cemented"]
@@ -591,14 +600,14 @@ class BlockAsserts():
             '{:<16} {:<20} {:>6.2f}% synced | {}/{} blocks cemented'.format(
                 bc["node_name"], node_version,
                 floor(int(bc["cemented"]) / max_count * 10000) / 100,
-                bc["cemented"], bc["count"]) for bc in nodes
+                bc["cemented"], bc["count"]) for bc in nodes_block_count
         ]
         return '\n' + '\n'.join(report)
 
 
 class BlockReadWrite():
 
-    def __init__(self, rpc_url):
+    def __init__(self, rpc_url=None):
         self.ba = BlockAsserts(rpc_url)
         self.conf_rw = ConfigReadWrite()
 

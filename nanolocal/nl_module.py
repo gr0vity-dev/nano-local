@@ -170,18 +170,23 @@ class nl_runner():
     def is_all_containers_online(self, node_names):
 
         containers_online = 0
+        online_containers = []
         for container in node_names:
             cmd = f"docker ps |grep {container}$ | wc -l"
             res = int(self.subprocess_read_lines(cmd)[0:1][0])
+            if res == 1:
+                online_containers.append(container)
             containers_online = containers_online + res
         if len(node_names) == containers_online:
             return {
                 "success": True,
+                "online_containers": online_containers,
                 "msg": f"All {containers_online} containers online"
             }
         else:
             return {
                 "success": False,
+                "online_containers": online_containers,
                 "msg":
                 f"{containers_online}/{len(node_names)} containers online"
             }
@@ -389,10 +394,9 @@ class nl_runner():
         ''' get confirmed count for each node'''
         conf = ConfigParser()
         response = self.is_all_containers_online(conf.get_nodes_name())
-        if response["success"]:
-            self.is_rpc_available(conf.get_nodes_name(), wait=False)
-            ba = BlockAsserts()
-            logging.getLogger().info(ba.network_status())
+        ba = BlockAsserts()
+        logging.getLogger().info(
+            ba.network_status(nodes_name=response["online_containers"]))
         logging.getLogger().info(response["msg"])
 
     def reset_nodes(self, node):

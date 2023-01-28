@@ -7,12 +7,6 @@ import oyaml as yaml
 import secrets
 import json
 import copy
-import hashlib
-from ed25519_blake2b import SigningKey
-from binascii import hexlify, unhexlify
-from base64 import b32encode, b32decode
-import string
-from pyblake2 import blake2b
 from math import ceil
 from nanolib import Block
 from extradict import NestedData
@@ -361,6 +355,9 @@ class ConfigParser:
         self.config_dict = config_l
         #save to disk aswell
         self.conf_rw.write_toml(_config_path, config_l.data)
+
+    def set_prom_runid(self, runid):
+        self.runid = runid
 
     # def account_from_seed(self, seed):
     #     seed_u = unhexlify(seed)
