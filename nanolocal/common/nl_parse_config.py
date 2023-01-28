@@ -22,9 +22,9 @@ from nanolocal.common.nl_rpc import NanoRpc
 
 _default_path = "nanolocal"
 _app_dir = os.path.dirname(os.path.dirname(__file__))
-_config_dir = os.path.join(_app_dir, "/services")
+_config_dir = os.path.join(_app_dir, "./services")
 _config_path = os.path.join(_app_dir, "./nl_config.toml")
-_default_compose_path = f"{_app_dir}/{_config_dir}/default_docker-compose.yml"
+_default_compose_path = f"{_config_dir}/default_docker-compose.yml"
 _dockerfile_path = os.path.join(_app_dir, "/nano_nodes/{node_name}")
 _default_nanomonitor_config = os.path.join(_config_dir,
                                            "nanomonitor/default_config.php")
@@ -97,7 +97,6 @@ class ConfigReadWrite:
 class ConfigParser:
 
     preconfigured_peers = []
-    runid = "default"
 
     def __init__(self):
         self.enabled_services = []
@@ -255,6 +254,9 @@ class ConfigParser:
         if "prom_gateway" not in self.config_dict:
             self.config_dict["prom_gateway"] = "nl_pushgateway:9091"
 
+        if "prom_runid" not in self.config_dict:
+            self.config_dict["prom_runid"] = "default"
+
         if "tc_enable" not in self.config_dict:
             self.config_dict["tc_enable"] = False
         else:
@@ -359,9 +361,6 @@ class ConfigParser:
         self.config_dict = config_l
         #save to disk aswell
         self.conf_rw.write_toml(_config_path, config_l.data)
-
-    def set_prom_runid(self, runid):
-        self.runid = runid
 
     # def account_from_seed(self, seed):
     #     seed_u = unhexlify(seed)
@@ -768,6 +767,7 @@ class ConfigParser:
             node_rpc_port = node_config["host_port_rpc"]
 
             prom_gateway = self.get_config_value("prom_gateway")
+            prom_runid = self.get_config_value("prom_runid")
 
             nanomonitor_compose = self.conf_rw.read_yaml(
                 f'{_config_dir}/promexporter/default_exporter_docker-compose.yml'
@@ -781,7 +781,7 @@ class ConfigParser:
             self.compose_dict["services"][container_name]["command"]
 
             self.compose_dict["services"][container_name][
-                "command"] = f'--rpchost {host_ip} --rpc_port {node_rpc_port} --push_gateway {prom_gateway} --hostname {node["name"]} --runid {self.runid} --interval 2'
+                "command"] = f'--rpchost {host_ip} --rpc_port {node_rpc_port} --push_gateway {prom_gateway} --hostname {node["name"]} --runid {prom_runid} --interval 2'
 
             self.compose_dict["services"][container_name][
                 "pid"] = f'service:{node["name"]}'
