@@ -188,75 +188,54 @@ class ConfigParser:
     def __config_dict_set_default_values(self):
         #self.config_dict = conf_rw.read_toml(_config_path)
         self.config_dict["NANO_TEST_EPOCH_1"] = "0x000000000000000f"
+        self.config_dict.setdefault("env", "local")
 
-        #set some default values if these are missing in the nl_config.toml
-        if "genesis_key" not in self.config_dict:
-            self.config_dict[
-                "genesis_key"] = "12C91837C846F875F56F67CD83040A832CFC0F131AF3DFF9E502C0D43F5D2D15"
-        if "canary_key" not in self.config_dict:
-            self.config_dict[
-                "canary_key"] = "FB4E458CB13508353C5B2574B82F1D1D61367F61E88707F773F068FF90050BEE"
-        if "epoch_count" not in self.config_dict:
-            self.config_dict["epoch_count"] = 2
+        self.config_dict.setdefault(
+            "genesis_key",
+            "12C91837C846F875F56F67CD83040A832CFC0F131AF3DFF9E502C0D43F5D2D15")
+        self.config_dict.setdefault(
+            "canary_key",
+            "FB4E458CB13508353C5B2574B82F1D1D61367F61E88707F773F068FF90050BEE")
+        self.config_dict.setdefault("epoch_count", 2)
+        self.config_dict.setdefault("NANO_TEST_EPOCH_2", "0xfff0000000000000")
+        self.config_dict.setdefault("NANO_TEST_EPOCH_2_RECV",
+                                    "0xfff0000000000000")
+        self.config_dict.setdefault("NANO_TEST_MAGIC_NUMBER", "LC")
+        self.config_dict.setdefault(
+            "NANO_TEST_CANARY_PUB",
+            "CCAB949948224D6B33ACE0E078F7B2D3F4D79DF945E46915C5300DAEF237934E")
 
-        if "NANO_TEST_EPOCH_2" not in self.config_dict:
-            self.config_dict["NANO_TEST_EPOCH_2"] = "0xfff0000000000000"
-        if "NANO_TEST_EPOCH_2_RECV" not in self.config_dict:
-            self.config_dict["NANO_TEST_EPOCH_2_RECV"] = "0xfff0000000000000"
-        if "NANO_TEST_MAGIC_NUMBER" not in self.config_dict:
-            self.config_dict["NANO_TEST_MAGIC_NUMBER"] = "LC"
-        if "NANO_TEST_CANARY_PUB" not in self.config_dict:
-            self.config_dict[
-                "NANO_TEST_CANARY_PUB"] = "CCAB949948224D6B33ACE0E078F7B2D3F4D79DF945E46915C5300DAEF237934E"
+        #nanolooker
+        self.config_dict.setdefault(
+            "nanolooker_enable",
+            str2bool(self.config_dict.get("nanolooker_enable", False)))
+        self.config_dict.setdefault("nanolooker_port", 42000)
+        self.config_dict.setdefault("nanolooker_node_name", "genesis")
+        self.config_dict.setdefault("nanolooker_mongo_port", 27017)
 
-        if "nanolooker_enable" not in self.config_dict:
-            self.config_dict["nanolooker_enable"] = False
-        else:
-            self.config_dict["nanolooker_enable"] = str2bool(
-                self.config_dict["nanolooker_enable"])
-        if "nanolooker_port" not in self.config_dict:
-            self.config_dict["nanolooker_port"] = 42000
-        #use genesis node attached to nanolooker by default
-        if "nanolooker_node_name" not in self.config_dict:
-            self.config_dict["nanolooker_node_name"] = "genesis"
-        if "nanolooker_mongo_port" not in self.config_dict:
-            self.config_dict["nanolooker_mongo_port"] = 27017
+        #nanomonitor, nanoticker, nano-vote-visualizer
+        self.config_dict.setdefault(
+            "nanomonitor_enable",
+            str2bool(self.config_dict.get("nanomonitor_enable", False)))
+        self.config_dict.setdefault(
+            "nanoticker_enable",
+            str2bool(self.config_dict.get("nanoticker_enable", False)))
+        self.config_dict.setdefault(
+            "nanovotevisu_enable",
+            str2bool(self.config_dict.get("nanovotevisu_enable", False)))
 
-        if "nanomonitor_enable" not in self.config_dict:
-            self.config_dict["nanomonitor_enable"] = False
-        else:
-            self.config_dict["nanomonitor_enable"] = str2bool(
-                self.config_dict["nanomonitor_enable"])
+        #prom-exporter
+        self.config_dict.setdefault(
+            "promexporter_enable",
+            str2bool(self.config_dict.get("promexporter_enable", False)))
+        self.config_dict.setdefault(
+            "prom_gateway",
+            str2bool(self.config_dict.get("nl_pushgateway:9091", False)))
+        self.config_dict.setdefault("prom_runid", "default")
 
-        if "nanoticker_enable" not in self.config_dict:
-            self.config_dict["nanoticker_enable"] = False
-        else:
-            self.config_dict["nanoticker_enable"] = str2bool(
-                self.config_dict["nanoticker_enable"])
-
-        if "nanovotevisu_enable" not in self.config_dict:
-            self.config_dict["nanovotevisu_enable"] = False
-        else:
-            self.config_dict["nanovotevisu_enable"] = str2bool(
-                self.config_dict["nanovotevisu_enable"])
-
-        if "promexporter_enable" not in self.config_dict:
-            self.config_dict["promexporter_enable"] = False
-        else:
-            self.config_dict["promexporter_enable"] = str2bool(
-                self.config_dict["promexporter_enable"])
-        if "prom_gateway" not in self.config_dict:
-            self.config_dict["prom_gateway"] = "nl_pushgateway:9091"
-
-        if "prom_runid" not in self.config_dict:
-            self.config_dict["prom_runid"] = "default"
-
-        if "tc_enable" not in self.config_dict:
-            self.config_dict["tc_enable"] = False
-        else:
-            self.config_dict["tc_enable"] = str2bool(
-                self.config_dict["tc_enable"])
-        return self.config_dict
+        #traffic control
+        self.config_dict.setdefault(
+            "tc_enable", str2bool(self.config_dict.get("tc_enable", False)))
 
     def __config_dict_add_genesis_to_nodes(self):
         genesis_node_name = "genesis"
@@ -404,23 +383,64 @@ class ConfigParser:
         return ctx
 
     def get_genesis_block(self, as_json=False):
-        genesis_account = self.get_genesis_account_data()
 
-        block = Block(block_type="open",
-                      account=genesis_account["account"],
-                      representative=genesis_account["account"],
-                      source=genesis_account["public"])
+        env = self.config_dict["env"]
 
-        block.solve_work(
-            difficulty=self.config_dict["NANO_TEST_EPOCH_1"].replace("0x", ""))
+        if env == "local":
+            genesis_account = self.get_genesis_account_data()
+            block = Block(block_type="open",
+                          account=genesis_account["account"],
+                          representative=genesis_account["account"],
+                          source=genesis_account["public"])
 
-        private_key = genesis_account["private"]
-        block.sign(private_key)
+            block.solve_work(
+                difficulty=self.config_dict["NANO_TEST_EPOCH_1"].replace(
+                    "0x", ""))
+
+            private_key = genesis_account["private"]
+            block.sign(private_key)
+            json_block = block.json()
+
+        elif env == "beta":
+            json_block = str({
+                "type":
+                "open",
+                "source":
+                "259A43ABDB779E97452E188BA3EB951B41C961D3318CA6B925380F4D99F0577A",
+                "representative":
+                "nano_1betagoxpxwykx4kw86dnhosc8t3s7ix8eeentwkcg1hbpez1outjrcyg4n1",
+                "account":
+                "nano_1betagoxpxwykx4kw86dnhosc8t3s7ix8eeentwkcg1hbpez1outjrcyg4n1",
+                "work":
+                "79d4e27dc873c6f2",
+                "signature":
+                "4BD7F96F9ED2721BCEE5EAED400EA50AD00524C629AE55E9AFF11220D2C1B00C3D4B3BB770BF67D4F8658023B677F91110193B6C101C2666931F57046A6DB806"
+            }).replace("'", '"')
+
+        elif env == "live":
+            json_block = str({
+                "type":
+                "open",
+                "source":
+                "E89208DD038FBB269987689621D52292AE9C35941A7484756ECCED92A65093BA",
+                "representative":
+                "xrb_3t6k35gi95xu6tergt6p69ck76ogmitsa8mnijtpxm9fkcm736xtoncuohr3",
+                "account":
+                "xrb_3t6k35gi95xu6tergt6p69ck76ogmitsa8mnijtpxm9fkcm736xtoncuohr3",
+                "work":
+                "62f05417dd3fb691",
+                "signature":
+                "9F0C933C8ADE004D808EA1985FA746A7E95BA2A38F867640F53EC8F180BDFE9E2C1268DEAD7C2664F356E37ABA362BC58E46DBA03E523A7B5A19E4B6EB12BB02"
+            }).replace("'", '"')
+        else:
+            raise ValueError(
+                f'"{env}" is not in the list of accepted valued ["local", "beta", "live"] for variable "env" in nl_config.toml'
+            )
 
         if as_json:
-            return json.loads(block.json())
+            return json.loads(json_block)
 
-        return block.json()
+        return json_block
 
     def get_node_rpc(self, node_name):
         node_conf = self.get_node_config(node_name)
