@@ -121,16 +121,35 @@ class nl_runner():
         genesis_block = json.loads(_conf.get_genesis_block())
         s_genesis_block = str(genesis_block).replace("'", '"')
 
+        #Set genesis block
         if compose_version == 1:
             env_variables.append(
                 f"'NANO_TEST_GENESIS_BLOCK={s_genesis_block}'")
         elif compose_version == 2:
             env_variables.append(f"NANO_TEST_GENESIS_BLOCK={s_genesis_block}")
-        env_variables.append(
-            f'NANO_TEST_GENESIS_PUB="{genesis_block["source"]}"')
-        env_variables.append(
-            f'NANO_TEST_CANARY_PUB="{_nano_lib.key_expand(conf_variables["canary_key"])["public"]}"'
-        )
+
+        if conf_variables.get("env") == "local":
+            env_variables.append(
+                f'NANO_TEST_GENESIS_PUB="{genesis_block["source"]}"')
+            env_variables.append(
+                f'NANO_TEST_CANARY_PUB="{_nano_lib.key_expand(conf_variables["canary_key"])["public"]}"'
+            )
+
+        if conf_variables.get("env") == "beta":
+            env_variables.append(
+                f'NANO_TEST_GENESIS_PUB="259A43ABDB779E97452E188BA3EB951B41C961D3318CA6B925380F4D99F0577A"'
+            )
+            env_variables.append(
+                f'NANO_TEST_CANARY_PUB="868C6A9F79D4506E029B378262B91538C5CB26D7C346B63902FFEB365F1C1947"'
+            )
+
+        if conf_variables.get("env") == "live":
+            env_variables.append(
+                f'NANO_TEST_GENESIS_PUB="E89208DD038FBB269987689621D52292AE9C35941A7484756ECCED92A65093BA"'
+            )
+            env_variables.append(
+                f'NANO_TEST_CANARY_PUB="7CBAF192A3763DAEC9F9BAC1B2CDF665D8369F8400B4BC5AB4BA31C00BAA4404"'
+            )
 
         for key, value in conf_variables.items():
             if key.startswith("NANO_TEST_"):
