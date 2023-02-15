@@ -382,6 +382,22 @@ class ConfigParser:
 
         return ctx
 
+    def get_canary_pub_key(self):
+        env = self.config_dict["env"]
+        canary_pub = ""
+        if env == "local":
+            canary_pub = self.nano_lib.key_expand(
+                self.config_dict["canary_key"])["public"]
+        elif env == "beta":
+            canary_pub = "868C6A9F79D4506E029B378262B91538C5CB26D7C346B63902FFEB365F1C1947"
+        elif env == "live":
+            canary_pub = "7CBAF192A3763DAEC9F9BAC1B2CDF665D8369F8400B4BC5AB4BA31C00BAA4404"
+        else:
+            raise ValueError(
+                f'"{env}" is not in the list of accepted valued ["local", "beta", "live"] for variable "env" in nl_config.toml'
+            )
+        return canary_pub
+
     def get_genesis_block(self, as_json=False):
 
         env = self.config_dict["env"]
