@@ -1,0 +1,12 @@
+version : '3'
+
+services:
+
+  ns_tcpdump:
+    build: 
+      context: ../
+      dockerfile: ./services/tcpdump/Dockerfile
+    container_name : ns_tcpdump
+    volumes:
+    - ./FILENAME:/nano-local.pcap
+    network_mode: "host"

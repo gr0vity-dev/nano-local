@@ -1,0 +1,19 @@
+{
+    "comment" : " 'files_name_in' is automatically populated by ./run_nano_local.py when tcpdump_enable is set to true in the nano_local_config.toml file",
+    "files_name_in": [
+        "path/to/file1.pcap",
+        "path/to/file2.pcap",
+        "path/to/file3.pcap"
+    ],
+    "export_command": "tshark -VP -Y 'tcp.len>0 and nano.confirm_ack.vote_by_hash.hash or nano.confirm_req.hash_pair.first' -r $FILENAME > $FILENAME.txt",
+    "tshark_path": "path/to/tshark_executable",
+    "neo4j": {
+        "client": "neo4j",
+        "connection": {
+            "host": "127.0.0.1",
+            "user": "neo4j",
+            "password": "neo4j",
+            "port": "7687"
+        }
+    }
+}

@@ -7,6 +7,7 @@ import oyaml as yaml
 import secrets
 import json
 import copy
+from datetime import datetime
 from math import ceil
 from nanolib import Block
 from extradict import NestedData
@@ -23,6 +24,7 @@ _dockerfile_path = os.path.join(_app_dir, "/nano_nodes/{node_name}")
 _default_nanomonitor_config = os.path.join(_config_dir,
                                            "nanomonitor/default_config.php")
 _nano_nodes_path = os.path.join(_app_dir, "./nano_nodes")
+_tcp_analyzer_path = "./tcp_analyzer/"
 
 #compose output file : nano-local/nano_nodes/docker-compose.yml
 
@@ -230,12 +232,21 @@ class ConfigParser:
             str2bool(self.config_dict.get("promexporter_enable", False)))
         self.config_dict.setdefault(
             "prom_gateway",
-            str2bool(self.config_dict.get("nl_pushgateway:9091", False)))
+            str2bool(
+                self.config_dict.get("prom_gateway", "nl_pushgateway:9091")))
         self.config_dict.setdefault("prom_runid", "default")
 
         #traffic control
         self.config_dict.setdefault(
             "tc_enable", str2bool(self.config_dict.get("tc_enable", False)))
+
+        #tcpdump
+        self.config_dict.setdefault(
+            "tcpdump_enable",
+            str2bool(self.config_dict.get("tcpdump_enable", False)))
+        self.config_dict.setdefault(
+            "tcpdump_filename",
+            f"nl_tcpdump_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pcap")
 
     def __config_dict_add_genesis_to_nodes(self):
         genesis_node_name = "genesis"
@@ -689,6 +700,9 @@ class ConfigParser:
         if bool(self.get_config_value("promexporter_enable")):
             self.set_promexporter_compose()
 
+        if bool(self.get_config_value("tcpdump_enable")):
+            self.set_tcpdump_compose()
+
         #remove default container
         for service in default_service_names:
             self.compose_dict["services"].pop(service, None)
@@ -825,6 +839,45 @@ class ConfigParser:
         self.enabled_services.append(
             f'promexporter enabled at {self.get_config_value("remote_address")}:42005'
         )
+
+    def set_tcpdump_compose(self):
+
+        tcp_analyzer_config_path = f'{_tcp_analyzer_path}/config.json'
+        if not os.path.exists(tcp_analyzer_config_path):
+            conf_source_path = f'{_config_dir}/tcpdump/tcp_analyzer_config.example.json'
+            copy_conf = f'cp -p {conf_source_path} {tcp_analyzer_config_path}'
+            os.system(copy_conf)
+
+        tcp_analyzer_config = self.conf_rw.read_json(tcp_analyzer_config_path)
+        tcp_analyzer_config["files_name_in"] = []
+
+        tcpdump_compose = self.conf_rw.read_yaml(
+            f'{_config_dir}/tcpdump/default_docker-compose.yml')
+        container = tcpdump_compose["services"]["ns_tcpdump"]
+
+        container_name = f'ns_tcpdump'
+        pcap_file_name = f'{self.get_config_value("tcpdump_filename")}'
+
+        #container_name = 'ns_tcpdump'
+
+        self.compose_dict["services"][container_name] = container
+        self.compose_dict["services"][container_name][
+            "container_name"] = container_name
+
+        #mount pcap file
+        self.compose_dict["services"][container_name]["volumes"][
+            0] = self.compose_dict["services"][container_name]["volumes"][
+                0].replace("FILENAME", pcap_file_name)
+        #network_mode
+        self.compose_dict["services"][container_name]["network_mode"] = "host"
+
+        #manually create the mounted file, otherwise docker-compose will create a directory
+        pcap_file_path = f'{_nano_nodes_path}/{pcap_file_name}'
+        tcp_analyzer_config["files_name_in"].append(pcap_file_path)
+        subprocess.call(f'touch {pcap_file_path}', shell=True)
+        self.enabled_services.append(
+            f'TCPDUMP enabled ! This may lead to a decrease in performance!')
+        self.conf_rw.write_json(tcp_analyzer_config_path, tcp_analyzer_config)
 
     def print_enabled_services(self):
         for service in self.enabled_services:
