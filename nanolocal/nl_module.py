@@ -261,7 +261,7 @@ class nl_runner():
         self.write_nanomonitor_config(node_name)
 
     def init_wallets(self):
-        self.start_nodes('all')  #fixes a bug on mac m1
+        #self.start_nodes('all')  #fixes a bug on mac m1
         init_blocks = InitialBlocks(rpc_url=_conf.get_nodes_rpc()[0])
         for node_name in _conf.get_nodes_name():
             if node_name == _conf.get_genesis_node_name():
