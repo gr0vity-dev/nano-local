@@ -137,6 +137,7 @@ class ConfigParser:
             self.config_dict["canary_key"])
 
     def __config_dict_set_node_variables(self):
+        self.config_dict.setdefault("env", "local")
         modified_config = False
 
         if "remote_address" not in self.config_dict:
@@ -170,16 +171,22 @@ class ConfigParser:
 
             #Add ports for each node
             node["name"] = self.get_node_prefix() + node["name"]
+
+            if self.config_dict["env"] == "gcloud": host_port_inc = 0
+
             node["host_port_peer"] = self.config_dict["representatives"][
                 "host_port_peer"] + host_port_inc
             node["host_port_rpc"] = self.config_dict["representatives"][
                 "host_port_rpc"] + host_port_inc
             node["host_port_ws"] = self.config_dict["representatives"][
                 "host_port_ws"] + host_port_inc
+
+            if "host_ip" not in node:
+                node["host_ip"] = self.config_dict["remote_address"]
+
             node[
-                "rpc_url"] = f'http://{self.config_dict["remote_address"]}:{node["host_port_rpc"]}'
-            node[
-                "ws_url"] = f'ws://{self.config_dict["remote_address"]}:{node["host_port_ws"]}'
+                "rpc_url"] = f'http://{node["host_ip"]}:{node["host_port_rpc"]}'
+            node["ws_url"] = f'ws://{node["host_ip"]}:{node["host_port_ws"]}'
             host_port_inc = host_port_inc + 1
 
         if modified_config:
@@ -190,7 +197,6 @@ class ConfigParser:
     def __config_dict_set_default_values(self):
         #self.config_dict = conf_rw.read_toml(_config_path)
         self.config_dict["NANO_TEST_EPOCH_1"] = "0x000000000000000f"
-        self.config_dict.setdefault("env", "local")
 
         self.config_dict.setdefault(
             "genesis_key",
@@ -250,6 +256,15 @@ class ConfigParser:
 
     def __config_dict_add_genesis_to_nodes(self):
         genesis_node_name = "genesis"
+        genesis_node = next(
+            (d for d in self.config_dict["representatives"]["nodes"]
+             if d["name"] == genesis_node_name), None)
+
+        if genesis_node:
+            genesis_node.setdefault("key", self.config_dict["genesis_key"])
+            genesis_node.setdefault("is_genesis", True)
+            return
+
         self.config_dict["representatives"]["nodes"].insert(
             0, {
                 "name": genesis_node_name,
@@ -376,7 +391,7 @@ class ConfigParser:
         ctx = {
             'peers': {
                 node_conf["name"]: {
-                    "ip": f'::ffff:{self.get_remote_address()}',
+                    "ip": f'::ffff:{node_conf["host_ip"]}',
                     "port": node_conf["host_port_peer"],
                     "score": 1000,
                     "is_voting": node_conf["is_pr"]
@@ -396,7 +411,7 @@ class ConfigParser:
     def get_canary_pub_key(self):
         env = self.config_dict["env"]
         canary_pub = ""
-        if env == "local":
+        if env in ["gcloud", "local"]:
             canary_pub = self.nano_lib.key_expand(
                 self.config_dict["canary_key"])["public"]
         elif env == "beta":
@@ -413,7 +428,7 @@ class ConfigParser:
 
         env = self.config_dict["env"]
 
-        if env == "local":
+        if env in ["gcloud", "local"]:
             genesis_account = self.get_genesis_account_data()
             block = Block(block_type="open",
                           account=genesis_account["account"],
