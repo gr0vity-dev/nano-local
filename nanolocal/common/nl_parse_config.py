@@ -16,7 +16,8 @@ from nanolocal.common.nl_nanolib import NanoLibTools, raw_high_precision_multipl
 from nanolocal.common.nl_rpc import NanoRpc
 
 _default_path = "nanolocal"
-_app_dir = os.path.dirname(os.path.dirname(__file__))
+_app_dir = os.environ.get("NL_APP_DIR",
+                          os.path.dirname(os.path.dirname(__file__)))
 _config_dir = os.path.join(_app_dir, "./services")
 _config_path = os.path.join(_app_dir, "./nl_config.toml")
 _default_compose_path = f"{_config_dir}/default_docker-compose.yml"
